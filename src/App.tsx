@@ -7,9 +7,13 @@ import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import BhytLookup from './pages/BhytLookup';
+import BhxhLookup from './pages/BhxhLookup';
+import BhxhIdLookup from './pages/BhxhIdLookup';
+import FamilyLookup from './pages/FamilyLookup';
 import DeclarationCategories from './pages/DeclarationCategories';
 import CreateDeclaration from './pages/CreateDeclaration';
 import BhytDeclaration from './pages/BhytDeclaration';
+import DeclarationHistory from './pages/DeclarationHistory';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -21,8 +25,16 @@ const AppContent: React.FC = () => {
         return <Dashboard />;
       case 'bhyt-lookup':
         return <BhytLookup />;
+      case 'bhxh-lookup':
+        return <BhxhLookup />;
+      case 'bhxh-id-lookup':
+        return <BhxhIdLookup />;
+      case 'family-lookup':
+        return <FamilyLookup />;
       case 'declaration-categories':
         return <DeclarationCategories />;
+      case 'declaration-history':
+        return <DeclarationHistory />;
       case 'create-declaration':
         return <CreateDeclaration />;
       case 'bhyt-declaration':

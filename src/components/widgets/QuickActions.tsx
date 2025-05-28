@@ -1,13 +1,13 @@
 import React from 'react';
 import { useNavigation } from '../../context/NavigationContext';
-import { Search, FileText, CreditCard, Users, ArrowRight } from 'lucide-react';
+import { Search, FileText, CreditCard, ArrowRight, Hash } from 'lucide-react';
 
 const QuickActions: React.FC = () => {
   const { setCurrentPage } = useNavigation();
 
   const quickActions = [
     {
-      title: 'Tra cứu BHYT',
+      title: 'Tra cứu thông tin BHYT',
       description: 'Tra cứu thông tin thẻ BHYT nhanh chóng',
       icon: Search,
       color: 'bg-blue-500',
@@ -25,22 +25,22 @@ const QuickActions: React.FC = () => {
       count: '1,247'
     },
     {
-      title: 'Quản lý khách hàng',
-      description: 'Quản lý thông tin khách hàng',
-      icon: Users,
+      title: 'Tra cứu mã số BHXH',
+      description: 'Tra cứu thông tin mã số BHXH nhanh chóng',
+      icon: Hash,
       color: 'bg-purple-500',
       hoverColor: 'hover:bg-purple-600',
-      page: 'customers' as const,
-      count: '3,421'
+      page: 'bhxh-id-lookup' as const,
+      count: '1,523'
     },
     {
-      title: 'Thanh toán',
-      description: 'Xem lịch sử và quản lý thanh toán',
+      title: 'Lịch sử kê khai',
+      description: 'Xem lịch sử các kê khai đã thực hiện',
       icon: CreditCard,
       color: 'bg-orange-500',
       hoverColor: 'hover:bg-orange-600',
-      page: 'payments' as const,
-      count: '125.8M'
+      page: 'declaration-history' as const,
+      count: '892'
     }
   ];
 
@@ -75,9 +75,9 @@ const QuickActions: React.FC = () => {
                   <span className="text-lg font-bold text-white">
                     {action.count}
                   </span>
-                  <ArrowRight 
-                    size={16} 
-                    className="text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all duration-200" 
+                  <ArrowRight
+                    size={16}
+                    className="text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all duration-200"
                   />
                 </div>
               </div>

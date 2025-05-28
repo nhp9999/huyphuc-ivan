@@ -7,13 +7,14 @@ import {
   Calendar,
   Mail,
   ChevronLeft,
-  CreditCard,
   Building2,
-  TrendingUp,
   Bell,
-  Database,
-  UserCheck,
-  FileText
+  FileText,
+  History,
+  Users,
+  CreditCard,
+  Shield,
+  Hash
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,17 +29,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
     {
       title: 'Tổng quan',
       items: [
-        { icon: <LayoutDashboard size={20} />, label: 'Tổng quan hệ thống', page: 'dashboard' as const, badge: null },
-        { icon: <TrendingUp size={20} />, label: 'Phân tích', page: 'analytics' as const, badge: null },
+        { icon: <LayoutDashboard size={20} />, label: 'Tổng quan', page: 'dashboard' as const, badge: null },
       ]
     },
     {
-      title: 'Dịch vụ',
+      title: 'Kê khai',
       items: [
-        { icon: <CreditCard size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const, badge: 'New' },
         { icon: <FileText size={20} />, label: 'Danh mục kê khai', page: 'declaration-categories' as const, badge: null },
-        { icon: <UserCheck size={20} />, label: 'Quản lý KH', page: 'customers' as const, badge: null },
-        { icon: <Database size={20} />, label: 'Cơ sở dữ liệu', page: 'documents' as const, badge: null },
+        { icon: <History size={20} />, label: 'Lịch sử kê khai', page: 'declaration-history' as const, badge: null },
+      ]
+    },
+    {
+      title: 'Tra cứu',
+      items: [
+        { icon: <CreditCard size={20} />, label: 'Tra cứu thông tin BHYT', page: 'bhyt-lookup' as const, badge: null },
+        { icon: <Shield size={20} />, label: 'Tra cứu thông tin BHXH', page: 'bhxh-lookup' as const, badge: null },
+        { icon: <Hash size={20} />, label: 'Tra cứu mã số BHXH', page: 'bhxh-id-lookup' as const, badge: null },
+        { icon: <Users size={20} />, label: 'Tra cứu hộ gia đình', page: 'family-lookup' as const, badge: null },
       ]
     },
     {
@@ -72,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             </div>
             <div>
               <h1 className="text-base font-bold text-gray-900 dark:text-white">Huy Phuc Company</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Kê khai BHYT và BHXH tự nguyện</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Kê khai BHYT và BHXH TN</p>
             </div>
           </div>
         ) : (

@@ -12,9 +12,10 @@
 - ✅ Tăng chiều cao header từ 16 lên 20 (h-20)
 
 ### 2. **Tổ chức Navigation**
-- ✅ Nhóm menu items theo 4 categories:
-  - **Tổng quan**: Dashboard, Phân tích
-  - **Dịch vụ**: Tra cứu BHYT, Quản lý KH, Cơ sở dữ liệu
+- ✅ Nhóm menu items theo 5 categories:
+  - **Tổng quan**: Dashboard
+  - **Kê khai**: Danh mục kê khai, Lịch sử kê khai
+  - **Tra cứu**: Tra cứu BHYT
   - **Giao tiếp**: Tin nhắn, Lịch hẹn, Thông báo
   - **Hệ thống**: Cài đặt
 - ✅ Thêm section headers với typography cải tiến
