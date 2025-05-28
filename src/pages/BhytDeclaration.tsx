@@ -11,6 +11,22 @@ import {
   Loader2
 } from 'lucide-react';
 
+// Helper function để convert từ DD/MM/YYYY sang YYYY-MM-DD cho date input
+const convertDisplayDateToInputDate = (displayDate: string): string => {
+  if (!displayDate) return '';
+
+  // Kiểm tra format DD/MM/YYYY
+  const parts = displayDate.split('/');
+  if (parts.length === 3) {
+    const day = parts[0].padStart(2, '0');
+    const month = parts[1].padStart(2, '0');
+    const year = parts[2];
+    return `${year}-${month}-${day}`;
+  }
+
+  return displayDate; // Trả về nguyên bản nếu không đúng format
+};
+
 const BhytDeclaration: React.FC = () => {
   const [formData, setFormData] = useState({
     // Thông tin cơ bản
@@ -46,7 +62,10 @@ const BhytDeclaration: React.FC = () => {
     maBenhVien: '',
     maHoGiaDinh: '',
     phuongAn: '',
-    trangThai: ''
+    trangThai: '',
+    // Thêm thông tin thẻ cũ
+    tuNgayTheCu: '',
+    denNgayTheCu: ''
   });
 
 
@@ -64,7 +83,10 @@ const BhytDeclaration: React.FC = () => {
       tuThang: '',
       denThang: '',
       soTienDong: '',
-      ghiChu: ''
+      ghiChu: '',
+      // Thêm thông tin thẻ cũ
+      tuNgayTheCu: '',
+      denNgayTheCu: ''
     }
   ]);
 
@@ -122,7 +144,10 @@ const BhytDeclaration: React.FC = () => {
       tuThang: '',
       denThang: '',
       soTienDong: '',
-      ghiChu: ''
+      ghiChu: '',
+      // Thêm thông tin thẻ cũ
+      tuNgayTheCu: '',
+      denNgayTheCu: ''
     };
     setParticipants(prev => [...prev, newParticipant]);
   };
@@ -165,7 +190,10 @@ const BhytDeclaration: React.FC = () => {
             noiDangKyKCB: response.data!.noiDangKyKCB,
             mucLuong: response.data!.mucLuong || '',
             tyLeDong: response.data!.tyLeDong || '4.5',
-            soTienDong: response.data!.soTienDong || ''
+            soTienDong: response.data!.soTienDong || '',
+            // Thêm thông tin thẻ cũ - convert từ DD/MM/YYYY sang YYYY-MM-DD cho date input
+            tuNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHieuLuc || ''),
+            denNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHetHan || '')
           } : p
         ));
 
@@ -265,7 +293,10 @@ const BhytDeclaration: React.FC = () => {
           maBenhVien: response.data!.maBenhVien || '',
           maHoGiaDinh: response.data!.maHoGiaDinh || '',
           phuongAn: response.data!.phuongAn || '',
-          trangThai: response.data!.trangThaiThe || ''
+          trangThai: response.data!.trangThaiThe || '',
+          // Thêm thông tin thẻ cũ - convert từ DD/MM/YYYY sang YYYY-MM-DD cho date input
+          tuNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHieuLuc || ''),
+          denNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHetHan || '')
         }));
 
         // Cập nhật participant đầu tiên
@@ -423,7 +454,7 @@ const BhytDeclaration: React.FC = () => {
         {/* Thông tin BHYT */}
         <div className="p-6 border-t border-gray-200 dark:border-gray-700">
           <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Thông tin BHYT</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Số thẻ BHYT
@@ -472,6 +503,30 @@ const BhytDeclaration: React.FC = () => {
                 onChange={(e) => handleInputChange('danToc', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="Mã dân tộc"
+                readOnly
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Từ ngày thẻ cũ
+              </label>
+              <input
+                type="date"
+                value={formData.tuNgayTheCu}
+                onChange={(e) => handleInputChange('tuNgayTheCu', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                readOnly
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Đến ngày thẻ cũ
+              </label>
+              <input
+                type="date"
+                value={formData.denNgayTheCu}
+                onChange={(e) => handleInputChange('denNgayTheCu', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 readOnly
               />
             </div>
