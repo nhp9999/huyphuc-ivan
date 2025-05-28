@@ -1,29 +1,17 @@
 import React, { useState } from 'react';
-import { useNavigation } from '../context/NavigationContext';
 import { bhytService } from '../services/bhytService';
 import { BhytDeclarationRequest } from '../types/bhyt';
 import Toast from '../components/Toast';
 import {
-  FileText,
-  User,
-  Calendar,
-  MapPin,
-  Building,
-  CreditCard,
   Save,
   Send,
-  Printer,
-  Download,
-  X,
   Plus,
-  Edit,
   Trash2,
   Search,
   Loader2
 } from 'lucide-react';
 
 const BhytDeclaration: React.FC = () => {
-  const { pageParams, setCurrentPage } = useNavigation();
   const [formData, setFormData] = useState({
     // Thông tin cơ bản
     hoTen: '',
@@ -32,9 +20,7 @@ const BhytDeclaration: React.FC = () => {
     gioiTinh: 'Nam',
     soCCCD: '',
     noiDangKyKCB: '',
-    diaChi: '',
     soDienThoai: '',
-    email: '',
     soTheBHYT: '',
     quocTich: 'VN',
     danToc: '',
@@ -60,8 +46,7 @@ const BhytDeclaration: React.FC = () => {
     maBenhVien: '',
     maHoGiaDinh: '',
     phuongAn: '',
-    trangThai: '',
-    moTa: ''
+    trangThai: ''
   });
 
 
@@ -206,18 +191,9 @@ const BhytDeclaration: React.FC = () => {
     // Implement submit logic
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
 
-  const handleExport = () => {
-    console.log('Exporting BHYT declaration:', { formData, participants });
-    // Implement export logic
-  };
 
-  const handleBack = () => {
-    setCurrentPage('create-declaration');
-  };
+
 
   // Hàm xử lý khi bấm Enter trong ô mã số BHXH
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -266,7 +242,6 @@ const BhytDeclaration: React.FC = () => {
           gioiTinh: response.data!.gioiTinh,
           soCCCD: response.data!.cmnd,
           noiDangKyKCB: response.data!.noiDangKyKCB,
-          diaChi: response.data!.diaChi,
           soDienThoai: response.data!.soDienThoai,
           soTheBHYT: response.data!.soTheBHYT,
           quocTich: response.data!.quocTich || 'VN',
@@ -290,8 +265,7 @@ const BhytDeclaration: React.FC = () => {
           maBenhVien: response.data!.maBenhVien || '',
           maHoGiaDinh: response.data!.maHoGiaDinh || '',
           phuongAn: response.data!.phuongAn || '',
-          trangThai: response.data!.trangThaiThe || '',
-          moTa: response.data!.moTa || ''
+          trangThai: response.data!.trangThaiThe || ''
         }));
 
         // Cập nhật participant đầu tiên
@@ -342,39 +316,20 @@ const BhytDeclaration: React.FC = () => {
             <span>Lưu</span>
           </button>
           <button
-            onClick={handleExport}
-            className="flex items-center space-x-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors"
+            onClick={handleSubmit}
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
           >
-            <Download className="w-4 h-4" />
-            <span>Xuất file</span>
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex items-center space-x-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg hover:bg-green-200 dark:hover:bg-green-800/50 transition-colors"
-          >
-            <Printer className="w-4 h-4" />
-            <span>In</span>
+            <Send className="w-4 h-4" />
+            <span>Gửi kê khai</span>
           </button>
         </div>
       </div>
 
-      {/* Thông tin người đăng ký */}
+      {/* Thông tin cá nhân cơ bản */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Thông tin người đăng ký</h3>
+          <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Thông tin cá nhân cơ bản</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Họ và tên (*)
-              </label>
-              <input
-                type="text"
-                value={formData.hoTen}
-                onChange={(e) => handleInputChange('hoTen', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="Nhập họ và tên"
-              />
-            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Mã số BHXH
@@ -401,6 +356,18 @@ const BhytDeclaration: React.FC = () => {
                   )}
                 </button>
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Họ và tên (*)
+              </label>
+              <input
+                type="text"
+                value={formData.hoTen}
+                onChange={(e) => handleInputChange('hoTen', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="Nhập họ và tên"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -440,16 +407,23 @@ const BhytDeclaration: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Nơi đăng ký KCB ban đầu
+                Số điện thoại
               </label>
               <input
-                type="text"
-                value={formData.noiDangKyKCB}
-                onChange={(e) => handleInputChange('noiDangKyKCB', e.target.value)}
+                type="tel"
+                value={formData.soDienThoai}
+                onChange={(e) => handleInputChange('soDienThoai', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="Nhập nơi đăng ký KCB"
+                placeholder="Nhập số điện thoại"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Thông tin BHYT */}
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Thông tin BHYT</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Số thẻ BHYT
@@ -461,6 +435,18 @@ const BhytDeclaration: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="Nhập số thẻ BHYT"
                 readOnly
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Nơi đăng ký KCB ban đầu
+              </label>
+              <input
+                type="text"
+                value={formData.noiDangKyKCB}
+                onChange={(e) => handleInputChange('noiDangKyKCB', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="Nhập nơi đăng ký KCB"
               />
             </div>
             <div>
@@ -492,52 +478,12 @@ const BhytDeclaration: React.FC = () => {
           </div>
         </div>
 
-        {/* Thông tin liên hệ */}
-        <div className="p-6">
-          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Thông tin liên hệ</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Địa chỉ thường trú
-              </label>
-              <input
-                type="text"
-                value={formData.diaChi}
-                onChange={(e) => handleInputChange('diaChi', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="Nhập địa chỉ thường trú"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Số điện thoại
-              </label>
-              <input
-                type="tel"
-                value={formData.soDienThoai}
-                onChange={(e) => handleInputChange('soDienThoai', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="Nhập số điện thoại"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="Nhập email"
-              />
-            </div>
-          </div>
-        </div>
+      </div>
 
-        {/* Thông tin địa chỉ và BHYT bổ sung */}
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Thông tin địa chỉ và BHYT bổ sung</h4>
+      {/* Thông tin địa chỉ hành chính */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-6">
+          <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Thông tin địa chỉ hành chính</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -580,6 +526,45 @@ const BhytDeclaration: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Mã tỉnh NKQ
+              </label>
+              <input
+                type="text"
+                value={formData.maTinhNkq}
+                onChange={(e) => handleInputChange('maTinhNkq', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="Mã tỉnh NKQ"
+                readOnly
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Mã huyện NKQ
+              </label>
+              <input
+                type="text"
+                value={formData.maHuyenNkq}
+                onChange={(e) => handleInputChange('maHuyenNkq', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="Mã huyện NKQ"
+                readOnly
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Mã xã NKQ
+              </label>
+              <input
+                type="text"
+                value={formData.maXaNkq}
+                onChange={(e) => handleInputChange('maXaNkq', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="Mã xã NKQ"
+                readOnly
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Mã bệnh viện
               </label>
               <input
@@ -604,27 +589,14 @@ const BhytDeclaration: React.FC = () => {
                 readOnly
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Mô tả
-              </label>
-              <input
-                type="text"
-                value={formData.moTa}
-                onChange={(e) => handleInputChange('moTa', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="Mô tả"
-                readOnly
-              />
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Thông tin BHYT */}
+      {/* Thông tin đóng BHYT */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Thông tin BHYT</h3>
+          <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Thông tin đóng BHYT</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -681,7 +653,8 @@ const BhytDeclaration: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-6">
+        {/* Thời gian tham gia */}
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
           <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Thời gian tham gia</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
@@ -860,23 +833,7 @@ const BhytDeclaration: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Action Buttons */}
-      <div className="flex justify-center space-x-4">
-        <button
-          onClick={handleSubmit}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
-        >
-          <Send className="w-4 h-4" />
-          <span>Gửi kê khai</span>
-        </button>
-        <button
-          onClick={handleBack}
-          className="flex items-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors"
-        >
-          <X className="w-4 h-4" />
-          <span>Quay lại</span>
-        </button>
-      </div>
+
 
       {/* Toast Notification */}
       <Toast

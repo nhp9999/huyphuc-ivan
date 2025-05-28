@@ -9,9 +9,7 @@ import {
   CreditCard,
   Save,
   Send,
-  Printer,
-  Download,
-  X
+  Download
 } from 'lucide-react';
 
 const CreateDeclaration: React.FC = () => {
@@ -62,10 +60,6 @@ const CreateDeclaration: React.FC = () => {
       declarationName,
       formData
     });
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   const handleExport = () => {
@@ -262,23 +256,7 @@ const CreateDeclaration: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Action Buttons */}
-      <div className="flex justify-center space-x-4">
-        <button
-          onClick={handleSubmit}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
-        >
-          <Send className="w-4 h-4" />
-          <span>Ghi Nhận</span>
-        </button>
-        <button
-          onClick={handlePrint}
-          className="flex items-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors"
-        >
-          <X className="w-4 h-4" />
-          <span>Thoát</span>
-        </button>
-      </div>
+
     </div>
   );
 };
