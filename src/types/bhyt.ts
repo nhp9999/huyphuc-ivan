@@ -122,3 +122,105 @@ export interface BulkLookupProgress {
   percentage: number;
   currentMaSo?: string;
 }
+
+// Interface cho API kê khai BHYT
+export interface BhytDeclarationRequest {
+  maSoBHXH: string;
+  mangLuoiId: number;
+  ma: string;
+  maCoQuanBHXH: string;
+}
+
+// Response data từ API kê khai BHYT
+export interface BhytDeclarationApiData {
+  maSoBHXH: string;
+  hoTen: string;
+  soDienThoai: string;
+  ccns: string;
+  ngaySinh: string;
+  gioiTinh: number;
+  quocTich: string;
+  danToc: string;
+  cmnd: string;
+  maTinhKS: string;
+  maHuyenKS: string;
+  maXaKS: string;
+  maTinhNkq: string;
+  maHuyenNkq: string;
+  maXaNkq: string;
+  tinhKCB: string;
+  noiNhanHoSo: string;
+  maBenhVien: string;
+  maHoGiaDinh: string;
+  soTheBHYT: string;
+  tuNgayTheCu: string;
+  denNgayTheCu: string;
+  typeId: string;
+  phuongAn: string;
+  mucLuongNsTw: number;
+  tyLeNsdp: number;
+  tienNsdp: number;
+  tyLeNsKhac: number;
+  tienNsKhac: number;
+  tyLeNsnn: number;
+  tyLeNsTw: number;
+  trangThai: string;
+  maLoi: string;
+  moTa: string;
+  giaHanThe: number;
+  isThamGiaBb: number;
+}
+
+export interface BhytDeclarationApiResponse {
+  data: BhytDeclarationApiData | null;
+  success: boolean;
+  message: string | null;
+  errors: any | null;
+  status: number;
+  traceId: string;
+}
+
+export interface BhytDeclarationData {
+  maSoBhxh: string;
+  hoTen: string;
+  ngaySinh: string;
+  gioiTinh: string;
+  diaChi: string;
+  noiDangKyKCB: string;
+  trangThaiThe: string;
+  ngayHieuLuc: string;
+  ngayHetHan: string;
+  mucHuong: string;
+  donViCongTac: string;
+  maKV: string;
+  tenKV: string;
+  soDienThoai: string;
+  cmnd: string;
+  soTheBHYT: string;
+  // Thêm các trường đặc biệt cho kê khai
+  loaiDoiTuong?: string;
+  mucLuong?: string;
+  tyLeDong?: string;
+  soTienDong?: string;
+  // Thêm các trường mới từ API response
+  quocTich?: string;
+  danToc?: string;
+  maTinhKS?: string;
+  maHuyenKS?: string;
+  maXaKS?: string;
+  maTinhNkq?: string;
+  maHuyenNkq?: string;
+  maXaNkq?: string;
+  noiNhanHoSo?: string;
+  maBenhVien?: string;
+  maHoGiaDinh?: string;
+  phuongAn?: string;
+  moTa?: string;
+}
+
+export interface BhytDeclarationResponse {
+  success: boolean;
+  data?: BhytDeclarationData;
+  message?: string;
+  error?: string;
+}

@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import BhytLookup from './pages/BhytLookup';
 import DeclarationCategories from './pages/DeclarationCategories';
 import CreateDeclaration from './pages/CreateDeclaration';
+import BhytDeclaration from './pages/BhytDeclaration';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -24,6 +25,8 @@ const AppContent: React.FC = () => {
         return <DeclarationCategories />;
       case 'create-declaration':
         return <CreateDeclaration />;
+      case 'bhyt-declaration':
+        return <BhytDeclaration />;
       case 'settings':
         return <Settings />;
       default:

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-type Page = 'dashboard' | 'settings' | 'analytics' | 'customers' | 'calendar' | 'messages' | 'documents' | 'help' | 'bhyt-lookup' | 'declaration-categories' | 'create-declaration';
+type Page = 'dashboard' | 'settings' | 'analytics' | 'customers' | 'calendar' | 'messages' | 'documents' | 'help' | 'bhyt-lookup' | 'declaration-categories' | 'create-declaration' | 'bhyt-declaration';
 
 interface NavigationContextType {
   currentPage: Page;

@@ -56,7 +56,12 @@ const CreateDeclaration: React.FC = () => {
 
   const handleSubmit = () => {
     console.log('Submitting declaration:', formData);
-    // Implement submit logic
+    // Chuyển hướng đến trang kê khai BHYT
+    setCurrentPage('bhyt-declaration', {
+      declarationCode,
+      declarationName,
+      formData
+    });
   };
 
   const handlePrint = () => {
