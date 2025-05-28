@@ -28,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
     {
       title: 'Tổng quan',
       items: [
-        { icon: <LayoutDashboard size={20} />, label: 'Dashboard', page: 'dashboard' as const, badge: null },
+        { icon: <LayoutDashboard size={20} />, label: 'Tổng quan hệ thống', page: 'dashboard' as const, badge: null },
         { icon: <TrendingUp size={20} />, label: 'Phân tích', page: 'analytics' as const, badge: null },
       ]
     },

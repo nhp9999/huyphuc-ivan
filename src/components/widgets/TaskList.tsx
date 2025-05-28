@@ -26,19 +26,25 @@ const priorityClasses = {
   'high': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
 };
 
+const priorityLabels = {
+  'low': 'Thấp',
+  'medium': 'Trung bình',
+  'high': 'Cao'
+};
+
 const TaskList: React.FC<TaskListProps> = ({ tasks }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Upcoming Tasks</h3>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Công việc sắp tới</h3>
         <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-          View all
+          Xem tất cả
         </button>
       </div>
-      
+
       <div className="space-y-3">
         {tasks.map((task) => (
-          <div 
+          <div
             key={task.id}
             className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
           >
@@ -52,14 +58,14 @@ const TaskList: React.FC<TaskListProps> = ({ tasks }) => {
                     {task.title}
                   </h4>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Due: {task.dueDate}
+                    Hạn: {task.dueDate}
                   </p>
                 </div>
               </div>
-              <span 
+              <span
                 className={`text-xs px-2 py-1 rounded-full ${priorityClasses[task.priority]}`}
               >
-                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                {priorityLabels[task.priority]}
               </span>
             </div>
           </div>

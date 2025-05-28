@@ -1,148 +1,196 @@
 import React from 'react';
-import { Users, DollarSign, ShoppingCart, Activity } from 'lucide-react';
+import { FileText, CreditCard, TrendingUp, CheckCircle, Search, Users, DollarSign } from 'lucide-react';
 import StatsCard from '../components/widgets/StatsCard';
 import BarChart from '../components/charts/BarChart';
 import LineChart from '../components/charts/LineChart';
 import DonutChart from '../components/charts/DonutChart';
 import RecentActivity from '../components/widgets/RecentActivity';
 import TaskList from '../components/widgets/TaskList';
+import QuickActions from '../components/widgets/QuickActions';
+import SystemStatus from '../components/widgets/SystemStatus';
+import QuickStats from '../components/widgets/QuickStats';
 
-// Mock data for the dashboard
+// Mock data for BHYT/BHXH dashboard
 const statsData = [
-  { 
-    title: 'Total Customers', 
-    value: '3,721', 
-    change: { value: 12.5, type: 'increase' }, 
-    icon: Users,
-    color: '#8B5CF6' // Purple
-  },
-  { 
-    title: 'Total Revenue', 
-    value: '$48,352', 
-    change: { value: 8.2, type: 'increase' }, 
-    icon: DollarSign,
+  {
+    title: 'Tổng số kê khai',
+    value: '1,247',
+    change: { value: 15.3, type: 'increase' },
+    icon: FileText,
     color: '#3B82F6' // Blue
   },
-  { 
-    title: 'Total Orders', 
-    value: '1,245', 
-    change: { value: 3.1, type: 'decrease' }, 
-    icon: ShoppingCart,
+  {
+    title: 'Tra cứu BHYT',
+    value: '2,856',
+    change: { value: 22.1, type: 'increase' },
+    icon: CreditCard,
+    color: '#10B981' // Green
+  },
+  {
+    title: 'Tỷ lệ thành công',
+    value: '94.2%',
+    change: { value: 2.8, type: 'increase' },
+    icon: CheckCircle,
     color: '#F59E0B' // Amber
   },
-  { 
-    title: 'Conversion Rate', 
-    value: '28.6%', 
-    change: { value: 4.3, type: 'increase' }, 
-    icon: Activity,
-    color: '#10B981' // Green
+  {
+    title: 'Doanh thu tháng',
+    value: '125.8M',
+    change: { value: 8.7, type: 'increase' },
+    icon: DollarSign,
+    color: '#8B5CF6' // Purple
   }
 ];
 
 const barChartData = [
-  { label: 'Jan', value: 420, color: '#3B82F6' },
-  { label: 'Feb', value: 350, color: '#3B82F6' },
-  { label: 'Mar', value: 580, color: '#3B82F6' },
-  { label: 'Apr', value: 250, color: '#3B82F6' },
-  { label: 'May', value: 800, color: '#3B82F6' },
-  { label: 'Jun', value: 600, color: '#3B82F6' },
+  { label: 'T1', value: 85, color: '#3B82F6' },
+  { label: 'T2', value: 92, color: '#3B82F6' },
+  { label: 'T3', value: 78, color: '#3B82F6' },
+  { label: 'T4', value: 105, color: '#3B82F6' },
+  { label: 'T5', value: 125, color: '#3B82F6' },
+  { label: 'T6', value: 118, color: '#3B82F6' },
 ];
 
 const lineChartData = {
-  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'],
   datasets: [
     {
-      label: 'This Week',
-      data: [28, 45, 35, 50, 32, 55, 70],
+      label: 'Tuần này',
+      data: [45, 52, 38, 67, 43, 58, 35],
       color: '#3B82F6'
     },
     {
-      label: 'Last Week',
-      data: [20, 36, 40, 25, 45, 30, 60],
+      label: 'Tuần trước',
+      data: [38, 45, 42, 55, 48, 52, 40],
       color: '#94A3B8'
     }
   ]
 };
 
 const donutChartData = [
-  { label: 'Electronics', value: 45, color: '#3B82F6' },
-  { label: 'Clothing', value: 30, color: '#8B5CF6' },
-  { label: 'Books', value: 15, color: '#F59E0B' },
-  { label: 'Other', value: 10, color: '#10B981' }
+  { label: 'Đăng ký mới', value: 45, color: '#3B82F6' },
+  { label: 'Gia hạn thẻ', value: 30, color: '#10B981' },
+  { label: 'Cấp lại thẻ', value: 15, color: '#F59E0B' },
+  { label: 'Khác', value: 10, color: '#8B5CF6' }
 ];
 
 const recentActivities = [
   {
     id: 1,
-    title: 'New User Registration',
-    description: 'Jane Smith created a new account',
-    time: '10 minutes ago',
-    icon: 'users'
+    title: 'Kê khai BHYT mới',
+    description: 'Nguyễn Văn An đã tạo kê khai đăng ký BHYT',
+    time: '15 phút trước',
+    icon: 'file-text'
   },
   {
     id: 2,
-    title: 'Order Placed',
-    description: 'Order #38492 was placed',
-    time: '1 hour ago',
-    icon: 'tag'
+    title: 'Tra cứu BHYT thành công',
+    description: 'Tra cứu thông tin BHYT cho mã số 1234567890',
+    time: '30 phút trước',
+    icon: 'search'
   },
   {
     id: 3,
-    title: 'Document Updated',
-    description: 'Sales report for Q2 2023 updated',
-    time: '3 hours ago',
-    icon: 'file'
+    title: 'Hồ sơ được duyệt',
+    description: 'Hồ sơ kê khai #KK2024001 đã được phê duyệt',
+    time: '1 giờ trước',
+    icon: 'check-circle'
   },
   {
     id: 4,
-    title: 'Meeting Scheduled',
-    description: 'Team meeting scheduled for tomorrow',
-    time: '5 hours ago',
-    icon: 'calendar'
+    title: 'Cập nhật danh mục',
+    description: 'Danh mục thủ tục kê khai đã được cập nhật',
+    time: '2 giờ trước',
+    icon: 'database'
+  },
+  {
+    id: 5,
+    title: 'Thanh toán hoàn tất',
+    description: 'Thanh toán phí dịch vụ kê khai BHYT - 500,000 VNĐ',
+    time: '3 giờ trước',
+    icon: 'credit-card'
   }
 ];
 
 const upcomingTasks = [
   {
     id: 1,
-    title: 'Prepare quarterly report',
-    dueDate: 'Today',
+    title: 'Xử lý hồ sơ kê khai BHYT',
+    dueDate: 'Hôm nay',
     status: 'in-progress',
     priority: 'high'
   },
   {
     id: 2,
-    title: 'Client meeting with ABC Corp',
-    dueDate: 'Tomorrow',
+    title: 'Kiểm tra hồ sơ #KK2024002',
+    dueDate: 'Ngày mai',
+    status: 'pending',
+    priority: 'high'
+  },
+  {
+    id: 3,
+    title: 'Cập nhật danh mục thủ tục',
+    dueDate: '15/12/2024',
     status: 'pending',
     priority: 'medium'
   },
   {
-    id: 3,
-    title: 'Review marketing strategy',
-    dueDate: 'Jun 15, 2023',
-    status: 'completed',
+    id: 4,
+    title: 'Nhắc nhở gia hạn thẻ BHYT',
+    dueDate: '10/12/2024',
+    status: 'pending',
     priority: 'medium'
   },
   {
-    id: 4,
-    title: 'Update user documentation',
-    dueDate: 'Jun 10, 2023',
-    status: 'overdue',
+    id: 5,
+    title: 'Báo cáo doanh thu tháng',
+    dueDate: '20/12/2024',
+    status: 'pending',
     priority: 'low'
   }
 ];
+
+// Quick stats data
+const quickStatsData = {
+  title: 'Thống kê nhanh',
+  stats: [
+    {
+      label: 'Hôm nay',
+      value: '47',
+      change: { value: 12, type: 'increase' as const },
+      color: '#3B82F6'
+    },
+    {
+      label: 'Tuần này',
+      value: '312',
+      change: { value: 8, type: 'increase' as const },
+      color: '#10B981'
+    },
+    {
+      label: 'Tháng này',
+      value: '1,247',
+      change: { value: 15, type: 'increase' as const },
+      color: '#F59E0B'
+    },
+    {
+      label: 'Năm nay',
+      value: '12,456',
+      change: { value: 23, type: 'increase' as const },
+      color: '#8B5CF6'
+    }
+  ]
+};
 
 const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tổng quan hệ thống</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Welcome back! Here's an overview of your business.
+          Chào mừng trở lại! Đây là tổng quan về dịch vụ kê khai BHYT và BHXH.
         </p>
       </div>
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {statsData.map((stat, index) => (
@@ -156,34 +204,90 @@ const Dashboard: React.FC = () => {
           />
         ))}
       </div>
-      
+
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-          <LineChart 
-            data={lineChartData} 
-            title="Sales Overview" 
+          <LineChart
+            data={lineChartData}
+            title="Thống kê tra cứu BHYT theo tuần"
           />
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-          <DonutChart 
+          <DonutChart
             data={donutChartData}
-            title="Sales by Category"
+            title="Phân loại kê khai"
           />
         </div>
       </div>
-      
+
       {/* Second Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
           <BarChart
             data={barChartData}
-            title="Monthly Revenue"
+            title="Doanh thu theo tháng (triệu VNĐ)"
           />
         </div>
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
           <RecentActivity activities={recentActivities} />
           <TaskList tasks={upcomingTasks} />
+        </div>
+      </div>
+
+      {/* Third Row - Quick Actions and System Status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <QuickActions />
+        <SystemStatus />
+      </div>
+
+      {/* Fourth Row - Quick Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <QuickStats {...quickStatsData} />
+        <div className="lg:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+              Thông báo hệ thống
+            </h3>
+            <span className="text-sm text-blue-600 dark:text-blue-400">
+              Cập nhật mới nhất
+            </span>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-start space-x-3">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Cập nhật API BHYT VNPost
+                </h4>
+                <p className="text-xs text-blue-800 dark:text-blue-200 mt-1">
+                  API tra cứu BHYT đã được cập nhật với tốc độ xử lý nhanh hơn 30%. Thời gian phản hồi trung bình giảm xuống còn 245ms.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Tính năng mới: Kê khai hàng loạt
+                </h4>
+                <p className="text-xs text-blue-800 dark:text-blue-200 mt-1">
+                  Bây giờ bạn có thể tạo kê khai cho nhiều người cùng lúc, tiết kiệm thời gian xử lý lên đến 70%.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <div className="w-2 h-2 bg-amber-500 rounded-full mt-2"></div>
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Bảo trì định kỳ
+                </h4>
+                <p className="text-xs text-blue-800 dark:text-blue-200 mt-1">
+                  Hệ thống sẽ được bảo trì vào 2:00 AM - 4:00 AM ngày 15/12/2024 để nâng cấp hiệu suất.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
