@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import BhytLookup from './pages/BhytLookup';
+import DeclarationCategories from './pages/DeclarationCategories';
+import CreateDeclaration from './pages/CreateDeclaration';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -18,6 +20,10 @@ const AppContent: React.FC = () => {
         return <Dashboard />;
       case 'bhyt-lookup':
         return <BhytLookup />;
+      case 'declaration-categories':
+        return <DeclarationCategories />;
+      case 'create-declaration':
+        return <CreateDeclaration />;
       case 'settings':
         return <Settings />;
       default:

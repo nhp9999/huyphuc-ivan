@@ -12,7 +12,8 @@ import {
   TrendingUp,
   Bell,
   Database,
-  UserCheck
+  UserCheck,
+  FileText
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,6 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
       title: 'Dịch vụ',
       items: [
         { icon: <CreditCard size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const, badge: 'New' },
+        { icon: <FileText size={20} />, label: 'Danh mục kê khai', page: 'declaration-categories' as const, badge: null },
         { icon: <UserCheck size={20} />, label: 'Quản lý KH', page: 'customers' as const, badge: null },
         { icon: <Database size={20} />, label: 'Cơ sở dữ liệu', page: 'documents' as const, badge: null },
       ]

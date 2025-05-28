@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState } from 'react';
 
-type Page = 'dashboard' | 'settings' | 'analytics' | 'customers' | 'calendar' | 'messages' | 'documents' | 'help' | 'bhyt-lookup';
+type Page = 'dashboard' | 'settings' | 'analytics' | 'customers' | 'calendar' | 'messages' | 'documents' | 'help' | 'bhyt-lookup' | 'declaration-categories' | 'create-declaration';
 
 interface NavigationContextType {
   currentPage: Page;
-  setCurrentPage: (page: Page) => void;
+  setCurrentPage: (page: Page, params?: any) => void;
+  pageParams: any;
 }
 
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
@@ -19,10 +20,17 @@ export const useNavigation = () => {
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [pageParams, setPageParams] = useState<any>(null);
+
+  const handleSetCurrentPage = (page: Page, params?: any) => {
+    setCurrentPage(page);
+    setPageParams(params || null);
+  };
 
   const value = {
     currentPage,
-    setCurrentPage
+    setCurrentPage: handleSetCurrentPage,
+    pageParams
   };
 
   return (
