@@ -184,3 +184,54 @@
     max-height: calc(100dvh - 2rem);
   }
 }
+
+/* Responsive improvements for declaration forms */
+@media (max-width: 640px) {
+  /* Improve touch targets on mobile */
+  .form-input, .form-select, .form-button {
+    min-height: 44px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  /* Better spacing for mobile forms */
+  .form-section {
+    padding: 1rem;
+  }
+
+  /* Stack form elements vertically on mobile */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Responsive table improvements */
+  .responsive-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Better button spacing on tablets */
+  .button-group {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .button-group > * {
+    width: 100%;
+  }
+}
+
+/* Responsive grid improvements */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .responsive-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
