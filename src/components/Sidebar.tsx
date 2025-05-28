@@ -4,11 +4,8 @@ import Tooltip from './Tooltip';
 import {
   LayoutDashboard,
   Settings,
-  Calendar,
-  Mail,
   ChevronLeft,
   Building2,
-  Bell,
   FileText,
   History,
   Users,
@@ -46,14 +43,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
         { icon: <Shield size={20} />, label: 'Tra cứu thông tin BHXH', page: 'bhxh-lookup' as const, badge: null },
         { icon: <Hash size={20} />, label: 'Tra cứu mã số BHXH', page: 'bhxh-id-lookup' as const, badge: null },
         { icon: <Users size={20} />, label: 'Tra cứu hộ gia đình', page: 'family-lookup' as const, badge: null },
-      ]
-    },
-    {
-      title: 'Giao tiếp',
-      items: [
-        { icon: <Mail size={20} />, label: 'Tin nhắn', page: 'messages' as const, badge: '3' },
-        { icon: <Calendar size={20} />, label: 'Lịch hẹn', page: 'calendar' as const, badge: null },
-        { icon: <Bell size={20} />, label: 'Thông báo', page: 'help' as const, badge: '5' },
       ]
     },
     {
