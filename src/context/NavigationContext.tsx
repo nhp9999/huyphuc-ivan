@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-type Page = 'dashboard' | 'settings' | 'calendar' | 'messages' | 'help' | 'bhyt-lookup' | 'bhxh-lookup' | 'bhxh-id-lookup' | 'family-lookup' | 'declaration-categories' | 'create-declaration' | 'bhyt-declaration' | 'declaration-history';
+type Page = 'dashboard' | 'settings' | 'calendar' | 'messages' | 'help' | 'bhyt-lookup' | 'bhxh-lookup' | 'bhxh-id-lookup' | 'family-lookup' | 'declaration-categories' | 'create-declaration' | 'bhyt-declaration' | 'declaration-history' | 'don-vi-management' | 'dai-ly-management' | 'dai-ly-don-vi-link';
 
 interface NavigationContextType {
   currentPage: Page;

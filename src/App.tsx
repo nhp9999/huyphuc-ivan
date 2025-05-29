@@ -14,6 +14,9 @@ import DeclarationCategories from './pages/DeclarationCategories';
 import CreateDeclaration from './pages/CreateDeclaration';
 import BhytDeclaration from './pages/BhytDeclaration';
 import DeclarationHistory from './pages/DeclarationHistory';
+import DonViManagement from './pages/DonViManagement';
+import DaiLyManagement from './pages/DaiLyManagement';
+import DaiLyDonViLinkManagement from './pages/DaiLyDonViLinkManagement';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -39,6 +42,12 @@ const AppContent: React.FC = () => {
         return <CreateDeclaration />;
       case 'bhyt-declaration':
         return <BhytDeclaration />;
+      case 'don-vi-management':
+        return <DonViManagement />;
+      case 'dai-ly-management':
+        return <DaiLyManagement />;
+      case 'dai-ly-don-vi-link':
+        return <DaiLyDonViLinkManagement />;
       case 'settings':
         return <Settings />;
       default:

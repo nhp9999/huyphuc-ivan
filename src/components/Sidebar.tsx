@@ -11,7 +11,8 @@ import {
   Users,
   CreditCard,
   Shield,
-  Hash
+  Hash,
+  Store
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -43,6 +44,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
         { icon: <Shield size={20} />, label: 'Tra cứu thông tin BHXH', page: 'bhxh-lookup' as const, badge: null },
         { icon: <Hash size={20} />, label: 'Tra cứu mã số BHXH', page: 'bhxh-id-lookup' as const, badge: null },
         { icon: <Users size={20} />, label: 'Tra cứu hộ gia đình', page: 'family-lookup' as const, badge: null },
+      ]
+    },
+    {
+      title: 'Quản lý',
+      items: [
+        { icon: <Building2 size={20} />, label: 'Quản lý đơn vị', page: 'don-vi-management' as const, badge: null },
+        { icon: <Store size={20} />, label: 'Quản lý đại lý', page: 'dai-ly-management' as const, badge: null },
+        { icon: <Hash size={20} />, label: 'Liên kết Đại lý-Đơn vị', page: 'dai-ly-don-vi-link' as const, badge: null },
       ]
     },
     {

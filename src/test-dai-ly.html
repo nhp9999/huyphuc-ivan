@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Đại Lý Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success {
+            color: #22c55e;
+            font-weight: bold;
+        }
+        .error {
+            color: #ef4444;
+            font-weight: bold;
+        }
+        .data {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .stat-label {
+            color: #6b7280;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏢 Test Hệ Thống Quản Lý Đại Lý</h1>
+    
+    <div class="container">
+        <h2>📊 Thống Kê Tổng Quan</h2>
+        <div class="stats" id="stats">
+            <!-- Stats will be loaded here -->
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔍 Test Các Chức Năng</h2>
+        <button onclick="testGetAllDaiLy()">Lấy Tất Cả Đại Lý</button>
+        <button onclick="testSearchDaiLy()">Tìm Kiếm Đại Lý</button>
+        <button onclick="testGetStatistics()">Thống Kê Theo Cấp</button>
+        <button onclick="testGetTypeStatistics()">Thống Kê Theo Loại</button>
+        <button onclick="testGetMaTinhList()">Danh Sách Mã Tỉnh</button>
+        <button onclick="clearResults()">Xóa Kết Quả</button>
+    </div>
+
+    <div class="container">
+        <h2>📋 Kết Quả Test</h2>
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        // Import Supabase client
+        import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js@2';
+        
+        // Supabase configuration
+        const supabaseUrl = 'https://iflhpowkcbptcplankaz.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmbGhwb3drY2JwdGNwbGFua2F6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0NzAyMzIsImV4cCI6MjA2MzA0NjIzMn0.kBgZ8fESy0vx0ZgX1WRszlXCMcCHYF4Jh4TzcJh1OK4';
+        
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        
+        // Make functions available globally
+        window.supabase = supabase;
+        
+        // Test functions
+        window.testGetAllDaiLy = async function() {
+            try {
+                showLoading('Đang lấy tất cả đại lý...');
+                const { data, error } = await supabase
+                    .from('v_dai_ly_chitiet')
+                    .select('*')
+                    .eq('trang_thai', 'active')
+                    .order('ten', { ascending: true });
+                
+                if (error) throw error;
+                
+                showResult('✅ Lấy tất cả đại lý thành công', `Tìm thấy ${data.length} đại lý`, data);
+            } catch (error) {
+                showError('❌ Lỗi khi lấy đại lý', error.message);
+            }
+        };
+        
+        window.testSearchDaiLy = async function() {
+            try {
+                showLoading('Đang tìm kiếm đại lý...');
+                const { data, error } = await supabase
+                    .from('v_dai_ly_chitiet')
+                    .select('*')
+                    .eq('trang_thai', 'active')
+                    .or('ten.ilike.%Tân%,ma.ilike.%165%')
+                    .order('ten', { ascending: true });
+                
+                if (error) throw error;
+                
+                showResult('✅ Tìm kiếm đại lý thành công', `Tìm thấy ${data.length} đại lý chứa "Tân" hoặc "165"`, data);
+            } catch (error) {
+                showError('❌ Lỗi khi tìm kiếm đại lý', error.message);
+            }
+        };
+        
+        window.testGetStatistics = async function() {
+            try {
+                showLoading('Đang lấy thống kê theo cấp...');
+                const { data, error } = await supabase
+                    .from('v_dai_ly_chitiet')
+                    .select('cap, ten_cap')
+                    .eq('trang_thai', 'active');
+                
+                if (error) throw error;
+                
+                // Đếm số lượng theo từng cấp
+                const capCount = data.reduce((acc, item) => {
+                    const cap = item.cap || 0;
+                    const tenCap = item.ten_cap || 'Khác';
+                    if (!acc[cap]) {
+                        acc[cap] = { cap, so_luong: 0, ten_cap: tenCap };
+                    }
+                    acc[cap].so_luong++;
+                    return acc;
+                }, {});
+                
+                const stats = Object.values(capCount);
+                showResult('✅ Thống kê theo cấp thành công', `Có ${stats.length} cấp khác nhau`, stats);
+            } catch (error) {
+                showError('❌ Lỗi khi lấy thống kê theo cấp', error.message);
+            }
+        };
+        
+        window.testGetTypeStatistics = async function() {
+            try {
+                showLoading('Đang lấy thống kê theo loại...');
+                const { data, error } = await supabase
+                    .from('v_dai_ly_chitiet')
+                    .select('type, loai_dai_ly')
+                    .eq('trang_thai', 'active');
+                
+                if (error) throw error;
+                
+                // Đếm số lượng theo từng loại
+                const typeCount = data.reduce((acc, item) => {
+                    const type = item.type || 0;
+                    const loaiDaiLy = item.loai_dai_ly || 'Khác';
+                    if (!acc[type]) {
+                        acc[type] = { type, so_luong: 0, loai_dai_ly: loaiDaiLy };
+                    }
+                    acc[type].so_luong++;
+                    return acc;
+                }, {});
+                
+                const stats = Object.values(typeCount);
+                showResult('✅ Thống kê theo loại thành công', `Có ${stats.length} loại khác nhau`, stats);
+            } catch (error) {
+                showError('❌ Lỗi khi lấy thống kê theo loại', error.message);
+            }
+        };
+        
+        window.testGetMaTinhList = async function() {
+            try {
+                showLoading('Đang lấy danh sách mã tỉnh...');
+                const { data, error } = await supabase
+                    .from('dm_dai_ly')
+                    .select('ma_tinh')
+                    .eq('trang_thai', 'active')
+                    .not('ma_tinh', 'is', null);
+                
+                if (error) throw error;
+                
+                // Tạo danh sách mã tỉnh duy nhất
+                const uniqueMaTinh = [...new Set(data.map(item => item.ma_tinh).filter(Boolean))];
+                const maTinhList = uniqueMaTinh.map(ma => ({
+                    value: ma,
+                    label: `Tỉnh ${ma}`
+                })).sort((a, b) => a.value.localeCompare(b.value));
+                
+                showResult('✅ Lấy danh sách mã tỉnh thành công', `Tìm thấy ${maTinhList.length} mã tỉnh`, maTinhList);
+            } catch (error) {
+                showError('❌ Lỗi khi lấy danh sách mã tỉnh', error.message);
+            }
+        };
+        
+        window.clearResults = function() {
+            document.getElementById('results').innerHTML = '';
+        };
+        
+        function showLoading(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `<div style="color: #3b82f6;">⏳ ${message}</div>`;
+        }
+        
+        function showResult(title, message, data = null) {
+            const results = document.getElementById('results');
+            let html = `
+                <div style="margin-bottom: 20px;">
+                    <div class="success">${title}</div>
+                    <div style="margin: 10px 0;">${message}</div>
+            `;
+            
+            if (data) {
+                html += `<div class="data">${JSON.stringify(data, null, 2)}</div>`;
+            }
+            
+            html += '</div>';
+            results.innerHTML = html + results.innerHTML;
+        }
+        
+        function showError(title, message) {
+            const results = document.getElementById('results');
+            const html = `
+                <div style="margin-bottom: 20px;">
+                    <div class="error">${title}</div>
+                    <div style="margin: 10px 0; color: #ef4444;">${message}</div>
+                </div>
+            `;
+            results.innerHTML = html + results.innerHTML;
+        }
+        
+        // Load initial stats
+        async function loadStats() {
+            try {
+                const { data, error } = await supabase
+                    .from('v_dai_ly_chitiet')
+                    .select('*')
+                    .eq('trang_thai', 'active');
+                
+                if (error) throw error;
+                
+                const total = data.length;
+                const capStats = data.reduce((acc, item) => {
+                    const cap = item.cap || 0;
+                    acc[cap] = (acc[cap] || 0) + 1;
+                    return acc;
+                }, {});
+                
+                const hasChildren = data.filter(item => item.has_children).length;
+                const isActive = data.filter(item => item.is_current).length;
+                
+                const statsHtml = `
+                    <div class="stat-card">
+                        <div class="stat-number">${total}</div>
+                        <div class="stat-label">Tổng Đại Lý</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${capStats[1] || 0}</div>
+                        <div class="stat-label">Cấp Tỉnh</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${capStats[2] || 0}</div>
+                        <div class="stat-label">Cấp Huyện</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${capStats[3] || 0}</div>
+                        <div class="stat-label">Cấp Xã</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${hasChildren}</div>
+                        <div class="stat-label">Có Đại Lý Con</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${isActive}</div>
+                        <div class="stat-label">Đang Hoạt Động</div>
+                    </div>
+                `;
+                
+                document.getElementById('stats').innerHTML = statsHtml;
+            } catch (error) {
+                document.getElementById('stats').innerHTML = `<div class="error">Lỗi khi tải thống kê: ${error.message}</div>`;
+            }
+        }
+        
+        // Load stats on page load
+        loadStats();
+    </script>
+</body>
+</html>
