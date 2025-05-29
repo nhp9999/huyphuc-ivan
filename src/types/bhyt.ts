@@ -142,12 +142,12 @@ export interface BhytDeclarationApiData {
   quocTich: string;
   danToc: string;
   cmnd: string;
-  maTinhKS: string;
-  maHuyenKS: string;
-  maXaKS: string;
-  maTinhNkq: string;
-  maHuyenNkq: string;
-  maXaNkq: string;
+  maTinhKS: string;   // Mã tỉnh khai sinh
+  maHuyenKS: string;  // Mã huyện khai sinh
+  maXaKS: string;     // Mã xã khai sinh
+  maTinhNkq: string;  // Mã tỉnh nhận kết quả
+  maHuyenNkq: string; // Mã huyện nhận kết quả
+  maXaNkq: string;    // Mã xã nhận kết quả
   tinhKCB: string;
   noiNhanHoSo: string;
   maBenhVien: string;
@@ -205,12 +205,12 @@ export interface BhytDeclarationData {
   // Thêm các trường mới từ API response
   quocTich?: string;
   danToc?: string;
-  maTinhKS?: string;
-  maHuyenKS?: string;
-  maXaKS?: string;
-  maTinhNkq?: string;
-  maHuyenNkq?: string;
-  maXaNkq?: string;
+  maTinhKS?: string;   // Mã tỉnh khai sinh
+  maHuyenKS?: string;  // Mã huyện khai sinh
+  maXaKS?: string;     // Mã xã khai sinh
+  maTinhNkq?: string;  // Mã tỉnh nhận kết quả
+  maHuyenNkq?: string; // Mã huyện nhận kết quả
+  maXaNkq?: string;    // Mã xã nhận kết quả
   noiNhanHoSo?: string;
   maBenhVien?: string;
   maHoGiaDinh?: string;

@@ -94,6 +94,57 @@ interface BhytInfo {
   maKV: string;            // Mã khu vực
   tenKV: string;           // Tên khu vực
 }
+
+// API Response cho kê khai BHYT
+interface BhytDeclarationApiData {
+  // Thông tin cá nhân
+  maSoBHXH: string;        // Mã số BHXH
+  hoTen: string;           // Họ và tên
+  soDienThoai: string;     // Số điện thoại
+  ccns: string;            // Căn cước công dân số
+  ngaySinh: string;        // Ngày sinh (DD/MM/YYYY)
+  gioiTinh: number;        // Giới tính (1=Nam, 0=Nữ)
+  quocTich: string;        // Quốc tịch (VN)
+  danToc: string;          // Mã dân tộc (01=Kinh)
+  cmnd: string;            // Số CMND/CCCD
+
+  // Địa chỉ khai sinh (KS)
+  maTinhKS: string;        // Mã tỉnh khai sinh
+  maHuyenKS: string;       // Mã huyện khai sinh
+  maXaKS: string;          // Mã xã khai sinh
+
+  // Địa chỉ nhận kết quả (NKQ)
+  maTinhNkq: string;       // Mã tỉnh nhận kết quả
+  maHuyenNkq: string;      // Mã huyện nhận kết quả
+  maXaNkq: string;         // Mã xã nhận kết quả
+
+  // Thông tin BHYT
+  soTheBHYT: string;       // Số thẻ BHYT
+  tuNgayTheCu: string;     // Ngày bắt đầu hiệu lực thẻ cũ
+  denNgayTheCu: string;    // Ngày hết hạn thẻ cũ
+  typeId: string;          // Loại đối tượng BHYT (HC, GD, etc.)
+  phuongAn: string;        // Phương án tham gia (ON/OFF)
+  tinhKCB: string;         // Tỉnh khám chữa bệnh ban đầu
+  maBenhVien: string;      // Mã bệnh viện đăng ký KCB
+  noiNhanHoSo: string;     // Nơi nhận hồ sơ
+  maHoGiaDinh: string;     // Mã hộ gia đình
+
+  // Thông tin đóng phí
+  mucLuongNsTw: number;    // Mức lương ngân sách trung ương
+  tyLeNsdp: number;        // Tỷ lệ ngân sách địa phương
+  tienNsdp: number;        // Tiền ngân sách địa phương
+  tyLeNsKhac: number;      // Tỷ lệ nguồn khác
+  tienNsKhac: number;      // Tiền nguồn khác
+  tyLeNsnn: number;        // Tỷ lệ ngân sách nhà nước
+  tyLeNsTw: number;        // Tỷ lệ ngân sách trung ương
+
+  // Trạng thái
+  trangThai: string;       // Mã trạng thái ("00" = hợp lệ)
+  maLoi: string;           // Mã lỗi/thông báo ("17" = thành công)
+  moTa: string;            // Mô tả trạng thái ("Thẻ hợp lệ")
+  giaHanThe: number;       // Có gia hạn thẻ (1=có, 0=không)
+  isThamGiaBb: number;     // Có tham gia bảo hiểm (1=có, 0=không)
+}
 ```
 
 ## Lưu ý quan trọng
