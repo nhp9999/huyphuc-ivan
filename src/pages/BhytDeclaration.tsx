@@ -89,7 +89,12 @@ const BhytDeclaration: React.FC = () => {
       ngayBienLai: new Date().toISOString().split('T')[0],
       // Thêm thông tin đóng BHYT cho participant
       sttHo: '',
-      soThangDong: ''
+      soThangDong: '',
+      // Thêm thông tin địa chỉ nhận kết quả
+      maTinhNkq: '',
+      maHuyenNkq: '',
+      maXaNkq: '',
+      noiNhanHoSo: ''
     }
   ]);
 
@@ -319,7 +324,12 @@ const BhytDeclaration: React.FC = () => {
       ngayBienLai: new Date().toISOString().split('T')[0],
       // Thêm thông tin đóng BHYT cho participant
       sttHo: '',
-      soThangDong: ''
+      soThangDong: '',
+      // Thêm thông tin địa chỉ nhận kết quả
+      maTinhNkq: '',
+      maHuyenNkq: '',
+      maXaNkq: '',
+      noiNhanHoSo: ''
     };
     setParticipants(prev => [...prev, newParticipant]);
   };
@@ -365,7 +375,12 @@ const BhytDeclaration: React.FC = () => {
             soTienDong: response.data!.soTienDong || '',
             // Thêm thông tin thẻ cũ - convert từ DD/MM/YYYY sang YYYY-MM-DD cho date input
             tuNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHieuLuc || ''),
-            denNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHetHan || '')
+            denNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHetHan || ''),
+            // Thêm thông tin địa chỉ nhận kết quả
+            maTinhNkq: response.data!.maTinhNkq || '',
+            maHuyenNkq: response.data!.maHuyenNkq || '',
+            maXaNkq: response.data!.maXaNkq || '',
+            noiNhanHoSo: response.data!.noiNhanHoSo || ''
           } : p
         ));
 
@@ -482,7 +497,12 @@ const BhytDeclaration: React.FC = () => {
             noiDangKyKCB: response.data!.noiDangKyKCB,
             mucLuong: response.data!.mucLuong || '',
             tyLeDong: response.data!.tyLeDong || '4.5',
-            soTienDong: response.data!.soTienDong || ''
+            soTienDong: response.data!.soTienDong || '',
+            // Thêm thông tin địa chỉ nhận kết quả
+            maTinhNkq: response.data!.maTinhNkq || '',
+            maHuyenNkq: response.data!.maHuyenNkq || '',
+            maXaNkq: response.data!.maXaNkq || '',
+            noiNhanHoSo: response.data!.noiNhanHoSo || ''
           } : participant
         ));
 
@@ -1109,6 +1129,10 @@ const BhytDeclaration: React.FC = () => {
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Số tháng</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Số tiền</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ngày biên lai</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã tỉnh NKQ</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã huyện NKQ</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã xã NKQ</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nơi nhận hồ sơ</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
@@ -1210,6 +1234,42 @@ const BhytDeclaration: React.FC = () => {
                       className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                   </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="text"
+                      value={participant.maTinhNkq || ''}
+                      onChange={(e) => handleParticipantChange(index, 'maTinhNkq', e.target.value)}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Mã tỉnh"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="text"
+                      value={participant.maHuyenNkq || ''}
+                      onChange={(e) => handleParticipantChange(index, 'maHuyenNkq', e.target.value)}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Mã huyện"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="text"
+                      value={participant.maXaNkq || ''}
+                      onChange={(e) => handleParticipantChange(index, 'maXaNkq', e.target.value)}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Mã xã"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="text"
+                      value={participant.noiNhanHoSo || ''}
+                      onChange={(e) => handleParticipantChange(index, 'noiNhanHoSo', e.target.value)}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Nơi nhận hồ sơ"
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center space-x-2">
                       <button
@@ -1267,6 +1327,10 @@ const BhytDeclaration: React.FC = () => {
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Số tháng</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Số tiền</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ngày biên lai</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã tỉnh NKQ</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã huyện NKQ</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã xã NKQ</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nơi nhận hồ sơ</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
@@ -1366,6 +1430,42 @@ const BhytDeclaration: React.FC = () => {
                         value={participant.ngayBienLai}
                         onChange={(e) => handleParticipantChange(index, 'ngayBienLai', e.target.value)}
                         className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <input
+                        type="text"
+                        value={participant.maTinhNkq || ''}
+                        onChange={(e) => handleParticipantChange(index, 'maTinhNkq', e.target.value)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        placeholder="Mã tỉnh"
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <input
+                        type="text"
+                        value={participant.maHuyenNkq || ''}
+                        onChange={(e) => handleParticipantChange(index, 'maHuyenNkq', e.target.value)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        placeholder="Mã huyện"
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <input
+                        type="text"
+                        value={participant.maXaNkq || ''}
+                        onChange={(e) => handleParticipantChange(index, 'maXaNkq', e.target.value)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        placeholder="Mã xã"
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <input
+                        type="text"
+                        value={participant.noiNhanHoSo || ''}
+                        onChange={(e) => handleParticipantChange(index, 'noiNhanHoSo', e.target.value)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        placeholder="Nơi nhận hồ sơ"
                       />
                     </td>
                     <td className="px-4 py-3">

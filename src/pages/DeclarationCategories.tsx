@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigation } from '../context/NavigationContext';
-import { Search, FileText, Eye, Download, Filter } from 'lucide-react';
+import { Search, FileText, Eye, Download, Filter, RefreshCw, AlertCircle } from 'lucide-react';
+import { danhMucThuTucService, ThuTucSearchParams } from '../services/danhMucThuTucService';
+import { DanhMucThuTuc } from '../services/supabaseClient';
 
 interface DeclarationCategory {
   stt: number;
@@ -8,109 +10,102 @@ interface DeclarationCategory {
   ma: string;
   ten: string;
   linhVuc: number;
+  moTa?: string;
 }
 
 const DeclarationCategories: React.FC = () => {
   const { setCurrentPage } = useNavigation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredData, setFilteredData] = useState<DeclarationCategory[]>([]);
+  const [allData, setAllData] = useState<DeclarationCategory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedLinhVuc, setSelectedLinhVuc] = useState<number | null>(null);
+  const [linhVucOptions, setLinhVucOptions] = useState<{ value: number; label: string }[]>([]);
+  const [statistics, setStatistics] = useState<{ linh_vuc: number; so_luong: number; ten_linh_vuc: string }[]>([]);
 
-  // Sample data based on the image
-  const declarationData: DeclarationCategory[] = [
-    {
-      stt: 1,
-      kyHieu: '602',
-      ma: '602',
-      ten: 'Đăng ký, đăng ký lại bảo gồm cả đăng ký cho thể nhân chưa đóng, điều chỉnh phương thức đóng, cần cứ đóng BHXH tự nguyện',
-      linhVuc: 1
-    },
-    {
-      stt: 2,
-      kyHieu: '603',
-      ma: '603',
-      ten: 'Đăng ký đóng BHYT đối với người chỉ tham gia BHYT',
-      linhVuc: 1
-    },
-    {
-      stt: 3,
-      kyHieu: '607',
-      ma: '607',
-      ten: 'Cấp lại số BHXH khi bị thay đổi thông tin',
-      linhVuc: 2
-    },
-    {
-      stt: 4,
-      kyHieu: '608',
-      ma: '608',
-      ten: 'Cấp lại số BHXH do thay đổi thông tin',
-      linhVuc: 2
-    },
-    {
-      stt: 5,
-      kyHieu: '610',
-      ma: '610',
-      ten: 'Cấp lại, đổi thẻ BHYT do thay đổi thông tin về nhân thân, mã số bảo hiểm, mã nghề nghiệp, mã nơi đăng ký khám chữa bệnh',
-      linhVuc: 2
-    },
-    {
-      stt: 6,
-      kyHieu: '612',
-      ma: '612',
-      ten: 'Cấp lại, đổi thẻ BHYT do mất, hỏng không thay đổi thông tin',
-      linhVuc: 2
-    },
-    {
-      stt: 7,
-      kyHieu: '613',
-      ma: '613',
-      ten: 'Cấp lại, đổi thẻ BHYT do thay đổi thời điểm đủ 05 năm liên tục, mã nơi làm việc',
-      linhVuc: 1
-    },
-    {
-      stt: 8,
-      kyHieu: '602a',
-      ma: '602a',
-      ten: 'Hoàn trả tiền đã đóng đối với người tham gia BHXH tự nguyện',
-      linhVuc: 2
-    },
-    {
-      stt: 9,
-      kyHieu: '606a',
-      ma: '606a',
-      ten: 'Hoàn trả tiền đã đóng đối với người tham gia BHYT theo hộ gia đình, người tham gia BHYT đúng ngạn sách nhà nước bổ trợ mức đóng do đóng trùng',
-      linhVuc: 2
-    },
-    {
-      stt: 10,
-      kyHieu: '608b',
-      ma: '608b',
-      ten: 'Hoàn trả tiền đã đóng đối với người tham gia BHYT theo hộ gia đình, người tham gia BHYT đúng ngạn sách nhà nước bổ trợ mức đóng do đóng để chế',
-      linhVuc: 2
+  // Convert Supabase data to component format
+  const convertToDeclarationCategory = (data: DanhMucThuTuc[]): DeclarationCategory[] => {
+    return data.map(item => ({
+      stt: item.stt,
+      kyHieu: item.ky_hieu,
+      ma: item.ma,
+      ten: item.ten,
+      linhVuc: item.linh_vuc,
+      moTa: item.mo_ta
+    }));
+  };
+
+  // Load data from Supabase
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [thuTucData, linhVucData, statsData] = await Promise.all([
+        danhMucThuTucService.getAllThuTuc(),
+        danhMucThuTucService.getLinhVucList(),
+        danhMucThuTucService.getThongKeTheoLinhVuc()
+      ]);
+
+      const convertedData = convertToDeclarationCategory(thuTucData);
+      setAllData(convertedData);
+      setFilteredData(convertedData);
+      setLinhVucOptions(linhVucData);
+      setStatistics(statsData);
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError('Không thể tải dữ liệu. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  React.useEffect(() => {
-    setFilteredData(declarationData);
+  // Initial load
+  useEffect(() => {
+    loadData();
   }, []);
 
-  const handleSearch = () => {
-    if (!searchTerm.trim()) {
-      setFilteredData(declarationData);
-      return;
-    }
+  // Search and filter functions
+  const handleSearch = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const searchParams: ThuTucSearchParams = {
+        searchTerm: searchTerm.trim() || undefined,
+        linhVuc: selectedLinhVuc || undefined
+      };
 
-    const filtered = declarationData.filter(item =>
-      item.ten.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.ma.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.kyHieu.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredData(filtered);
+      const results = await danhMucThuTucService.searchThuTuc(searchParams);
+      const convertedData = convertToDeclarationCategory(results);
+      setFilteredData(convertedData);
+    } catch (err) {
+      console.error('Error searching:', err);
+      setError('Lỗi tìm kiếm. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
     }
+  };
+
+  const handleLinhVucChange = (linhVuc: number | null) => {
+    setSelectedLinhVuc(linhVuc);
+  };
+
+  const handleRefresh = () => {
+    setSearchTerm('');
+    setSelectedLinhVuc(null);
+    loadData();
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setSelectedLinhVuc(null);
+    setFilteredData(allData);
   };
 
   const handleDeclarationClick = (item: DeclarationCategory) => {
@@ -124,19 +119,53 @@ const DeclarationCategories: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Danh mục thủ tục</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Danh sách các thủ tục kê khai bảo hiểm xã hội và y tế
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Danh mục thủ tục</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Danh sách các thủ tục kê khai bảo hiểm xã hội và y tế
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Làm mới</span>
+          </button>
+        </div>
       </div>
+
+      {/* Statistics Cards */}
+      {statistics.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {statistics.map((stat) => (
+            <div key={stat.linh_vuc} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stat.so_luong}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{stat.ten_linh_vuc}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            <span className="text-red-800 dark:text-red-200">{error}</span>
+          </div>
+        </div>
+      )}
 
       {/* Search Section */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Thủ tục
+              Tìm kiếm thủ tục
             </label>
             <div className="relative">
               <input
@@ -145,19 +174,51 @@ const DeclarationCategories: React.FC = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Mã tên"
+                placeholder="Nhập mã hoặc tên thủ tục..."
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-base"
               />
               <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
             </div>
           </div>
-          <div className="flex items-end">
+
+          <div>
+            <label htmlFor="linhvuc" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Lĩnh vực
+            </label>
+            <select
+              id="linhvuc"
+              value={selectedLinhVuc || ''}
+              onChange={(e) => handleLinhVucChange(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-base"
+            >
+              <option value="">Tất cả lĩnh vực</option>
+              {linhVucOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-end space-x-2">
             <button
               onClick={handleSearch}
-              className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors min-h-[48px]"
+              disabled={loading}
+              className="flex-1 flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 px-6 rounded-lg transition-colors min-h-[48px]"
             >
-              <Search className="w-4 h-4" />
-              <span>Tra Cứu</span>
+              {loading ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4" />
+              )}
+              <span>{loading ? 'Đang tìm...' : 'Tìm kiếm'}</span>
+            </button>
+            <button
+              onClick={handleClearSearch}
+              className="flex items-center justify-center space-x-2 px-4 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors min-h-[48px]"
+            >
+              <Filter className="w-4 h-4" />
+              <span>Xóa</span>
             </button>
           </div>
         </div>
@@ -178,7 +239,12 @@ const DeclarationCategories: React.FC = () => {
 
         {/* Table Body */}
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {filteredData.length === 0 ? (
+          {loading ? (
+            <div className="px-4 md:px-6 py-12 text-center">
+              <RefreshCw className="w-12 h-12 text-gray-400 mx-auto mb-4 animate-spin" />
+              <p className="text-gray-500 dark:text-gray-400">Đang tải dữ liệu...</p>
+            </div>
+          ) : filteredData.length === 0 ? (
             <div className="px-4 md:px-6 py-12 text-center">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400">Không tìm thấy thủ tục nào phù hợp</p>
@@ -214,12 +280,16 @@ const DeclarationCategories: React.FC = () => {
                       {item.ten}
                     </div>
                     <div className="col-span-2 text-sm text-center">
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${
+                      <span className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium ${
                         item.linhVuc === 1
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
-                          : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400'
+                          : item.linhVuc === 2
+                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400'
+                          : item.linhVuc === 3
+                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
+                          : 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-400'
                       }`}>
-                        {item.linhVuc}
+                        {danhMucThuTucService.getLinhVucLabel(item.linhVuc)}
                       </span>
                     </div>
                   </div>
@@ -244,12 +314,16 @@ const DeclarationCategories: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                    <span className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium ${
                       item.linhVuc === 1
                         ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
-                        : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400'
+                        : item.linhVuc === 2
+                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400'
+                        : item.linhVuc === 3
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
+                        : 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-400'
                     }`}>
-                      {item.linhVuc}
+                      {danhMucThuTucService.getLinhVucLabel(item.linhVuc)}
                     </span>
                   </div>
 
@@ -270,7 +344,7 @@ const DeclarationCategories: React.FC = () => {
                   {/* Field Label */}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      Lĩnh vực: {item.linhVuc === 1 ? 'Đăng ký' : 'Cấp lại/Đổi thẻ'}
+                      Lĩnh vực: {danhMucThuTucService.getLinhVucLabel(item.linhVuc)}
                     </span>
                     <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                   </div>
@@ -288,11 +362,18 @@ const DeclarationCategories: React.FC = () => {
               <span className="hidden sm:inline text-gray-400">|</span>
               <span>Hiển thị: <span className="text-blue-600 dark:text-blue-400">{filteredData.length}</span> kết quả</span>
             </div>
-            {searchTerm && (
-              <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 px-3 py-1.5 rounded-full self-start sm:self-auto">
-                Đang lọc: "{searchTerm}"
-              </span>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {searchTerm && (
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 px-3 py-1.5 rounded-full">
+                  Từ khóa: "{searchTerm}"
+                </span>
+              )}
+              {selectedLinhVuc && (
+                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 px-3 py-1.5 rounded-full">
+                  Lĩnh vực: {danhMucThuTucService.getLinhVucLabel(selectedLinhVuc)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -304,9 +385,10 @@ const DeclarationCategories: React.FC = () => {
         </h3>
         <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
           <li>• <strong>Tìm kiếm:</strong> Nhập mã hoặc tên thủ tục để tìm kiếm nhanh</li>
-          <li>• <strong>Lĩnh vực:</strong> 1 - Đăng ký, 2 - Cấp lại/Đổi thẻ</li>
+          <li>• <strong>Lĩnh vực:</strong> Lọc theo loại thủ tục (Đăng ký, Cấp lại/Đổi thẻ, Giải quyết chế độ, v.v.)</li>
           <li>• <strong>Ký hiệu:</strong> Mã định danh duy nhất của từng thủ tục</li>
-          <li>• Danh mục được cập nhật theo quy định mới nhất của Bảo hiểm Xã hội Việt Nam</li>
+          <li>• <strong>Làm mới:</strong> Tải lại dữ liệu mới nhất từ hệ thống</li>
+          <li>• Danh mục được đồng bộ từ cơ sở dữ liệu và cập nhật theo quy định mới nhất</li>
         </ul>
       </div>
     </div>
