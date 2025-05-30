@@ -1655,7 +1655,23 @@ const BhytDeclaration: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full table-fixed min-w-max">
+            <colgroup>
+              <col className="w-16" />
+              <col className="w-48" />
+              <col className="w-32" />
+              <col className="w-32" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-32" />
+              <col className="w-32" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-40" />
+              <col className="w-20" />
+            </colgroup>
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">STT</th>
@@ -1677,63 +1693,63 @@ const BhytDeclaration: React.FC = () => {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {participants.map((participant, index) => (
                 <tr key={participant.id}>
-                  <td className="px-3 py-3 text-sm text-gray-900 dark:text-white">{index + 1}</td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">{index + 1}</td>
+                  <td className="px-4 py-4">
                     <input
                       type="text"
                       value={participant.hoTen}
                       onChange={(e) => handleParticipantChange(index, 'hoTen', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Họ và tên"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <div className="relative">
                       <input
                         type="text"
                         value={participant.maSoBHXH}
                         onChange={(e) => handleParticipantChange(index, 'maSoBHXH', e.target.value)}
                         onKeyPress={(e) => handleParticipantKeyPress(e, index)}
-                        className="w-full px-2 py-1 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         placeholder="Mã BHXH (Enter để tìm)"
                       />
                       <button
                         onClick={() => handleSearchParticipant(index)}
                         disabled={searchLoading || !participant.maSoBHXH.trim()}
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 p-0.5 text-purple-600 hover:text-purple-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-purple-600 hover:text-purple-800 disabled:text-gray-400 disabled:cursor-not-allowed"
                         title="Tìm kiếm thông tin BHYT"
                       >
                         {searchLoading ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          <Search className="w-3 h-3" />
+                          <Search className="w-4 h-4" />
                         )}
                       </button>
                     </div>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <input
                       type="date"
                       value={participant.ngaySinh}
                       onChange={(e) => handleParticipantChange(index, 'ngaySinh', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <select
                       value={participant.gioiTinh}
                       onChange={(e) => handleParticipantChange(index, 'gioiTinh', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
                       <option value="Nam">Nam</option>
                       <option value="Nữ">Nữ</option>
                     </select>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <select
                       value={participant.sttHo || ''}
                       onChange={(e) => handleParticipantChange(index, 'sttHo', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
                       <option value="">Chọn STT</option>
                       <option value="1">Người 1</option>
@@ -1743,11 +1759,11 @@ const BhytDeclaration: React.FC = () => {
                       <option value="5+">Người 5+</option>
                     </select>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <select
                       value={participant.soThangDong || ''}
                       onChange={(e) => handleParticipantChange(index, 'soThangDong', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
                       <option value="">Chọn tháng</option>
                       <option value="3">3 tháng</option>
@@ -1755,60 +1771,60 @@ const BhytDeclaration: React.FC = () => {
                       <option value="12">12 tháng</option>
                     </select>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <input
                       type="text"
                       value={participant.soTienDong}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-green-50 dark:bg-green-900/20 font-semibold text-green-700 dark:text-green-300"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-green-50 dark:bg-green-900/20 font-semibold text-green-700 dark:text-green-300"
                       placeholder="Tự động tính"
                       readOnly
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <input
                       type="date"
                       value={participant.ngayBienLai}
                       onChange={(e) => handleParticipantChange(index, 'ngayBienLai', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <input
                       type="text"
                       value={participant.maTinhNkq || ''}
                       onChange={(e) => handleParticipantChange(index, 'maTinhNkq', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Mã tỉnh"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <input
                       type="text"
                       value={participant.maHuyenNkq || ''}
                       onChange={(e) => handleParticipantChange(index, 'maHuyenNkq', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Mã huyện"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <input
                       type="text"
                       value={participant.maXaNkq || ''}
                       onChange={(e) => handleParticipantChange(index, 'maXaNkq', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Mã xã"
                     />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-4">
                     <input
                       type="text"
                       value={participant.noiNhanHoSo || ''}
                       onChange={(e) => handleParticipantChange(index, 'noiNhanHoSo', e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Nơi nhận hồ sơ"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4">
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => removeParticipant(index)}
@@ -1870,85 +1886,101 @@ const BhytDeclaration: React.FC = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-fixed min-w-max">
+              <colgroup>
+                <col className="w-16" />
+                <col className="w-48" />
+                <col className="w-32" />
+                <col className="w-32" />
+                <col className="w-24" />
+                <col className="w-24" />
+                <col className="w-24" />
+                <col className="w-32" />
+                <col className="w-32" />
+                <col className="w-24" />
+                <col className="w-24" />
+                <col className="w-24" />
+                <col className="w-40" />
+                <col className="w-20" />
+              </colgroup>
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">STT</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Họ và tên</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã số BHXH</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ngày sinh</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Giới tính</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">STT hộ</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Số tháng</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Số tiền</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ngày biên lai</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã tỉnh NKQ</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã huyện NKQ</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã xã NKQ</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nơi nhận hồ sơ</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Thao tác</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">STT</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Họ và tên</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã số BHXH</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ngày sinh</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Giới tính</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">STT hộ</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Số tháng</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Số tiền</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ngày biên lai</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã tỉnh NKQ</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã huyện NKQ</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mã xã NKQ</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nơi nhận hồ sơ</th>
+                  <th className="px-4 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {participants.map((participant, index) => (
                   <tr key={participant.id}>
-                    <td className="px-3 py-3 text-sm text-gray-900 dark:text-white">{index + 1}</td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">{index + 1}</td>
+                    <td className="px-4 py-4">
                       <input
                         type="text"
                         value={participant.hoTen}
                         onChange={(e) => handleParticipantChange(index, 'hoTen', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         placeholder="Họ và tên"
                       />
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <div className="relative">
                         <input
                           type="text"
                           value={participant.maSoBHXH}
                           onChange={(e) => handleParticipantChange(index, 'maSoBHXH', e.target.value)}
                           onKeyPress={(e) => handleParticipantKeyPress(e, index)}
-                          className="w-full px-2 py-1 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                           placeholder="Mã BHXH (Enter để tìm)"
                         />
                         <button
                           onClick={() => handleSearchParticipant(index)}
                           disabled={searchLoading || !participant.maSoBHXH.trim()}
-                          className="absolute right-1 top-1/2 transform -translate-y-1/2 p-0.5 text-purple-600 hover:text-purple-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-purple-600 hover:text-purple-800 disabled:text-gray-400 disabled:cursor-not-allowed"
                           title="Tìm kiếm thông tin BHYT"
                         >
                           {searchLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
-                            <Search className="w-3 h-3" />
+                            <Search className="w-4 h-4" />
                           )}
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         type="date"
                         value={participant.ngaySinh}
                         onChange={(e) => handleParticipantChange(index, 'ngaySinh', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       />
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <select
                         value={participant.gioiTinh}
                         onChange={(e) => handleParticipantChange(index, 'gioiTinh', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       >
                         <option value="Nam">Nam</option>
                         <option value="Nữ">Nữ</option>
                       </select>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <select
                         value={participant.sttHo || ''}
                         onChange={(e) => handleParticipantChange(index, 'sttHo', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       >
                         <option value="">Chọn STT</option>
                         <option value="1">Người 1</option>
@@ -1958,11 +1990,11 @@ const BhytDeclaration: React.FC = () => {
                         <option value="5+">Người 5+</option>
                       </select>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <select
                         value={participant.soThangDong || ''}
                         onChange={(e) => handleParticipantChange(index, 'soThangDong', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       >
                         <option value="">Chọn tháng</option>
                         <option value="3">3 tháng</option>
@@ -1970,60 +2002,60 @@ const BhytDeclaration: React.FC = () => {
                         <option value="12">12 tháng</option>
                       </select>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         type="text"
                         value={participant.soTienDong}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-green-50 dark:bg-green-900/20 font-semibold text-green-700 dark:text-green-300"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-green-50 dark:bg-green-900/20 font-semibold text-green-700 dark:text-green-300"
                         placeholder="Tự động tính"
                         readOnly
                       />
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         type="date"
                         value={participant.ngayBienLai}
                         onChange={(e) => handleParticipantChange(index, 'ngayBienLai', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       />
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         type="text"
                         value={participant.maTinhNkq || ''}
                         onChange={(e) => handleParticipantChange(index, 'maTinhNkq', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         placeholder="Mã tỉnh"
                       />
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         type="text"
                         value={participant.maHuyenNkq || ''}
                         onChange={(e) => handleParticipantChange(index, 'maHuyenNkq', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         placeholder="Mã huyện"
                       />
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         type="text"
                         value={participant.maXaNkq || ''}
                         onChange={(e) => handleParticipantChange(index, 'maXaNkq', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         placeholder="Mã xã"
                       />
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-4 py-4">
                       <input
                         type="text"
                         value={participant.noiNhanHoSo || ''}
                         onChange={(e) => handleParticipantChange(index, 'noiNhanHoSo', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         placeholder="Nơi nhận hồ sơ"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-4">
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => removeParticipant(index)}
