@@ -239,7 +239,7 @@ const KeKhai603: React.FC = () => {
   const handleSubmit = () => {
     console.log('Submitting declaration:', formData);
     // Chuyển hướng đến trang kê khai BHYT
-    setCurrentPage('bhyt-declaration', {
+    setCurrentPage('ke-khai-603', {
       declarationCode,
       declarationName,
       formData
@@ -673,7 +673,7 @@ const KeKhai603: React.FC = () => {
                         <div className="flex space-x-2">
                           <button
                             onClick={() => {
-                              setCurrentPage('bhyt-declaration', {
+                              setCurrentPage('ke-khai-603', {
                                 declarationCode,
                                 declarationName,
                                 formData: {},
@@ -723,7 +723,7 @@ const KeKhai603: React.FC = () => {
                         <div className="col-span-2 flex space-x-2">
                           <button
                             onClick={() => {
-                              setCurrentPage('bhyt-declaration', {
+                              setCurrentPage('ke-khai-603', {
                                 declarationCode,
                                 declarationName,
                                 formData: {},

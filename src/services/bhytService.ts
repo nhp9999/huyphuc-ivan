@@ -1,4 +1,4 @@
-import { BhytInfo, BhytLookupResponse, ApiResponse, BhytBulkLookupResponse, BhytBulkResult, BulkLookupProgress, VnPostApiResponse, VnPostBhytData, BhytDeclarationRequest, BhytDeclarationResponse, BhytDeclarationData, BhytDeclarationApiResponse, BhytDeclarationApiData } from '../types/bhyt';
+import { BhytInfo, BhytLookupResponse, BhytBulkLookupResponse, BhytBulkResult, BulkLookupProgress, VnPostApiResponse, VnPostBhytData, BhytDeclarationRequest, BhytDeclarationResponse, BhytDeclarationData } from '../types/bhyt';
 import { KeKhai603Request, KeKhai603Response } from '../types/kekhai603';
 
 export class BhytService {
@@ -40,7 +40,7 @@ export class BhytService {
   }
 
   // Helper methods for BHYT Declaration API
-  protected buildAddress(data: any): string {
+  protected buildAddress(): string {
     // Tạm thời trả về empty string vì không có thông tin địa chỉ chi tiết trong response
     return '';
   }
@@ -261,7 +261,7 @@ export class BhytService {
           hoTen: apiResponse.data.hoTen || '',
           ngaySinh: this.convertDateFormat(apiResponse.data.ngaySinh || ''),
           gioiTinh: apiResponse.data.gioiTinh === 1 ? 'Nam' : 'Nữ',
-          diaChi: this.buildAddress(apiResponse.data),
+          diaChi: this.buildAddress(),
           noiDangKyKCB: this.getBenhVienName(apiResponse.data),
           trangThaiThe: apiResponse.data.moTa || 'Không xác định',
           ngayHieuLuc: this.formatDisplayDate(apiResponse.data.tuNgayTheCu || ''),
@@ -376,7 +376,7 @@ export class BhytService {
           hoTen: apiResponse.data.hoTen || '',
           ngaySinh: this.convertDateFormat(apiResponse.data.ngaySinh || ''),
           gioiTinh: apiResponse.data.gioiTinh === 1 ? 'Nam' : 'Nữ',
-          diaChi: this.buildAddress(apiResponse.data),
+          diaChi: this.buildAddress(),
           noiDangKyKCB: this.getBenhVienName(apiResponse.data),
           trangThaiThe: apiResponse.data.moTa || 'Không xác định',
           ngayHieuLuc: this.formatDisplayDate(apiResponse.data.tuNgayTheCu || ''),
@@ -530,200 +530,8 @@ export class BhytService {
     };
   }
 
-  // Mock function for BHYT Declaration API testing
-  async mockLookupBhytForDeclaration(request: BhytDeclarationRequest): Promise<BhytDeclarationResponse> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Mock data based on the real API response you provided
-    if (request.maSoBHXH === '0123456789') {
-      const declarationData: BhytDeclarationData = {
-        maSoBhxh: "0123456789",
-        hoTen: "Trần Đình Liệu",
-        ngaySinh: "1966-05-12", // Đã convert sang format YYYY-MM-DD
-        gioiTinh: "Nam",
-        diaChi: "",
-        noiDangKyKCB: "Bệnh viện (Mã: 075)",
-        trangThaiThe: "Thẻ hợp lệ",
-        ngayHieuLuc: "01/01/2025",
-        ngayHetHan: "31/12/2025",
-        mucHuong: "80%",
-        donViCongTac: "",
-        maKV: "01",
-        tenKV: "",
-        soDienThoai: "0978060666",
-        cmnd: "030066000049",
-        soTheBHYT: "HC4010123456789",
-        loaiDoiTuong: "HC",
-        mucLuong: "0",
-        tyLeDong: "4.5",
-        soTienDong: "",
-        // Thêm các trường mới từ response
-        quocTich: "VN",
-        danToc: "01",
-        maTinhKS: "30",
-        maHuyenKS: "288",
-        maXaKS: "10516",
-        maTinhNkq: "01",
-        maHuyenNkq: "001",
-        maXaNkq: "00028",
-        noiNhanHoSo: "68",
-        maBenhVien: "075",
-        maHoGiaDinh: "3099313370",
-        phuongAn: "ON",
-        moTa: "Thẻ hợp lệ"
-      };
 
-      return {
-        success: true,
-        data: declarationData,
-        message: 'Tra cứu thông tin BHYT cho kê khai thành công'
-      };
-    } else {
-      return {
-        success: false,
-        message: 'Không tìm thấy thông tin BHYT cho kê khai với mã số này'
-      };
-    }
-  }
-
-  // Mock function for testing when API is not available
-  async mockLookupBhytInfo(maSoBHXH: string): Promise<BhytLookupResponse> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Mock data for testing
-    if (maSoBHXH === '0123456789') {
-      return {
-        success: true,
-        data: {
-          maSoBHXH: '0123456789',
-          hoTen: 'NGUYỄN VĂN A',
-          ngaySinh: '01/01/1990',
-          gioiTinh: 'Nam',
-          diaChi: '123 Đường ABC, Phường XYZ, Quận 1, TP.HCM',
-          noiDangKyKCB: 'Bệnh viện Chợ Rẫy',
-          trangThaiThe: 'Còn hiệu lực',
-          ngayHieuLuc: '01/01/2024',
-          ngayHetHan: '31/12/2024',
-          mucHuong: '80%',
-          donViCongTac: 'Công ty TNHH ABC',
-          maKV: 'KV1',
-          tenKV: 'Khu vực 1'
-        },
-        message: 'Tra cứu thành công'
-      };
-    } else {
-      return {
-        success: false,
-        message: 'Không tìm thấy thông tin thẻ BHYT với mã số này'
-      };
-    }
-  }
-
-  // Mock bulk lookup function for testing
-  async mockBulkLookupBhytInfo(
-    maSoBHXHList: string[],
-    onProgress?: (progress: BulkLookupProgress) => void
-  ): Promise<BhytBulkLookupResponse> {
-    const results: BhytBulkResult[] = [];
-    let successCount = 0;
-    let failureCount = 0;
-
-    const mockData = [
-      {
-        maSoBHXH: '0123456789',
-        hoTen: 'NGUYỄN VĂN A',
-        ngaySinh: '01/01/1990',
-        gioiTinh: 'Nam',
-        diaChi: '123 Đường ABC, Phường XYZ, Quận 1, TP.HCM',
-        noiDangKyKCB: 'Bệnh viện Chợ Rẫy',
-        trangThaiThe: 'Còn hiệu lực',
-        ngayHieuLuc: '01/01/2024',
-        ngayHetHan: '31/12/2024',
-        mucHuong: '80%',
-        donViCongTac: 'Công ty TNHH ABC',
-        maKV: 'KV1',
-        tenKV: 'Khu vực 1'
-      },
-      {
-        maSoBHXH: '0123456788',
-        hoTen: 'TRẦN THỊ B',
-        ngaySinh: '15/05/1985',
-        gioiTinh: 'Nữ',
-        diaChi: '456 Đường DEF, Phường UVW, Quận 2, TP.HCM',
-        noiDangKyKCB: 'Bệnh viện Đại học Y Dược',
-        trangThaiThe: 'Còn hiệu lực',
-        ngayHieuLuc: '01/01/2024',
-        ngayHetHan: '31/12/2024',
-        mucHuong: '100%',
-        donViCongTac: 'Công ty CP XYZ',
-        maKV: 'KV2',
-        tenKV: 'Khu vực 2'
-      },
-      {
-        maSoBHXH: '0123456787',
-        hoTen: 'LÊ VĂN C',
-        ngaySinh: '20/12/1992',
-        gioiTinh: 'Nam',
-        diaChi: '789 Đường GHI, Phường RST, Quận 3, TP.HCM',
-        noiDangKyKCB: 'Bệnh viện Nhân dân 115',
-        trangThaiThe: 'Hết hạn',
-        ngayHieuLuc: '01/01/2023',
-        ngayHetHan: '31/12/2023',
-        mucHuong: '80%',
-        donViCongTac: 'Công ty TNHH DEF',
-        maKV: 'KV1',
-        tenKV: 'Khu vực 1'
-      }
-    ];
-
-    for (let i = 0; i < maSoBHXHList.length; i++) {
-      const maSoBHXH = maSoBHXHList[i];
-
-      // Update progress
-      if (onProgress) {
-        onProgress({
-          current: i + 1,
-          total: maSoBHXHList.length,
-          percentage: Math.round(((i + 1) / maSoBHXHList.length) * 100),
-          currentMaSo: maSoBHXH
-        });
-      }
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      // Find mock data for this maSoBHXH
-      const foundData = mockData.find(data => data.maSoBHXH === maSoBHXH);
-
-      if (foundData) {
-        results.push({
-          maSoBHXH,
-          success: true,
-          data: foundData,
-          message: 'Tra cứu thành công'
-        });
-        successCount++;
-      } else {
-        results.push({
-          maSoBHXH,
-          success: false,
-          message: 'Không tìm thấy thông tin thẻ BHYT với mã số này'
-        });
-        failureCount++;
-      }
-    }
-
-    return {
-      success: true,
-      results,
-      totalCount: maSoBHXHList.length,
-      successCount,
-      failureCount,
-      message: `Hoàn thành tra cứu ${maSoBHXHList.length} mã số. Thành công: ${successCount}, Thất bại: ${failureCount}`
-    };
-  }
 }
 
 export const bhytService = new BhytService();
