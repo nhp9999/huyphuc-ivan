@@ -1,6 +1,6 @@
 import React from 'react';
-import { DanhSachKeKhai } from '../../services/supabaseClient';
-import { ApiSummary } from '../../hooks/useBhytApi';
+import { DanhSachKeKhai } from '../../../services/supabaseClient';
+import { ApiSummary } from '../../../hooks/useKeKhai603Api';
 import { 
   FileText, 
   Users, 
@@ -10,14 +10,14 @@ import {
   Info
 } from 'lucide-react';
 
-interface BhytDeclarationHeaderProps {
+interface KeKhai603HeaderProps {
   keKhaiInfo: DanhSachKeKhai | null;
   inputMode: 'form' | 'list';
   setInputMode: (mode: 'form' | 'list') => void;
   apiSummary: ApiSummary;
 }
 
-export const BhytDeclarationHeader: React.FC<BhytDeclarationHeaderProps> = ({
+export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
   keKhaiInfo,
   inputMode,
   setInputMode,
@@ -31,7 +31,7 @@ export const BhytDeclarationHeader: React.FC<BhytDeclarationHeaderProps> = ({
             <FileText className="h-6 w-6 text-blue-600" />
             <div>
               <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Kê khai BHYT - Hộ gia đình
+                Kê khai 603 - BHYT Hộ gia đình
               </h1>
               {keKhaiInfo && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">

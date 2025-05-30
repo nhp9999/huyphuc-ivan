@@ -1,25 +1,25 @@
 import React from 'react';
 import { useNavigation } from '../context/NavigationContext';
 import Toast from '../components/Toast';
-import { useBhytFormData } from '../hooks/useBhytFormData';
-import { useBhytParticipants } from '../hooks/useBhytParticipants';
-import { useBhytApi } from '../hooks/useBhytApi';
-import { useBhytDeclaration } from '../hooks/useBhytDeclaration';
+import { useKeKhai603FormData } from '../hooks/useKeKhai603FormData';
+import { useKeKhai603Participants } from '../hooks/useKeKhai603Participants';
+import { useKeKhai603Api } from '../hooks/useKeKhai603Api';
+import { useKeKhai603 } from '../hooks/useKeKhai603';
 import { useToast } from '../hooks/useToast';
-import { BhytDeclarationHeader } from '../components/bhyt/BhytDeclarationHeader';
-import { BhytPersonalInfoForm } from '../components/bhyt/BhytPersonalInfoForm';
-import { BhytCardInfoForm } from '../components/bhyt/BhytCardInfoForm';
-import { BhytPaymentInfoForm } from '../components/bhyt/BhytPaymentInfoForm';
-import { BhytParticipantTable } from '../components/bhyt/BhytParticipantTable';
-import { BhytListModeTable } from '../components/bhyt/BhytListModeTable';
+import { KeKhai603Header } from '../components/kekhai/kekhai603/KeKhai603Header';
+import { KeKhai603PersonalInfoForm } from '../components/kekhai/kekhai603/KeKhai603PersonalInfoForm';
+import { KeKhai603CardInfoForm } from '../components/kekhai/kekhai603/KeKhai603CardInfoForm';
+import { KeKhai603PaymentInfoForm } from '../components/kekhai/kekhai603/KeKhai603PaymentInfoForm';
+import { KeKhai603ParticipantTable } from '../components/kekhai/kekhai603/KeKhai603ParticipantTable';
+import { KeKhai603ListModeTable } from '../components/kekhai/kekhai603/KeKhai603ListModeTable';
 
-const BhytDeclaration: React.FC = () => {
+const KeKhai603Form: React.FC = () => {
   const { pageParams } = useNavigation();
 
   // Custom hooks
-  const { formData, handleInputChange, resetForm } = useBhytFormData();
+  const { formData, handleInputChange, resetForm } = useKeKhai603FormData();
   const { toast, showToast, hideToast } = useToast();
-  const { searchLoading, apiSummary, searchBhytForDeclaration, searchParticipantData } = useBhytApi();
+  const { searchLoading, apiSummary, searchKeKhai603, searchParticipantData } = useKeKhai603Api();
   const {
     keKhaiInfo,
     saving,
@@ -29,7 +29,7 @@ const BhytDeclaration: React.FC = () => {
     initializeKeKhai,
     submitDeclaration,
     saveAllParticipants
-  } = useBhytDeclaration(pageParams);
+  } = useKeKhai603(pageParams);
 
   const {
     participants,
@@ -38,7 +38,7 @@ const BhytDeclaration: React.FC = () => {
     addParticipant,
     removeParticipant,
     updateParticipantWithApiData
-  } = useBhytParticipants(keKhaiInfo?.id);
+  } = useKeKhai603Participants(keKhaiInfo?.id);
 
   // Show message when participants are loaded
   React.useEffect(() => {
@@ -62,7 +62,7 @@ const BhytDeclaration: React.FC = () => {
     }
 
     try {
-      const result = await searchBhytForDeclaration(formData.maSoBHXH);
+      const result = await searchKeKhai603(formData.maSoBHXH);
 
       if (result.success && result.data) {
         // Update form data with search results
@@ -248,7 +248,7 @@ const BhytDeclaration: React.FC = () => {
   return (
     <div className="space-y-6">
         {/* Header */}
-        <BhytDeclarationHeader
+        <KeKhai603Header
           keKhaiInfo={keKhaiInfo}
           inputMode={inputMode}
           setInputMode={setInputMode}
@@ -260,7 +260,7 @@ const BhytDeclaration: React.FC = () => {
           {inputMode === 'form' ? (
             <>
               {/* Personal Information Form */}
-              <BhytPersonalInfoForm
+              <KeKhai603PersonalInfoForm
                 formData={formData}
                 handleInputChange={handleInputChange}
                 handleSearch={handleSearch}
@@ -270,20 +270,20 @@ const BhytDeclaration: React.FC = () => {
               />
 
               {/* Card Information Form */}
-              <BhytCardInfoForm
+              <KeKhai603CardInfoForm
                 formData={formData}
                 handleInputChange={handleInputChange}
               />
 
               {/* Payment Information Form */}
-              <BhytPaymentInfoForm
+              <KeKhai603PaymentInfoForm
                 formData={formData}
                 handleInputChange={handleInputChange}
               />
             </>
           ) : (
             /* List Mode Table */
-            <BhytListModeTable
+            <KeKhai603ListModeTable
               participants={participants}
               handleParticipantChange={handleParticipantChange}
               handleParticipantKeyPress={handleParticipantKeyPress}
@@ -296,7 +296,7 @@ const BhytDeclaration: React.FC = () => {
 
           {/* Participant Table (always shown in form mode) */}
           {inputMode === 'form' && (
-            <BhytParticipantTable
+            <KeKhai603ParticipantTable
               participants={participants}
               handleParticipantChange={handleParticipantChange}
               handleParticipantKeyPress={handleParticipantKeyPress}
@@ -352,4 +352,4 @@ const BhytDeclaration: React.FC = () => {
   );
 };
 
-export default BhytDeclaration;
+export default KeKhai603Form;

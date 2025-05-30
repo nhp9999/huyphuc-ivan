@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 // Interface for form data
-export interface BhytFormData {
+export interface KeKhai603FormData {
   // Thông tin cơ bản
   hoTen: string;
   maSoBHXH: string;
@@ -47,7 +47,7 @@ export interface BhytFormData {
 }
 
 // Initial form data
-const initialFormData: BhytFormData = {
+const initialFormData: KeKhai603FormData = {
   // Thông tin cơ bản
   hoTen: '',
   maSoBHXH: '',
@@ -93,7 +93,7 @@ const initialFormData: BhytFormData = {
 };
 
 // Calculation utilities
-export const calculateBhytAmount = (sttHo: string, soThangDong: string, mucLuongCoSo: number = 2340000): number => {
+export const calculateKeKhai603Amount = (sttHo: string, soThangDong: string, mucLuongCoSo: number = 2340000): number => {
   if (!sttHo || !soThangDong) return 0;
 
   const soThang = parseInt(soThangDong);
@@ -130,7 +130,7 @@ export const calculateBhytAmount = (sttHo: string, soThangDong: string, mucLuong
   return Math.round(soTienDong);
 };
 
-export const calculateCardValidity = (soThangDong: string, denNgayTheCu: string, ngayBienLai: string) => {
+export const calculateKeKhai603CardValidity = (soThangDong: string, denNgayTheCu: string, ngayBienLai: string) => {
   if (!soThangDong || !ngayBienLai) return { tuNgay: '', denNgay: '' };
 
   const soThang = parseInt(soThangDong);
@@ -178,10 +178,10 @@ export const calculateCardValidity = (soThangDong: string, denNgayTheCu: string,
 };
 
 // Custom hook for form data management
-export const useBhytFormData = () => {
-  const [formData, setFormData] = useState<BhytFormData>(initialFormData);
+export const useKeKhai603FormData = () => {
+  const [formData, setFormData] = useState<KeKhai603FormData>(initialFormData);
 
-  const handleInputChange = (field: keyof BhytFormData, value: string) => {
+  const handleInputChange = (field: keyof KeKhai603FormData, value: string) => {
     setFormData(prev => {
       const newData = {
         ...prev,
@@ -217,7 +217,7 @@ export const useBhytFormData = () => {
         }
 
         if (sttHo && soThangDong) {
-          const soTien = calculateBhytAmount(sttHo, soThangDong);
+          const soTien = calculateKeKhai603Amount(sttHo, soThangDong);
           newData.soTienDong = soTien.toLocaleString('vi-VN');
         }
       }
@@ -229,7 +229,7 @@ export const useBhytFormData = () => {
         const denNgayTheCu = field === 'denNgayTheCu' ? value : prev.denNgayTheCu;
 
         if (soThangDong && ngayBienLai) {
-          const cardValidity = calculateCardValidity(soThangDong, denNgayTheCu, ngayBienLai);
+          const cardValidity = calculateKeKhai603CardValidity(soThangDong, denNgayTheCu, ngayBienLai);
           newData.tuNgayTheMoi = cardValidity.tuNgay;
           newData.denNgayTheMoi = cardValidity.denNgay;
         }
@@ -243,7 +243,7 @@ export const useBhytFormData = () => {
     setFormData(initialFormData);
   };
 
-  const updateFormData = (data: Partial<BhytFormData>) => {
+  const updateFormData = (data: Partial<KeKhai603FormData>) => {
     setFormData(prev => ({ ...prev, ...data }));
   };
 

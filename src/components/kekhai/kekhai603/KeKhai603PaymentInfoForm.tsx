@@ -1,12 +1,12 @@
 import React from 'react';
-import { BhytFormData } from '../../hooks/useBhytFormData';
+import { KeKhai603FormData } from '../../../hooks/useKeKhai603FormData';
 
-interface BhytPaymentInfoFormProps {
-  formData: BhytFormData;
-  handleInputChange: (field: keyof BhytFormData, value: string) => void;
+interface KeKhai603PaymentInfoFormProps {
+  formData: KeKhai603FormData;
+  handleInputChange: (field: keyof KeKhai603FormData, value: string) => void;
 }
 
-export const BhytPaymentInfoForm: React.FC<BhytPaymentInfoFormProps> = ({
+export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> = ({
   formData,
   handleInputChange
 }) => {

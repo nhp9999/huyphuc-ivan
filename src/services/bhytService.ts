@@ -1,8 +1,9 @@
 import { BhytInfo, BhytLookupResponse, ApiResponse, BhytBulkLookupResponse, BhytBulkResult, BulkLookupProgress, VnPostApiResponse, VnPostBhytData, BhytDeclarationRequest, BhytDeclarationResponse, BhytDeclarationData, BhytDeclarationApiResponse, BhytDeclarationApiData } from '../types/bhyt';
+import { KeKhai603Request, KeKhai603Response } from '../types/kekhai603';
 
 export class BhytService {
   protected baseURL = 'https://ssm.vnpost.vn';
-  protected authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiODg0MDAwX3hhX3RsaV9waHVvY2x0IiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoidXNlciIsInN1YiI6IjEwMDkxNyIsInNpZCI6InNTSm9uLXdNeE4tS09BaDdSMFc4NHJmRjBCRVpPS3huWDVoNUt0Y3NwMVEiLCJuYW1lIjoiTMOqIFRo4buLIFBoxrDhu5tjIiwibmlja25hbWUiOiI4ODQwMDBfeGFfdGxpX3BodW9jbHQiLCJjbGllbnRfaWQiOiJZamcyTldVd01XRXRORFZtWlMwME1UZGhMVGc1TTJNdE56ZGtabUUzTmpVNE56VXoiLCJtYW5nTHVvaSI6Ijc2MjU1IiwiZG9uVmlDb25nVGFjIjoixJBp4buDbSB0aHUgeMOjIFTDom4gTOG7o2kiLCJjaHVjRGFuaCI6IkPhu5luZyB0w6FjIHZpw6puIHRodSIsImVtYWlsIjoibmd1eWVudGFuZHVuZzI3MTE4OUBnbWFpbC5jb20iLCJzb0RpZW5UaG9haSI6IiIsImlzU3VwZXJBZG1pbiI6IkZhbHNlIiwiaXNDYXMiOiJGYWxzZSIsIm5iZiI6MTc0ODU4NDEwMSwiZXhwIjoxNzQ4NjAyMTAxLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjUwMDAiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAifQ.0udUdgrJb5GODoExVD6jg1QGO0WrHosoHE9My_06cR8';
+  protected authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiODg0MDAwX3hhX3RsaV9waHVvY2x0IiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoidXNlciIsInN1YiI6IjEwMDkxNyIsInNpZCI6ImZCQXktekpvWExsTUc3c013OWZraHJwS2d4WXFDRHkzd1hXZjE4RTB6UXciLCJuYW1lIjoiTMOqIFRo4buLIFBoxrDhu5tjIiwibmlja25hbWUiOiI4ODQwMDBfeGFfdGxpX3BodW9jbHQiLCJjbGllbnRfaWQiOiJZamcyTldVd01XRXRORFZtWlMwME1UZGhMVGc1TTJNdE56ZGtabUUzTmpVNE56VXoiLCJtYW5nTHVvaSI6Ijc2MjU1IiwiZG9uVmlDb25nVGFjIjoixJBp4buDbSB0aHUgeMOjIFTDom4gTOG7o2kiLCJjaHVjRGFuaCI6IkPhu5luZyB0w6FjIHZpw6puIHRodSIsImVtYWlsIjoibmd1eWVudGFuZHVuZzI3MTE4OUBnbWFpbC5jb20iLCJzb0RpZW5UaG9haSI6IiIsImlzU3VwZXJBZG1pbiI6IkZhbHNlIiwiaXNDYXMiOiJGYWxzZSIsIm5iZiI6MTc0ODYwMjgxMCwiZXhwIjoxNzQ4NjIwODEwLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjUwMDAiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAifQ.8FJmHiHaZdQAc6cPR0kRXcaalloCkeDIbWZBJk4KASA';
 
   protected getHeaders(): Record<string, string> {
     return {
@@ -229,6 +230,121 @@ export class BhytService {
         success: false,
         error: error instanceof Error ? error.message : 'Lỗi kết nối đến server',
         message: 'Không thể tra cứu thông tin. Vui lòng thử lại sau.'
+      };
+    }
+  }
+
+  // API tìm kiếm thông tin BHYT cho kê khai 603
+  async lookupKeKhai603(request: KeKhai603Request): Promise<KeKhai603Response> {
+    try {
+      const url = `${this.baseURL}/connect/tracuu/thongtinbhytforkekhai`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(request)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const apiResponse = await response.json();
+
+      console.log('KeKhai603 API Response:', apiResponse); // Debug log
+
+      // Kiểm tra response từ API
+      if (apiResponse.success && apiResponse.data && this.isValidDeclarationData(apiResponse.data)) {
+        // Convert API response to our format
+        const keKhai603Data = {
+          maSoBhxh: apiResponse.data.maSoBHXH || request.maSoBHXH,
+          hoTen: apiResponse.data.hoTen || '',
+          ngaySinh: this.convertDateFormat(apiResponse.data.ngaySinh || ''),
+          gioiTinh: apiResponse.data.gioiTinh === 1 ? 'Nam' : 'Nữ',
+          diaChi: this.buildAddress(apiResponse.data),
+          noiDangKyKCB: this.getBenhVienName(apiResponse.data),
+          trangThaiThe: apiResponse.data.moTa || 'Không xác định',
+          ngayHieuLuc: this.formatDisplayDate(apiResponse.data.tuNgayTheCu || ''),
+          ngayHetHan: this.formatDisplayDate(apiResponse.data.denNgayTheCu || ''),
+          mucHuong: this.getMucHuong(apiResponse.data),
+          donViCongTac: '',
+          maKV: apiResponse.data.tinhKCB || '',
+          tenKV: '',
+          soDienThoai: apiResponse.data.soDienThoai || '',
+          cmnd: apiResponse.data.cmnd || '',
+          soTheBHYT: apiResponse.data.soTheBHYT || '',
+          loaiDoiTuong: apiResponse.data.typeId || 'GD',
+          mucLuong: apiResponse.data.mucLuongNsTw?.toString() || '',
+          tyLeDong: '4.5',
+          soTienDong: '',
+          // Thêm mapping cho các trường còn thiếu
+          quocTich: apiResponse.data.quocTich || 'VN',
+          danToc: apiResponse.data.danToc || '',
+          maTinhKS: apiResponse.data.maTinhKS || '',
+          maHuyenKS: apiResponse.data.maHuyenKS || '',
+          maXaKS: apiResponse.data.maXaKS || '',
+          maTinhNkq: apiResponse.data.maTinhNkq || '',
+          maHuyenNkq: apiResponse.data.maHuyenNkq || '',
+          maXaNkq: apiResponse.data.maXaNkq || '',
+          noiNhanHoSo: apiResponse.data.noiNhanHoSo || '',
+          maBenhVien: apiResponse.data.maBenhVien || '',
+          maHoGiaDinh: apiResponse.data.maHoGiaDinh || '',
+          phuongAn: apiResponse.data.phuongAn || '',
+          moTa: apiResponse.data.moTa || ''
+        };
+
+        return {
+          success: true,
+          data: keKhai603Data,
+          message: 'Tra cứu thông tin BHYT cho kê khai 603 thành công'
+        };
+      } else {
+        let errorMessage = 'Không tìm thấy thông tin BHYT cho kê khai 603';
+
+        if (apiResponse.message) {
+          errorMessage = apiResponse.message;
+        } else if (!apiResponse.success) {
+          errorMessage = 'API trả về lỗi - Không thể tra cứu thông tin';
+        } else if (!apiResponse.data) {
+          errorMessage = 'Không có dữ liệu BHYT - Mã số có thể không tồn tại trong hệ thống';
+        } else if (apiResponse.data) {
+          // Kiểm tra lý do cụ thể tại sao dữ liệu không hợp lệ
+          if (apiResponse.data.typeId === 'GT') {
+            errorMessage = 'Không tìm thấy thông tin BHYT với mã số này trong hệ thống';
+          } else if (apiResponse.data.hoTen === null || apiResponse.data.hoTen === '') {
+            errorMessage = 'Không tìm thấy thông tin họ tên với mã số này';
+          } else if (apiResponse.data.maSoBHXH === null || apiResponse.data.maSoBHXH === '') {
+            errorMessage = 'Mã số BHXH không hợp lệ trong dữ liệu trả về';
+          } else if (apiResponse.data.soTheBHYT === null || apiResponse.data.soTheBHYT === '') {
+            errorMessage = 'Không có thẻ BHYT với mã số này trong hệ thống';
+          } else if (apiResponse.data.moTa && apiResponse.data.moTa.toLowerCase().includes('không có thẻ')) {
+            errorMessage = 'Không có thẻ BHYT với mã số này trong hệ thống';
+          } else {
+            errorMessage = 'Dữ liệu BHYT không đầy đủ hoặc không hợp lệ';
+          }
+        }
+
+        console.log('KeKhai603 lookup failed:', {
+          apiSuccess: apiResponse.success,
+          hasData: !!apiResponse.data,
+          dataValid: apiResponse.data ? this.isValidDeclarationData(apiResponse.data) : false,
+          hoTen: apiResponse.data?.hoTen,
+          maSoBHXH: apiResponse.data?.maSoBHXH,
+          moTa: apiResponse.data?.moTa,
+          message: apiResponse.message
+        });
+
+        return {
+          success: false,
+          message: errorMessage
+        };
+      }
+    } catch (error) {
+      console.error('KeKhai603 lookup failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Lỗi kết nối đến server',
+        message: 'Không thể tra cứu thông tin BHYT cho kê khai 603. Vui lòng thử lại sau.'
       };
     }
   }

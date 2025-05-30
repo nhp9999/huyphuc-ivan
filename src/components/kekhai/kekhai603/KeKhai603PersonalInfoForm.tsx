@@ -1,17 +1,17 @@
 import React from 'react';
-import { BhytFormData } from '../../hooks/useBhytFormData';
+import { KeKhai603FormData } from '../../../hooks/useKeKhai603FormData';
 import { Search, RotateCcw, Loader2 } from 'lucide-react';
 
-interface BhytPersonalInfoFormProps {
-  formData: BhytFormData;
-  handleInputChange: (field: keyof BhytFormData, value: string) => void;
+interface KeKhai603PersonalInfoFormProps {
+  formData: KeKhai603FormData;
+  handleInputChange: (field: keyof KeKhai603FormData, value: string) => void;
   handleSearch: () => void;
   handleKeyPress: (e: React.KeyboardEvent) => void;
   searchLoading: boolean;
   resetForm: () => void;
 }
 
-export const BhytPersonalInfoForm: React.FC<BhytPersonalInfoFormProps> = ({
+export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps> = ({
   formData,
   handleInputChange,
   handleSearch,

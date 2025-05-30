@@ -1,10 +1,10 @@
 import React from 'react';
-import { BhytParticipant } from '../../hooks/useBhytParticipants';
+import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
 import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 
-interface BhytParticipantTableProps {
-  participants: BhytParticipant[];
-  handleParticipantChange: (index: number, field: keyof BhytParticipant, value: string) => void;
+interface KeKhai603ParticipantTableProps {
+  participants: KeKhai603Participant[];
+  handleParticipantChange: (index: number, field: keyof KeKhai603Participant, value: string) => void;
   handleParticipantKeyPress: (e: React.KeyboardEvent, index: number) => void;
   handleAddParticipant: () => void;
   handleRemoveParticipant: (index: number) => void;
@@ -12,7 +12,7 @@ interface BhytParticipantTableProps {
   savingData: boolean;
 }
 
-export const BhytParticipantTable: React.FC<BhytParticipantTableProps> = ({
+export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps> = ({
   participants,
   handleParticipantChange,
   handleParticipantKeyPress,

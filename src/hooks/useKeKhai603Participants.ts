@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { keKhaiService } from '../services/keKhaiService';
-import { calculateBhytAmount } from './useBhytFormData';
+import { calculateKeKhai603Amount } from './useKeKhai603FormData';
 
 // Interface for participant data
-export interface BhytParticipant {
+export interface KeKhai603Participant {
   id: number;
   hoTen: string;
   maSoBHXH: string;
@@ -25,7 +25,7 @@ export interface BhytParticipant {
 }
 
 // Initial participant data
-const createInitialParticipant = (): BhytParticipant => ({
+const createInitialParticipant = (): KeKhai603Participant => ({
   id: 0,
   hoTen: '',
   maSoBHXH: '',
@@ -47,8 +47,8 @@ const createInitialParticipant = (): BhytParticipant => ({
 });
 
 // Custom hook for participant management
-export const useBhytParticipants = (keKhaiId?: number) => {
-  const [participants, setParticipants] = useState<BhytParticipant[]>([]);
+export const useKeKhai603Participants = (keKhaiId?: number) => {
+  const [participants, setParticipants] = useState<KeKhai603Participant[]>([]);
   const [savingData, setSavingData] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -113,7 +113,7 @@ export const useBhytParticipants = (keKhaiId?: number) => {
   };
 
   // Create default participant and save to database
-  const createDefaultParticipant = async (): Promise<BhytParticipant> => {
+  const createDefaultParticipant = async (): Promise<KeKhai603Participant> => {
     if (!keKhaiId) {
       throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
     }
@@ -162,7 +162,7 @@ export const useBhytParticipants = (keKhaiId?: number) => {
   };
 
   // Handle participant field changes
-  const handleParticipantChange = async (index: number, field: keyof BhytParticipant, value: string) => {
+  const handleParticipantChange = async (index: number, field: keyof KeKhai603Participant, value: string) => {
     const participant = participants[index];
     if (!participant) return;
 
@@ -177,7 +177,7 @@ export const useBhytParticipants = (keKhaiId?: number) => {
           const soThangDong = field === 'soThangDong' ? value : p.soThangDong;
 
           if (sttHo && soThangDong) {
-            const soTien = calculateBhytAmount(sttHo, soThangDong);
+            const soTien = calculateKeKhai603Amount(sttHo, soThangDong);
             updatedParticipant.soTienDong = soTien.toLocaleString('vi-VN');
           }
         }
@@ -258,7 +258,7 @@ export const useBhytParticipants = (keKhaiId?: number) => {
       const savedParticipant = await keKhaiService.addNguoiThamGia(newParticipantData);
 
       // Update local state
-      const newParticipant: BhytParticipant = {
+      const newParticipant: KeKhai603Participant = {
         ...createInitialParticipant(),
         id: savedParticipant.id
       };
@@ -324,32 +324,6 @@ export const useBhytParticipants = (keKhaiId?: number) => {
     ));
   };
 
-  // Add participant from API data
-  const addParticipantFromApiData = (apiData: any) => {
-    const newParticipant: BhytParticipant = {
-      id: 0, // Will be updated when saved to database
-      hoTen: apiData.hoTen,
-      maSoBHXH: apiData.maSoBhxh,
-      ngaySinh: apiData.ngaySinh,
-      gioiTinh: apiData.gioiTinh,
-      noiDangKyKCB: apiData.noiDangKyKCB,
-      mucLuong: apiData.mucLuong || '',
-      tyLeDong: apiData.tyLeDong || '4.5',
-      soTienDong: apiData.soTienDong || '',
-      tuNgayTheCu: apiData.tuNgayTheCu || '',
-      denNgayTheCu: apiData.denNgayTheCu || '',
-      ngayBienLai: new Date().toISOString().split('T')[0],
-      sttHo: '',
-      soThangDong: '',
-      maTinhNkq: apiData.maTinhNkq || '',
-      maHuyenNkq: apiData.maHuyenNkq || '',
-      maXaNkq: apiData.maXaNkq || '',
-      noiNhanHoSo: apiData.noiNhanHoSo || ''
-    };
-
-    setParticipants(prev => [...prev, newParticipant]);
-  };
-
   return {
     participants,
     savingData,
@@ -358,7 +332,6 @@ export const useBhytParticipants = (keKhaiId?: number) => {
     addParticipant,
     removeParticipant,
     updateParticipantWithApiData,
-    addParticipantFromApiData,
     setParticipants
   };
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { keKhaiService } from '../services/keKhaiService';
 import { DanhSachKeKhai } from '../services/supabaseClient';
-import { BhytParticipant } from './useBhytParticipants';
+import { KeKhai603Participant } from './useKeKhai603Participants';
 
 // Interface for page parameters
 export interface PageParams {
@@ -11,8 +11,8 @@ export interface PageParams {
   formData?: any;
 }
 
-// Custom hook for BHYT declaration management
-export const useBhytDeclaration = (pageParams?: PageParams) => {
+// Custom hook for KeKhai603 management
+export const useKeKhai603 = (pageParams?: PageParams) => {
   const [keKhaiInfo, setKeKhaiInfo] = useState<DanhSachKeKhai | null>(null);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +62,7 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
     // If no pageParams or no formData, create default declaration for testing
     if (!pageParams?.formData) {
       const defaultKeKhaiData = {
-        ten_ke_khai: 'Kê khai BHYT test',
+        ten_ke_khai: 'Kê khai 603 test',
         loai_ke_khai: '603',
         doi_tuong_tham_gia: 'GD - Hộ gia đình',
         hinh_thuc_tinh: 'Hỗ trợ dựa trên mức đóng từng người',
@@ -77,14 +77,14 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
         setKeKhaiInfo(newKeKhai);
         return {
           success: true,
-          message: `Đã tạo kê khai ${newKeKhai.ma_ke_khai} thành công!`,
+          message: `Đã tạo kê khai 603 ${newKeKhai.ma_ke_khai} thành công!`,
           data: newKeKhai
         };
       } catch (error) {
         console.error('Error creating default ke khai:', error);
         return {
           success: false,
-          message: 'Có lỗi xảy ra khi tạo kê khai. Vui lòng thử lại.'
+          message: 'Có lỗi xảy ra khi tạo kê khai 603. Vui lòng thử lại.'
         };
       } finally {
         setSaving(false);
@@ -96,7 +96,7 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
 
       // Create new declaration in database
       const keKhaiData = {
-        ten_ke_khai: pageParams.declarationName || 'Kê khai BHYT',
+        ten_ke_khai: pageParams.declarationName || 'Kê khai 603',
         loai_ke_khai: pageParams.declarationCode || '603',
         dai_ly_id: pageParams.formData.chonDaiLy ? parseInt(pageParams.formData.chonDaiLy) : undefined,
         don_vi_id: pageParams.formData.chonDonVi ? parseInt(pageParams.formData.chonDonVi) : undefined,
@@ -118,14 +118,14 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
 
       return {
         success: true,
-        message: `Đã tạo kê khai ${newKeKhai.ma_ke_khai} thành công!`,
+        message: `Đã tạo kê khai 603 ${newKeKhai.ma_ke_khai} thành công!`,
         data: newKeKhai
       };
     } catch (error) {
       console.error('Error initializing ke khai:', error);
       return {
         success: false,
-        message: 'Có lỗi xảy ra khi tạo kê khai. Vui lòng thử lại.'
+        message: 'Có lỗi xảy ra khi tạo kê khai 603. Vui lòng thử lại.'
       };
     } finally {
       setSaving(false);
@@ -161,13 +161,13 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
 
       return {
         success: true,
-        message: 'Đã nộp kê khai thành công!'
+        message: 'Đã nộp kê khai 603 thành công!'
       };
     } catch (error) {
       console.error('Error submitting declaration:', error);
       return {
         success: false,
-        message: 'Có lỗi xảy ra khi nộp kê khai. Vui lòng thử lại.'
+        message: 'Có lỗi xảy ra khi nộp kê khai 603. Vui lòng thử lại.'
       };
     } finally {
       setSubmitting(false);
@@ -175,7 +175,7 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
   };
 
   // Save all data (declaration + participants)
-  const saveAllParticipants = async (participants: BhytParticipant[], formData?: any) => {
+  const saveAllParticipants = async (participants: KeKhai603Participant[], formData?: any) => {
     if (!keKhaiInfo) {
       throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
     }
@@ -190,11 +190,10 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
       };
 
       // Add form data to declaration if provided
-      // Note: Based on DanhSachKeKhai interface and BhytFormData structure
       if (formData) {
         console.log('Form data received for saving:', formData);
 
-        // Map BhytFormData fields to DanhSachKeKhai fields
+        // Map KeKhai603FormData fields to DanhSachKeKhai fields
         if (formData.noiDangKyKCB && formData.noiDangKyKCB.trim()) {
           updateData.noi_dang_ky_kcb_ban_dau = formData.noiDangKyKCB;
         }
@@ -233,13 +232,6 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
         console.log('Mapped update data for declaration:', updateData);
       }
 
-      // Debug log for declaration update
-      console.log('Updating declaration with data:', {
-        keKhaiId: keKhaiInfo.id,
-        updateData,
-        originalFormData: formData
-      });
-
       const updatedKeKhai = await keKhaiService.updateKeKhai(keKhaiInfo.id, updateData);
       console.log('Declaration updated successfully:', updatedKeKhai);
 
@@ -251,7 +243,7 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
       if (participants.length === 0) {
         return {
           success: true,
-          message: 'Đã lưu thông tin kê khai thành công!'
+          message: 'Đã lưu thông tin kê khai 603 thành công!'
         };
       }
 
@@ -259,7 +251,7 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
         const participant = participants[i];
 
         try {
-          // Prepare data to save - include all fields from participant and form data
+          // Prepare data to save
           const participantData: any = {
             ke_khai_id: keKhaiInfo.id,
             stt: i + 1,
@@ -282,65 +274,6 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
             noi_nhan_ho_so: participant.noiNhanHoSo || null
           };
 
-          // Add additional fields from form data if this is the first participant (main person)
-          if (i === 0 && formData) {
-            // Add form data to first participant (main person)
-            if (formData.soCCCD && formData.soCCCD.trim()) {
-              participantData.so_cccd = formData.soCCCD;
-            }
-            if (formData.soDienThoai && formData.soDienThoai.trim()) {
-              participantData.so_dien_thoai = formData.soDienThoai;
-            }
-            if (formData.soTheBHYT && formData.soTheBHYT.trim()) {
-              participantData.so_the_bhyt = formData.soTheBHYT;
-            }
-            if (formData.quocTich && formData.quocTich.trim()) {
-              participantData.quoc_tich = formData.quocTich;
-            }
-            if (formData.danToc && formData.danToc.trim()) {
-              participantData.dan_toc = formData.danToc;
-            }
-            if (formData.maTinhKS && formData.maTinhKS.trim()) {
-              participantData.ma_tinh_ks = formData.maTinhKS;
-            }
-            if (formData.maHuyenKS && formData.maHuyenKS.trim()) {
-              participantData.ma_huyen_ks = formData.maHuyenKS;
-            }
-            if (formData.maXaKS && formData.maXaKS.trim()) {
-              participantData.ma_xa_ks = formData.maXaKS;
-            }
-            if (formData.tinhKCB && formData.tinhKCB.trim()) {
-              participantData.tinh_kcb = formData.tinhKCB;
-            }
-            if (formData.maBenhVien && formData.maBenhVien.trim()) {
-              participantData.ma_benh_vien = formData.maBenhVien;
-            }
-            if (formData.maHoGiaDinh && formData.maHoGiaDinh.trim()) {
-              participantData.ma_ho_gia_dinh = formData.maHoGiaDinh;
-            }
-            if (formData.phuongAn && formData.phuongAn.trim()) {
-              participantData.phuong_an = formData.phuongAn;
-            }
-            if (formData.trangThai && formData.trangThai.trim()) {
-              participantData.trang_thai_the = formData.trangThai;
-            }
-            if (formData.tuNgayTheMoi && formData.tuNgayTheMoi.trim()) {
-              participantData.tu_ngay_the_moi = formData.tuNgayTheMoi;
-            }
-            if (formData.denNgayTheMoi && formData.denNgayTheMoi.trim()) {
-              participantData.den_ngay_the_moi = formData.denNgayTheMoi;
-            }
-
-            console.log('Added form data to first participant:', {
-              formDataFields: Object.keys(formData),
-              addedFields: Object.keys(participantData).filter(key =>
-                ['so_cccd', 'so_dien_thoai', 'so_the_bhyt', 'quoc_tich', 'dan_toc',
-                 'ma_tinh_ks', 'ma_huyen_ks', 'ma_xa_ks', 'tinh_kcb', 'ma_benh_vien',
-                 'ma_ho_gia_dinh', 'phuong_an', 'trang_thai_the', 'tu_ngay_the_moi', 'den_ngay_the_moi'].includes(key)
-              )
-            });
-          }
-
           // Remove null values to avoid database issues
           Object.keys(participantData).forEach(key => {
             if (participantData[key] === null || participantData[key] === undefined || participantData[key] === '') {
@@ -348,22 +281,13 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
             }
           });
 
-          // Debug log
-          console.log(`Saving participant ${i + 1}:`, {
-            participantId: participant.id,
-            participantData,
-            originalParticipant: participant
-          });
-
           if (participant.id) {
             // Update existing participant
-            const result = await keKhaiService.updateNguoiThamGia(participant.id, participantData);
-            console.log(`Updated participant ${i + 1}:`, result);
+            await keKhaiService.updateNguoiThamGia(participant.id, participantData);
             updatedCount++;
           } else {
             // Add new participant
-            const result = await keKhaiService.addNguoiThamGia(participantData);
-            console.log(`Added new participant ${i + 1}:`, result);
+            await keKhaiService.addNguoiThamGia(participantData);
             savedCount++;
           }
         } catch (error) {
@@ -377,18 +301,18 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
         if (savedCount + updatedCount > 0) {
           return {
             success: true,
-            message: `Đã lưu thành công kê khai và ${savedCount} người mới, cập nhật ${updatedCount} người!`
+            message: `Đã lưu thành công kê khai 603 và ${savedCount} người mới, cập nhật ${updatedCount} người!`
           };
         } else {
           return {
             success: true,
-            message: 'Đã lưu thông tin kê khai thành công!'
+            message: 'Đã lưu thông tin kê khai 603 thành công!'
           };
         }
       } else {
         return {
           success: false,
-          message: `Đã lưu kê khai và ${savedCount + updatedCount} người thành công, ${errorCount} người lỗi.`
+          message: `Đã lưu kê khai 603 và ${savedCount + updatedCount} người thành công, ${errorCount} người lỗi.`
         };
       }
 
@@ -396,7 +320,7 @@ export const useBhytDeclaration = (pageParams?: PageParams) => {
       console.error('Error saving all participants:', error);
       return {
         success: false,
-        message: 'Có lỗi xảy ra khi ghi dữ liệu. Vui lòng thử lại.'
+        message: 'Có lỗi xảy ra khi ghi dữ liệu kê khai 603. Vui lòng thử lại.'
       };
     } finally {
       setSaving(false);
