@@ -99,6 +99,17 @@ export interface VBhytKeKhaiChiTiet {
   ten_xa?: string;
 }
 
+export interface DmLuongCoSo {
+  id: number;
+  mucluong: number;
+  thang: string;
+  thanghienthi: string;
+  ghichu?: string;
+  rownum: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DmDonVi {
   id: number;
   ma_co_quan_bhxh?: string;
@@ -253,4 +264,70 @@ export interface VDaiLyDonVi {
   loai_don_vi?: string;
   ngay_lien_ket?: string;
   ghi_chu_lien_ket?: string;
+}
+
+// Interface cho bảng danh_sach_ke_khai
+export interface DanhSachKeKhai {
+  id: number;
+  ma_ke_khai: string;
+  ten_ke_khai: string;
+  loai_ke_khai: string;
+  dai_ly_id?: number;
+  don_vi_id?: number;
+  doi_tuong_tham_gia?: string;
+  hinh_thuc_tinh?: string;
+  luong_co_so?: number;
+  nguon_dong?: string;
+  noi_dang_ky_kcb_ban_dau?: string;
+  bien_lai_ngay_tham_gia?: string;
+  so_thang?: number;
+  ngay_tao?: string;
+  ty_le_nsnn_ho_tro?: number;
+  ghi_chu?: string;
+  trang_thai: string;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+// Interface cho bảng danh_sach_nguoi_tham_gia
+export interface DanhSachNguoiThamGia {
+  id: number;
+  ke_khai_id: number;
+  stt: number;
+  ho_ten: string;
+  ma_so_bhxh?: string;
+  ngay_sinh?: string;
+  gioi_tinh?: string;
+  so_cccd?: string;
+  noi_dang_ky_kcb?: string;
+  so_dien_thoai?: string;
+  so_the_bhyt?: string;
+  quoc_tich?: string;
+  dan_toc?: string;
+  ma_tinh_ks?: string;
+  ma_huyen_ks?: string;
+  ma_xa_ks?: string;
+  ma_tinh_nkq?: string;
+  ma_huyen_nkq?: string;
+  ma_xa_nkq?: string;
+  noi_nhan_ho_so?: string;
+  muc_luong?: number;
+  ty_le_dong?: number;
+  so_tien_dong?: number;
+  tinh_kcb?: string;
+  ma_benh_vien?: string;
+  ma_ho_gia_dinh?: string;
+  phuong_an?: string;
+  trang_thai_the?: string;
+  tu_ngay_the_cu?: string;
+  den_ngay_the_cu?: string;
+  so_thang_dong?: number;
+  stt_ho?: string;
+  tu_ngay_the_moi?: string;
+  den_ngay_the_moi?: string;
+  ngay_bien_lai?: string;
+  created_at?: string;
+  updated_at?: string;
 }

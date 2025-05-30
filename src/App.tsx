@@ -11,12 +11,13 @@ import BhxhLookup from './pages/BhxhLookup';
 import BhxhIdLookup from './pages/BhxhIdLookup';
 import FamilyLookup from './pages/FamilyLookup';
 import DeclarationCategories from './pages/DeclarationCategories';
-import CreateDeclaration from './pages/CreateDeclaration';
+import KeKhai603 from './pages/KeKhai603';
 import BhytDeclaration from './pages/BhytDeclaration';
 import DeclarationHistory from './pages/DeclarationHistory';
 import DonViManagement from './pages/DonViManagement';
 import DaiLyManagement from './pages/DaiLyManagement';
 import DaiLyDonViLinkManagement from './pages/DaiLyDonViLinkManagement';
+
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -38,8 +39,8 @@ const AppContent: React.FC = () => {
         return <DeclarationCategories />;
       case 'declaration-history':
         return <DeclarationHistory />;
-      case 'create-declaration':
-        return <CreateDeclaration />;
+      case 'ke-khai-603':
+        return <KeKhai603 />;
       case 'bhyt-declaration':
         return <BhytDeclaration />;
       case 'don-vi-management':
@@ -48,6 +49,7 @@ const AppContent: React.FC = () => {
         return <DaiLyManagement />;
       case 'dai-ly-don-vi-link':
         return <DaiLyDonViLinkManagement />;
+
       case 'settings':
         return <Settings />;
       default:

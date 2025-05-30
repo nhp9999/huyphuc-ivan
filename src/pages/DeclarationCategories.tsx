@@ -3,6 +3,7 @@ import { useNavigation } from '../context/NavigationContext';
 import { Search, FileText, Eye, Download, Filter, RefreshCw, AlertCircle } from 'lucide-react';
 import { danhMucThuTucService, ThuTucSearchParams } from '../services/danhMucThuTucService';
 import { DanhMucThuTuc } from '../services/supabaseClient';
+import Toast from '../components/Toast';
 
 interface DeclarationCategory {
   stt: number;
@@ -23,6 +24,26 @@ const DeclarationCategories: React.FC = () => {
   const [selectedLinhVuc, setSelectedLinhVuc] = useState<number | null>(null);
   const [linhVucOptions, setLinhVucOptions] = useState<{ value: number; label: string }[]>([]);
   const [statistics, setStatistics] = useState<{ linh_vuc: number; so_luong: number; ten_linh_vuc: string }[]>([]);
+
+  // State cho toast notification
+  const [toast, setToast] = useState({
+    isVisible: false,
+    message: '',
+    type: 'warning' as 'success' | 'error' | 'warning'
+  });
+
+  // Helper function để hiển thị toast
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'warning') => {
+    setToast({
+      isVisible: true,
+      message,
+      type
+    });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, isVisible: false }));
+  };
 
   // Convert Supabase data to component format
   const convertToDeclarationCategory = (data: DanhMucThuTuc[]): DeclarationCategory[] => {
@@ -109,11 +130,19 @@ const DeclarationCategories: React.FC = () => {
   };
 
   const handleDeclarationClick = (item: DeclarationCategory) => {
-    setCurrentPage('create-declaration', {
-      code: item.kyHieu,
-      name: item.ten,
-      ma: item.ma
-    });
+    // Chỉ chuyển đến trang Kê khai 603 nếu ký hiệu là "603"
+    if (item.kyHieu === '603') {
+      setCurrentPage('ke-khai-603', {
+        code: item.kyHieu,
+        name: item.ten,
+        ma: item.ma
+      });
+    } else {
+      // Hiển thị thông báo cho các thủ tục khác chưa được hỗ trợ
+      console.log(`Clicked on procedure: ${item.kyHieu} - ${item.ten}`);
+      // Có thể thêm logic để chuyển đến các trang kê khai khác trong tương lai
+      showToast(`Thủ tục "${item.kyHieu} - ${item.ten}" sẽ được hỗ trợ trong phiên bản tiếp theo.`, 'warning');
+    }
   };
 
   return (
@@ -255,7 +284,11 @@ const DeclarationCategories: React.FC = () => {
               <div
                 key={item.stt}
                 onClick={() => handleDeclarationClick(item)}
-                className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-gray-700 dark:hover:to-gray-600 transition-all duration-200 cursor-pointer group"
+                className={`transition-all duration-200 group ${
+                  item.kyHieu === '603'
+                    ? 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-gray-700 dark:hover:to-gray-600 cursor-pointer'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer opacity-75'
+                }`}
               >
                 {/* Desktop Layout */}
                 <div className="hidden md:block px-6 py-4">
@@ -277,7 +310,14 @@ const DeclarationCategories: React.FC = () => {
                       {item.ma}
                     </div>
                     <div className="col-span-6 text-sm text-gray-900 dark:text-white">
-                      {item.ten}
+                      <div className="flex items-center space-x-2">
+                        <span>{item.ten}</span>
+                        {item.kyHieu === '603' && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
+                            Sẵn sàng
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="col-span-2 text-sm text-center">
                       <span className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -336,9 +376,16 @@ const DeclarationCategories: React.FC = () => {
                   {/* Procedure Name */}
                   <div className="space-y-1">
                     <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Tên thủ tục:</span>
-                    <p className="text-sm text-gray-900 dark:text-white leading-relaxed">
-                      {item.ten}
-                    </p>
+                    <div className="flex items-start space-x-2">
+                      <p className="text-sm text-gray-900 dark:text-white leading-relaxed flex-1">
+                        {item.ten}
+                      </p>
+                      {item.kyHieu === '603' && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 flex-shrink-0">
+                          Sẵn sàng
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Field Label */}
@@ -387,10 +434,21 @@ const DeclarationCategories: React.FC = () => {
           <li>• <strong>Tìm kiếm:</strong> Nhập mã hoặc tên thủ tục để tìm kiếm nhanh</li>
           <li>• <strong>Lĩnh vực:</strong> Lọc theo loại thủ tục (Đăng ký, Cấp lại/Đổi thẻ, Giải quyết chế độ, v.v.)</li>
           <li>• <strong>Ký hiệu:</strong> Mã định danh duy nhất của từng thủ tục</li>
+          <li>• <strong>Kê khai 603:</strong> Click vào thủ tục có ký hiệu "603" để bắt đầu kê khai BHYT</li>
+          <li>• <strong>Badge "Sẵn sàng":</strong> Chỉ ra thủ tục đã được hỗ trợ trong hệ thống</li>
           <li>• <strong>Làm mới:</strong> Tải lại dữ liệu mới nhất từ hệ thống</li>
           <li>• Danh mục được đồng bộ từ cơ sở dữ liệu và cập nhật theo quy định mới nhất</li>
         </ul>
       </div>
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={hideToast}
+        duration={4000}
+      />
     </div>
   );
 };

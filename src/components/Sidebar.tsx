@@ -35,6 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
       items: [
         { icon: <FileText size={20} />, label: 'Danh mục kê khai', page: 'declaration-categories' as const, badge: null },
         { icon: <History size={20} />, label: 'Lịch sử kê khai', page: 'declaration-history' as const, badge: null },
+        { icon: <CreditCard size={20} />, label: 'Test Kê khai BHYT', page: 'bhyt-declaration' as const, badge: 'Test' },
       ]
     },
     {
@@ -58,6 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
       title: 'Hệ thống',
       items: [
         { icon: <Settings size={20} />, label: 'Cài đặt', page: 'settings' as const, badge: null },
+        { icon: <FileText size={20} />, label: 'Test Modal Đại Lý', page: 'test-dai-ly-modal' as const, badge: 'Test' },
       ]
     }
   ];

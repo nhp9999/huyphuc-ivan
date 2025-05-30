@@ -41,6 +41,7 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
   const [donViList, setDonViList] = useState<VDonViDaiLy[]>([]);
   const [selectedDonViIds, setSelectedDonViIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  const [generatingCode, setGeneratingCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
@@ -48,8 +49,16 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
   useEffect(() => {
     if (isOpen) {
       loadData();
+      generateMaDaiLy(); // Tự động sinh mã khi mở modal
     }
   }, [isOpen]);
+
+  // Tự động sinh mã khi thay đổi mã tỉnh hoặc cấp
+  useEffect(() => {
+    if (isOpen && (formData.ma_tinh || formData.cap)) {
+      generateMaDaiLy();
+    }
+  }, [formData.ma_tinh, formData.cap, isOpen]);
 
   const loadData = async () => {
     try {
@@ -64,6 +73,24 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
     }
   };
 
+  const generateMaDaiLy = async () => {
+    if (generatingCode) return; // Tránh gọi nhiều lần
+
+    setGeneratingCode(true);
+    try {
+      const newMa = await daiLyService.generateMaDaiLy(formData.ma_tinh, formData.cap);
+      setFormData(prev => ({ ...prev, ma: newMa }));
+      // Clear validation error for ma field
+      if (validationErrors.ma) {
+        setValidationErrors(prev => ({ ...prev, ma: '' }));
+      }
+    } catch (err) {
+      console.error('Error generating ma dai ly:', err);
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
+
   const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear validation error when user starts typing
@@ -72,11 +99,16 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
     }
   };
 
-  const validateForm = (): boolean => {
+  const validateForm = async (): Promise<boolean> => {
     const errors: Record<string, string> = {};
 
+    // Nếu chưa có mã, tự động sinh
     if (!formData.ma.trim()) {
-      errors.ma = 'Mã đại lý là bắt buộc';
+      try {
+        await generateMaDaiLy();
+      } catch (err) {
+        errors.ma = 'Không thể tự động sinh mã đại lý';
+      }
     }
 
     if (!formData.ten.trim()) {
@@ -103,7 +135,8 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
   };
 
   const handleSave = async () => {
-    if (!validateForm()) {
+    const isValid = await validateForm();
+    if (!isValid) {
       return;
     }
 
@@ -114,7 +147,7 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
       // Check if ma already exists
       const exists = await daiLyService.checkMaDaiLyExists(formData.ma);
       if (exists) {
-        setValidationErrors({ ma: 'Mã đại lý đã tồn tại' });
+        setValidationErrors({ ma: 'Mã đại lý đã tồn tại trong hệ thống' });
         setLoading(false);
         return;
       }
@@ -146,9 +179,19 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
       onSave();
       onClose();
       resetForm();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating dai ly:', err);
-      setError('Có lỗi xảy ra khi tạo đại lý. Vui lòng thử lại.');
+
+      // Handle specific database errors
+      if (err?.code === '23505') {
+        if (err?.details?.includes('ma')) {
+          setValidationErrors({ ma: 'Mã đại lý đã tồn tại trong hệ thống' });
+        } else {
+          setError('Dữ liệu đã tồn tại trong hệ thống. Vui lòng kiểm tra lại.');
+        }
+      } else {
+        setError('Có lỗi xảy ra khi tạo đại lý. Vui lòng thử lại.');
+      }
     } finally {
       setLoading(false);
     }
@@ -211,19 +254,41 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Mã đại lý (*)
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-normal ml-1">
+                  (Tự động sinh)
+                </span>
               </label>
-              <input
-                type="text"
-                value={formData.ma}
-                onChange={(e) => handleInputChange('ma', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
-                  validationErrors.ma ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
-                placeholder="Nhập mã đại lý"
-              />
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={formData.ma}
+                  onChange={(e) => handleInputChange('ma', e.target.value)}
+                  className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                    validationErrors.ma ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  placeholder="Mã sẽ được tự động sinh"
+                  readOnly={generatingCode}
+                />
+                <button
+                  type="button"
+                  onClick={generateMaDaiLy}
+                  disabled={generatingCode}
+                  className="px-3 py-2 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 disabled:bg-gray-50 dark:disabled:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors flex items-center"
+                  title="Tạo mã mới"
+                >
+                  {generatingCode ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
               {validationErrors.ma && (
                 <p className="text-red-500 text-sm mt-1">{validationErrors.ma}</p>
               )}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Mã sẽ tự động sinh dựa trên mã tỉnh và cấp đại lý
+              </p>
             </div>
 
             {/* Tên đại lý */}
@@ -368,9 +433,12 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
 
           {/* Chọn đơn vị để liên kết */}
           <div>
-            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               Liên kết với đơn vị ({selectedDonViIds.length} đã chọn)
             </h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Chọn các đơn vị muốn liên kết với đại lý này. Một đơn vị có thể liên kết với nhiều đại lý.
+            </p>
             <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 max-h-60 overflow-y-auto">
               {donViList.length > 0 ? (
                 <div className="space-y-2">
@@ -401,13 +469,13 @@ const DaiLyCreateModal: React.FC<DaiLyCreateModalProps> = ({ isOpen, onClose, on
               ) : (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <Building2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Không có đơn vị nào chưa được liên kết</p>
-                  <p className="text-xs mt-1">Tất cả đơn vị đã được gán cho đại lý khác</p>
+                  <p>Không có đơn vị nào để liên kết</p>
+                  <p className="text-xs mt-1">Chưa có đơn vị nào trong hệ thống</p>
                 </div>
               )}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Chọn các đơn vị mà đại lý này sẽ quản lý. Bạn có thể bỏ qua bước này và liên kết sau.
+              Chọn các đơn vị mà đại lý này sẽ quản lý. Đơn vị có thể liên kết với nhiều đại lý. Bạn có thể bỏ qua bước này và liên kết sau.
             </p>
           </div>
         </div>

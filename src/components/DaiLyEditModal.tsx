@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle, RefreshCw, Building2, Link, Unlink } from 'lucide-react';
-import { VDaiLyChiTiet, VDonViChiTiet } from '../services/supabaseClient';
+import { VDaiLyChiTiet, VDonViChiTiet, VDaiLyDonVi } from '../services/supabaseClient';
 import { daiLyService } from '../services/daiLyService';
 import { donViService } from '../services/donViService';
+import { daiLyDonViService } from '../services/daiLyDonViService';
 
 interface DaiLyEditModalProps {
   isOpen: boolean;
@@ -39,7 +40,7 @@ const DaiLyEditModal: React.FC<DaiLyEditModalProps> = ({ isOpen, onClose, onSave
   });
 
   const [parentDaiLyList, setParentDaiLyList] = useState<VDaiLyChiTiet[]>([]);
-  const [linkedDonVi, setLinkedDonVi] = useState<VDonViChiTiet[]>([]);
+  const [linkedDonVi, setLinkedDonVi] = useState<VDaiLyDonVi[]>([]);
   const [unlinkedDonVi, setUnlinkedDonVi] = useState<VDonViChiTiet[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ const DaiLyEditModal: React.FC<DaiLyEditModalProps> = ({ isOpen, onClose, onSave
     try {
       const [daiLyData, linkedDonViData, allDonViData] = await Promise.all([
         daiLyService.getAllDaiLy(),
-        daiLyService.getDonViByDaiLy(daiLy.id),
+        daiLyDonViService.getDonViByDaiLy(daiLy.id),
         donViService.getAllDonVi()
       ]);
 
@@ -82,9 +83,9 @@ const DaiLyEditModal: React.FC<DaiLyEditModalProps> = ({ isOpen, onClose, onSave
       setLinkedDonVi(linkedDonViData);
 
       // Set unlinked don vi (excluding those already linked to this dai ly)
-      const unlinked = allDonViData.filter(dv => !dv.dai_ly_id || dv.dai_ly_id === daiLy.id);
-      const unlinkedOnly = unlinked.filter(dv => !linkedDonViData.find(linked => linked.id === dv.id));
-      setUnlinkedDonVi(unlinkedOnly);
+      const linkedDonViIds = new Set(linkedDonViData.map(item => item.don_vi_id));
+      const unlinked = allDonViData.filter(dv => !linkedDonViIds.has(dv.id));
+      setUnlinkedDonVi(unlinked);
     } catch (err) {
       console.error('Error loading data:', err);
     }
@@ -123,7 +124,7 @@ const DaiLyEditModal: React.FC<DaiLyEditModalProps> = ({ isOpen, onClose, onSave
 
     setLoading(true);
     try {
-      await donViService.updateDaiLyForDonVi(donViId, daiLy.id);
+      await daiLyDonViService.linkDaiLyDonVi(daiLy.id, donViId, 'Liên kết từ modal chỉnh sửa');
       await loadData(); // Refresh data
     } catch (err) {
       console.error('Error linking don vi:', err);
@@ -135,9 +136,11 @@ const DaiLyEditModal: React.FC<DaiLyEditModalProps> = ({ isOpen, onClose, onSave
 
   // Handle unlinking don vi from dai ly
   const handleUnlinkDonVi = async (donViId: number) => {
+    if (!daiLy) return;
+
     setLoading(true);
     try {
-      await donViService.updateDaiLyForDonVi(donViId, null);
+      await daiLyDonViService.unlinkDaiLyDonVi(daiLy.id, donViId);
       await loadData(); // Refresh data
     } catch (err) {
       console.error('Error unlinking don vi:', err);
@@ -403,7 +406,7 @@ const DaiLyEditModal: React.FC<DaiLyEditModalProps> = ({ isOpen, onClose, onSave
                   {linkedDonVi.length > 0 ? (
                     <div className="space-y-2">
                       {linkedDonVi.map((donVi) => (
-                        <div key={donVi.id} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <div key={donVi.don_vi_id} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {donVi.ma_so_bhxh}
@@ -413,7 +416,7 @@ const DaiLyEditModal: React.FC<DaiLyEditModalProps> = ({ isOpen, onClose, onSave
                             </div>
                           </div>
                           <button
-                            onClick={() => handleUnlinkDonVi(donVi.id)}
+                            onClick={() => handleUnlinkDonVi(donVi.don_vi_id!)}
                             disabled={loading}
                             className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
                             title="Hủy liên kết"

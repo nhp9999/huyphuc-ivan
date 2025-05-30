@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigation } from '../context/NavigationContext';
 import { bhytService } from '../services/bhytService';
+import { keKhaiService } from '../services/keKhaiService';
 import { BhytDeclarationRequest } from '../types/bhyt';
+import { DanhSachKeKhai } from '../services/supabaseClient';
 import Toast from '../components/Toast';
 import {
   Save,
@@ -8,7 +11,8 @@ import {
   Plus,
   Trash2,
   Search,
-  Loader2
+  Loader2,
+  RotateCcw
 } from 'lucide-react';
 
 // Helper function để convert từ DD/MM/YYYY sang YYYY-MM-DD cho date input
@@ -28,6 +32,12 @@ const convertDisplayDateToInputDate = (displayDate: string): string => {
 };
 
 const BhytDeclaration: React.FC = () => {
+  const { pageParams } = useNavigation();
+
+  // State cho thông tin kê khai
+  const [keKhaiInfo, setKeKhaiInfo] = useState<DanhSachKeKhai | null>(null);
+  const [saving, setSaving] = useState(false);
+
   const [formData, setFormData] = useState({
     // Thông tin cơ bản
     hoTen: '',
@@ -67,7 +77,8 @@ const BhytDeclaration: React.FC = () => {
     sttHo: '',
     tuNgayTheMoi: '',
     denNgayTheMoi: '',
-    ngayBienLai: new Date().toISOString().split('T')[0] // Ngày hiện tại
+    ngayBienLai: new Date().toISOString().split('T')[0], // Ngày hiện tại
+    ghiChuDongPhi: ''
   });
 
 
@@ -100,6 +111,10 @@ const BhytDeclaration: React.FC = () => {
 
   // State cho tính năng tìm kiếm
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // State cho loading riêng biệt
+  const [savingData, setSavingData] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [searchConfig] = useState({
     mangLuoiId: 76255,
     ma: 'BI0110G',
@@ -125,6 +140,97 @@ const BhytDeclaration: React.FC = () => {
     isLoaded: false
   });
 
+  // Khởi tạo kê khai khi component mount
+  useEffect(() => {
+    initializeKeKhai();
+  }, [pageParams]);
+
+  // Load danh sách người tham gia khi có keKhaiInfo
+  useEffect(() => {
+    if (keKhaiInfo) {
+      loadNguoiThamGia();
+    }
+  }, [keKhaiInfo]);
+
+  const initializeKeKhai = async () => {
+    // Nếu có keKhaiId trong pageParams, load kê khai đó
+    if (pageParams?.keKhaiId) {
+      try {
+        setSaving(true);
+        const existingKeKhai = await keKhaiService.getKeKhaiById(pageParams.keKhaiId);
+        if (existingKeKhai) {
+          setKeKhaiInfo(existingKeKhai);
+          showToast(`Đã tải kê khai ${existingKeKhai.ma_ke_khai}`, 'success');
+          return;
+        }
+      } catch (error) {
+        console.error('Error loading existing ke khai:', error);
+        showToast('Không thể tải kê khai. Sẽ tạo kê khai mới.', 'warning');
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    // Nếu không có pageParams, tạo kê khai mặc định để test
+    if (!pageParams?.formData) {
+      const defaultKeKhaiData = {
+        ten_ke_khai: 'Kê khai BHYT test',
+        loai_ke_khai: '603',
+        doi_tuong_tham_gia: 'GD - Hộ gia đình',
+        hinh_thuc_tinh: 'Hỗ trợ dựa trên mức đóng từng người',
+        luong_co_so: 2340000,
+        nguon_dong: 'Tự đóng',
+        created_by: 'system'
+      };
+
+      try {
+        setSaving(true);
+        const newKeKhai = await keKhaiService.createKeKhai(defaultKeKhaiData);
+        setKeKhaiInfo(newKeKhai);
+        showToast(`Đã tạo kê khai ${newKeKhai.ma_ke_khai} thành công!`, 'success');
+      } catch (error) {
+        console.error('Error creating default ke khai:', error);
+        showToast('Có lỗi xảy ra khi tạo kê khai. Vui lòng thử lại.', 'error');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Tạo kê khai mới trong database
+      const keKhaiData = {
+        ten_ke_khai: pageParams.declarationName || 'Kê khai BHYT',
+        loai_ke_khai: pageParams.declarationCode || '603',
+        dai_ly_id: pageParams.formData.chonDaiLy ? parseInt(pageParams.formData.chonDaiLy) : undefined,
+        don_vi_id: pageParams.formData.chonDonVi ? parseInt(pageParams.formData.chonDonVi) : undefined,
+        doi_tuong_tham_gia: pageParams.formData.doiTuongThamGia,
+        hinh_thuc_tinh: pageParams.formData.hinhThucTinh,
+        luong_co_so: pageParams.formData.luongCoSo ? parseFloat(pageParams.formData.luongCoSo.replace(/[.,]/g, '')) : undefined,
+        nguon_dong: pageParams.formData.nguonDong,
+        noi_dang_ky_kcb_ban_dau: pageParams.formData.noiDangKyKCBBanDau || undefined,
+        bien_lai_ngay_tham_gia: pageParams.formData.bienLaiNgayThamGia || undefined,
+        so_thang: pageParams.formData.soThang ? parseInt(pageParams.formData.soThang) : undefined,
+        ngay_tao: pageParams.formData.ngay || undefined,
+        ty_le_nsnn_ho_tro: pageParams.formData.tyLeNSNNHoTro ? parseFloat(pageParams.formData.tyLeNSNNHoTro) : undefined,
+        ghi_chu: pageParams.formData.ghiChu || undefined,
+        created_by: 'system' // TODO: Lấy từ user context
+      };
+
+      const newKeKhai = await keKhaiService.createKeKhai(keKhaiData);
+      setKeKhaiInfo(newKeKhai);
+
+      showToast(`Đã tạo kê khai ${newKeKhai.ma_ke_khai} thành công!`, 'success');
+    } catch (error) {
+      console.error('Error initializing ke khai:', error);
+      showToast('Có lỗi xảy ra khi tạo kê khai. Vui lòng thử lại.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Helper function để hiển thị toast
   const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     setToast({
@@ -136,6 +242,62 @@ const BhytDeclaration: React.FC = () => {
 
   const hideToast = () => {
     setToast(prev => ({ ...prev, isVisible: false }));
+  };
+
+  // Load danh sách người tham gia từ database
+  const loadNguoiThamGia = async () => {
+    if (!keKhaiInfo) return;
+
+    try {
+      const nguoiThamGiaList = await keKhaiService.getNguoiThamGiaByKeKhai(keKhaiInfo.id);
+
+      // Convert dữ liệu từ database sang format của UI
+      const convertedParticipants = nguoiThamGiaList.map(item => ({
+        id: item.id,
+        hoTen: item.ho_ten || '',
+        maSoBHXH: item.ma_so_bhxh || '',
+        ngaySinh: item.ngay_sinh || '',
+        gioiTinh: item.gioi_tinh || 'Nam',
+        noiDangKyKCB: item.noi_dang_ky_kcb || '',
+        mucLuong: item.muc_luong?.toString() || '',
+        tyLeDong: item.ty_le_dong?.toString() || '4.5',
+        soTienDong: item.so_tien_dong?.toString() || '',
+        tuNgayTheCu: item.tu_ngay_the_cu || '',
+        denNgayTheCu: item.den_ngay_the_cu || '',
+        ngayBienLai: item.ngay_bien_lai || new Date().toISOString().split('T')[0],
+        sttHo: item.stt_ho || '',
+        soThangDong: item.so_thang_dong?.toString() || '',
+        maTinhNkq: item.ma_tinh_nkq || '',
+        maHuyenNkq: item.ma_huyen_nkq || '',
+        maXaNkq: item.ma_xa_nkq || '',
+        noiNhanHoSo: item.noi_nhan_ho_so || '',
+        // Thêm các field khác
+        soCCCD: item.so_cccd || '',
+        soDienThoai: item.so_dien_thoai || '',
+        soTheBHYT: item.so_the_bhyt || '',
+        quocTich: item.quoc_tich || 'VN',
+        danToc: item.dan_toc || '',
+        maTinhKs: item.ma_tinh_ks || '',
+        maHuyenKs: item.ma_huyen_ks || '',
+        maXaKs: item.ma_xa_ks || '',
+        tinhKCB: item.tinh_kcb || '',
+        maBenhVien: item.ma_benh_vien || '',
+        maHoGiaDinh: item.ma_ho_gia_dinh || '',
+        phuongAn: item.phuong_an || '',
+        trangThaiThe: item.trang_thai_the || '',
+        tuNgayTheMoi: item.tu_ngay_the_moi || '',
+        denNgayTheMoi: item.den_ngay_the_moi || ''
+      }));
+
+      setParticipants(convertedParticipants);
+
+      if (convertedParticipants.length > 0) {
+        showToast(`Đã tải ${convertedParticipants.length} người tham gia từ database`, 'success');
+      }
+    } catch (error) {
+      console.error('Error loading nguoi tham gia:', error);
+      showToast('Có lỗi xảy ra khi tải danh sách người tham gia', 'error');
+    }
   };
 
   // Hàm tính toán số tiền đóng BHYT
@@ -285,15 +447,19 @@ const BhytDeclaration: React.FC = () => {
     });
   };
 
-  const handleParticipantChange = (index: number, field: string, value: string) => {
-    setParticipants(prev => prev.map((participant, i) => {
+  const handleParticipantChange = async (index: number, field: string, value: string) => {
+    const participant = participants[index];
+    if (!participant || !participant.id) return;
+
+    // Cập nhật state local trước
+    setParticipants(prev => prev.map((p, i) => {
       if (i === index) {
-        const updatedParticipant = { ...participant, [field]: value };
+        const updatedParticipant = { ...p, [field]: value };
 
         // Tự động tính toán số tiền đóng khi thay đổi STT hộ hoặc số tháng
         if (field === 'sttHo' || field === 'soThangDong') {
-          const sttHo = field === 'sttHo' ? value : participant.sttHo;
-          const soThangDong = field === 'soThangDong' ? value : participant.soThangDong;
+          const sttHo = field === 'sttHo' ? value : p.sttHo;
+          const soThangDong = field === 'soThangDong' ? value : p.soThangDong;
 
           if (sttHo && soThangDong) {
             const soTien = calculateBhytAmount(sttHo, soThangDong);
@@ -303,40 +469,136 @@ const BhytDeclaration: React.FC = () => {
 
         return updatedParticipant;
       }
-      return participant;
+      return p;
     }));
+
+    // Lưu vào database (debounced để tránh quá nhiều request)
+    try {
+      const updateData: any = {};
+
+      // Map field names từ UI sang database
+      const fieldMapping: { [key: string]: string } = {
+        'hoTen': 'ho_ten',
+        'maSoBHXH': 'ma_so_bhxh',
+        'ngaySinh': 'ngay_sinh',
+        'gioiTinh': 'gioi_tinh',
+        'noiDangKyKCB': 'noi_dang_ky_kcb',
+        'mucLuong': 'muc_luong',
+        'tyLeDong': 'ty_le_dong',
+        'soTienDong': 'so_tien_dong',
+        'tuNgayTheCu': 'tu_ngay_the_cu',
+        'denNgayTheCu': 'den_ngay_the_cu',
+        'ngayBienLai': 'ngay_bien_lai',
+        'sttHo': 'stt_ho',
+        'soThangDong': 'so_thang_dong',
+        'maTinhNkq': 'ma_tinh_nkq',
+        'maHuyenNkq': 'ma_huyen_nkq',
+        'maXaNkq': 'ma_xa_nkq',
+        'noiNhanHoSo': 'noi_nhan_ho_so'
+      };
+
+      const dbField = fieldMapping[field];
+      if (dbField) {
+        // Convert value nếu cần
+        if (dbField === 'muc_luong' || dbField === 'ty_le_dong' || dbField === 'so_tien_dong' || dbField === 'so_thang_dong') {
+          const numValue = parseFloat(value.replace(/[.,]/g, ''));
+          updateData[dbField] = isNaN(numValue) ? null : numValue;
+        } else {
+          updateData[dbField] = value || null;
+        }
+
+        // Cập nhật database
+        await keKhaiService.updateNguoiThamGia(participant.id, updateData);
+      }
+    } catch (error) {
+      console.error('Error updating participant:', error);
+      // Không hiển thị toast để tránh spam, chỉ log lỗi
+    }
   };
 
-  const addParticipant = () => {
-    const newParticipant = {
-      id: participants.length + 1,
-      hoTen: '',
-      maSoBHXH: '',
-      ngaySinh: '',
-      gioiTinh: 'Nam',
-      noiDangKyKCB: '',
-      mucLuong: '',
-      tyLeDong: '4.5',
-      soTienDong: '',
-      // Thêm thông tin thẻ cũ
-      tuNgayTheCu: '',
-      denNgayTheCu: '',
-      ngayBienLai: new Date().toISOString().split('T')[0],
-      // Thêm thông tin đóng BHYT cho participant
-      sttHo: '',
-      soThangDong: '',
-      // Thêm thông tin địa chỉ nhận kết quả
-      maTinhNkq: '',
-      maHuyenNkq: '',
-      maXaNkq: '',
-      noiNhanHoSo: ''
-    };
-    setParticipants(prev => [...prev, newParticipant]);
+  const addParticipant = async () => {
+    if (!keKhaiInfo) {
+      showToast('Chưa có thông tin kê khai. Vui lòng thử lại.', 'error');
+      return;
+    }
+
+    try {
+      setSavingData(true);
+
+      const newParticipantData = {
+        ke_khai_id: keKhaiInfo.id,
+        stt: participants.length + 1,
+        ho_ten: '',
+        gioi_tinh: 'Nam',
+        muc_luong: 0,
+        ty_le_dong: 4.5,
+        so_tien_dong: 0,
+        ngay_bien_lai: new Date().toISOString().split('T')[0],
+        so_thang_dong: 0
+      };
+
+      // Lưu vào database
+      const savedParticipant = await keKhaiService.addNguoiThamGia(newParticipantData);
+
+      // Cập nhật state local
+      const newParticipant = {
+        id: savedParticipant.id,
+        hoTen: '',
+        maSoBHXH: '',
+        ngaySinh: '',
+        gioiTinh: 'Nam',
+        noiDangKyKCB: '',
+        mucLuong: '',
+        tyLeDong: '4.5',
+        soTienDong: '',
+        tuNgayTheCu: '',
+        denNgayTheCu: '',
+        ngayBienLai: new Date().toISOString().split('T')[0],
+        sttHo: '',
+        soThangDong: '',
+        maTinhNkq: '',
+        maHuyenNkq: '',
+        maXaNkq: '',
+        noiNhanHoSo: ''
+      };
+
+      setParticipants(prev => [...prev, newParticipant]);
+      showToast('Đã thêm người tham gia mới thành công!', 'success');
+    } catch (error) {
+      console.error('Error adding participant:', error);
+      showToast('Có lỗi xảy ra khi thêm người tham gia. Vui lòng thử lại.', 'error');
+    } finally {
+      setSavingData(false);
+    }
   };
 
-  const removeParticipant = (index: number) => {
-    if (participants.length > 1) {
+  const removeParticipant = async (index: number) => {
+    const participant = participants[index];
+    if (!participant) return;
+
+    // Không cho phép xóa nếu chỉ còn 1 người
+    if (participants.length <= 1) {
+      showToast('Phải có ít nhất một người tham gia trong kê khai', 'warning');
+      return;
+    }
+
+    try {
+      setSavingData(true);
+
+      // Xóa khỏi database nếu có ID (đã được lưu)
+      if (participant.id) {
+        await keKhaiService.deleteNguoiThamGia(participant.id);
+      }
+
+      // Cập nhật state local
       setParticipants(prev => prev.filter((_, i) => i !== index));
+
+      showToast('Đã xóa người tham gia thành công!', 'success');
+    } catch (error) {
+      console.error('Error removing participant:', error);
+      showToast('Có lỗi xảy ra khi xóa người tham gia. Vui lòng thử lại.', 'error');
+    } finally {
+      setSavingData(false);
     }
   };
 
@@ -396,14 +658,149 @@ const BhytDeclaration: React.FC = () => {
     }
   };
 
-  const handleSave = () => {
-    console.log('Saving BHYT declaration:', { formData, participants });
-    // Implement save logic
+
+
+  const handleSubmit = async () => {
+    if (!keKhaiInfo) {
+      showToast('Chưa có thông tin kê khai. Vui lòng thử lại.', 'error');
+      return;
+    }
+
+    if (participants.length === 0) {
+      showToast('Vui lòng thêm ít nhất một người tham gia.', 'warning');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Cập nhật trạng thái kê khai thành submitted
+      await keKhaiService.updateKeKhai(keKhaiInfo.id, {
+        trang_thai: 'submitted',
+        updated_by: 'system' // TODO: Lấy từ user context
+      });
+
+      showToast('Đã nộp kê khai thành công!', 'success');
+    } catch (error) {
+      console.error('Error submitting declaration:', error);
+      showToast('Có lỗi xảy ra khi nộp kê khai. Vui lòng thử lại.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleSubmit = () => {
-    console.log('Submitting BHYT declaration:', { formData, participants });
-    // Implement submit logic
+  // Lưu tất cả dữ liệu (kê khai + người tham gia)
+  const handleSaveAllParticipants = async () => {
+    if (!keKhaiInfo) {
+      showToast('Chưa có thông tin kê khai. Vui lòng thử lại.', 'error');
+      return;
+    }
+
+    try {
+      setSavingData(true);
+
+      // 1. Cập nhật thông tin kê khai trước
+      await keKhaiService.updateKeKhai(keKhaiInfo.id, {
+        trang_thai: 'draft',
+        updated_by: 'system' // TODO: Lấy từ user context
+      });
+
+      // 2. Lưu người tham gia (nếu có)
+      let savedCount = 0;
+      let updatedCount = 0;
+      let errorCount = 0;
+
+      if (participants.length === 0) {
+        showToast('Đã lưu thông tin kê khai thành công!', 'success');
+        return;
+      }
+
+      for (let i = 0; i < participants.length; i++) {
+        const participant = participants[i];
+
+        try {
+          // Chuẩn bị dữ liệu để lưu
+          const participantData = {
+            ke_khai_id: keKhaiInfo.id,
+            stt: i + 1,
+            ho_ten: participant.hoTen || '',
+            ma_so_bhxh: participant.maSoBHXH || null,
+            ngay_sinh: participant.ngaySinh || null,
+            gioi_tinh: participant.gioiTinh || 'Nam',
+            so_cccd: participant.soCCCD || null,
+            noi_dang_ky_kcb: participant.noiDangKyKCB || null,
+            so_dien_thoai: participant.soDienThoai || null,
+            so_the_bhyt: participant.soTheBHYT || null,
+            quoc_tich: participant.quocTich || 'VN',
+            dan_toc: participant.danToc || null,
+            ma_tinh_ks: participant.maTinhKs || null,
+            ma_huyen_ks: participant.maHuyenKs || null,
+            ma_xa_ks: participant.maXaKs || null,
+            ma_tinh_nkq: participant.maTinhNkq || null,
+            ma_huyen_nkq: participant.maHuyenNkq || null,
+            ma_xa_nkq: participant.maXaNkq || null,
+            noi_nhan_ho_so: participant.noiNhanHoSo || null,
+            muc_luong: participant.mucLuong ? parseFloat(participant.mucLuong.replace(/[.,]/g, '')) : null,
+            ty_le_dong: participant.tyLeDong ? parseFloat(participant.tyLeDong) : 4.5,
+            so_tien_dong: participant.soTienDong ? parseFloat(participant.soTienDong.replace(/[.,]/g, '')) : null,
+            tinh_kcb: participant.tinhKCB || null,
+            ma_benh_vien: participant.maBenhVien || null,
+            ma_ho_gia_dinh: participant.maHoGiaDinh || null,
+            phuong_an: participant.phuongAn || null,
+            trang_thai_the: participant.trangThaiThe || null,
+            tu_ngay_the_cu: participant.tuNgayTheCu || null,
+            den_ngay_the_cu: participant.denNgayTheCu || null,
+            so_thang_dong: participant.soThangDong ? parseInt(participant.soThangDong) : null,
+            stt_ho: participant.sttHo || null,
+            tu_ngay_the_moi: participant.tuNgayTheMoi || null,
+            den_ngay_the_moi: participant.denNgayTheMoi || null,
+            ngay_bien_lai: participant.ngayBienLai || new Date().toISOString().split('T')[0]
+          };
+
+          if (participant.id) {
+            // Cập nhật người tham gia đã có
+            await keKhaiService.updateNguoiThamGia(participant.id, participantData);
+            updatedCount++;
+          } else {
+            // Thêm người tham gia mới
+            const savedParticipant = await keKhaiService.addNguoiThamGia(participantData);
+
+            // Cập nhật ID trong state local
+            setParticipants(prev => prev.map((p, index) =>
+              index === i ? { ...p, id: savedParticipant.id } : p
+            ));
+
+            savedCount++;
+          }
+        } catch (error) {
+          console.error(`Error saving participant ${i + 1}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Hiển thị kết quả
+      if (errorCount === 0) {
+        if (savedCount + updatedCount > 0) {
+          showToast(
+            `Đã lưu thành công kê khai và ${savedCount} người mới, cập nhật ${updatedCount} người!`,
+            'success'
+          );
+        } else {
+          showToast('Đã lưu thông tin kê khai thành công!', 'success');
+        }
+      } else {
+        showToast(
+          `Đã lưu kê khai và ${savedCount + updatedCount} người thành công, ${errorCount} người lỗi.`,
+          'warning'
+        );
+      }
+
+    } catch (error) {
+      console.error('Error saving all participants:', error);
+      showToast('Có lỗi xảy ra khi ghi dữ liệu. Vui lòng thử lại.', 'error');
+    } finally {
+      setSavingData(false);
+    }
   };
 
 
@@ -424,6 +821,45 @@ const BhytDeclaration: React.FC = () => {
       event.preventDefault();
       handleSearchParticipant(index);
     }
+  };
+
+  // Reset form về trạng thái ban đầu
+  const resetForm = () => {
+    setFormData({
+      maSoBHXH: '',
+      hoTen: '',
+      ngaySinh: '',
+      gioiTinh: 'Nam',
+      soCCCD: '',
+      noiDangKyKCB: '',
+      soDienThoai: '',
+      soTheBHYT: '',
+      quocTich: 'VN',
+      danToc: '',
+      maTinhKS: '',
+      maHuyenKS: '',
+      maXaKS: '',
+      maTinhNkq: '',
+      maHuyenNkq: '',
+      maXaNkq: '',
+      loaiDoiTuong: '',
+      mucLuong: '',
+      tyLeDong: '4.5',
+      soTienDong: '',
+      tinhKCB: '',
+      noiNhanHoSo: '',
+      maBenhVien: '',
+      maHoGiaDinh: '',
+      phuongAn: '',
+      trangThai: '',
+      tuNgayTheCu: '',
+      denNgayTheCu: '',
+      sttHo: '',
+      tuNgayTheMoi: '',
+      denNgayTheMoi: '',
+      ngayBienLai: new Date().toISOString().split('T')[0],
+      ghiChuDongPhi: ''
+    });
   };
 
   // Hàm tìm kiếm thông tin BHYT trực tiếp từ mã số BHXH
@@ -486,10 +922,33 @@ const BhytDeclaration: React.FC = () => {
           denNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHetHan || '')
         }));
 
-        // Cập nhật participant đầu tiên
-        setParticipants(prev => prev.map((participant, index) =>
-          index === 0 ? {
-            ...participant,
+        // Kiểm tra xem mã số BHXH đã tồn tại trong danh sách chưa
+        const existingParticipantIndex = participants.findIndex(p => p.maSoBHXH === response.data!.maSoBhxh);
+
+        if (existingParticipantIndex >= 0) {
+          // Nếu đã tồn tại, cập nhật participant đó
+          setParticipants(prev => prev.map((participant, index) =>
+            index === existingParticipantIndex ? {
+              ...participant,
+              hoTen: response.data!.hoTen,
+              maSoBHXH: response.data!.maSoBhxh,
+              ngaySinh: response.data!.ngaySinh,
+              gioiTinh: response.data!.gioiTinh,
+              noiDangKyKCB: response.data!.noiDangKyKCB,
+              mucLuong: response.data!.mucLuong || '',
+              tyLeDong: response.data!.tyLeDong || '4.5',
+              soTienDong: response.data!.soTienDong || '',
+              maTinhNkq: response.data!.maTinhNkq || '',
+              maHuyenNkq: response.data!.maHuyenNkq || '',
+              maXaNkq: response.data!.maXaNkq || '',
+              noiNhanHoSo: response.data!.noiNhanHoSo || ''
+            } : participant
+          ));
+          showToast('Đã cập nhật thông tin người tham gia hiện có!', 'info');
+        } else {
+          // Nếu chưa tồn tại, thêm participant mới
+          const newParticipant = {
+            id: 0, // Sẽ được cập nhật khi lưu vào database
             hoTen: response.data!.hoTen,
             maSoBHXH: response.data!.maSoBhxh,
             ngaySinh: response.data!.ngaySinh,
@@ -498,13 +957,36 @@ const BhytDeclaration: React.FC = () => {
             mucLuong: response.data!.mucLuong || '',
             tyLeDong: response.data!.tyLeDong || '4.5',
             soTienDong: response.data!.soTienDong || '',
-            // Thêm thông tin địa chỉ nhận kết quả
+            tuNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHieuLuc || ''),
+            denNgayTheCu: convertDisplayDateToInputDate(response.data!.ngayHetHan || ''),
+            ngayBienLai: new Date().toISOString().split('T')[0],
+            sttHo: '',
+            soThangDong: '',
             maTinhNkq: response.data!.maTinhNkq || '',
             maHuyenNkq: response.data!.maHuyenNkq || '',
             maXaNkq: response.data!.maXaNkq || '',
-            noiNhanHoSo: response.data!.noiNhanHoSo || ''
-          } : participant
-        ));
+            noiNhanHoSo: response.data!.noiNhanHoSo || '',
+            // Thêm các field khác
+            soCCCD: response.data!.cmnd || '',
+            soDienThoai: response.data!.soDienThoai || '',
+            soTheBHYT: response.data!.soTheBHYT || '',
+            quocTich: response.data!.quocTich || 'VN',
+            danToc: response.data!.danToc || '',
+            maTinhKs: response.data!.maTinhKS || '',
+            maHuyenKs: response.data!.maHuyenKS || '',
+            maXaKs: response.data!.maXaKS || '',
+            tinhKCB: response.data!.maKV || '',
+            maBenhVien: response.data!.maBenhVien || '',
+            maHoGiaDinh: response.data!.maHoGiaDinh || '',
+            phuongAn: response.data!.phuongAn || '',
+            trangThaiThe: response.data!.trangThaiThe || '',
+            tuNgayTheMoi: '',
+            denNgayTheMoi: ''
+          };
+
+          setParticipants(prev => [...prev, newParticipant]);
+          showToast('Đã thêm người tham gia mới từ kết quả tìm kiếm!', 'success');
+        }
 
         // Cập nhật thông tin tóm tắt API
         setApiSummary({
@@ -513,7 +995,7 @@ const BhytDeclaration: React.FC = () => {
           source: 'API kê khai BHYT'
         });
 
-        showToast('Đã tìm thấy và điền thông tin BHYT thành công!', 'success');
+        // Thông báo đã được hiển thị ở trên (trong if-else)
       } else {
         showToast(response.message || 'Không tìm thấy thông tin BHYT', 'error');
       }
@@ -530,9 +1012,31 @@ const BhytDeclaration: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Kê khai BHYT</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Kê khai BHYT
+            {keKhaiInfo && (
+              <span className="ml-3 text-lg font-medium text-blue-600 dark:text-blue-400">
+                {keKhaiInfo.ma_ke_khai}
+              </span>
+            )}
+          </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Đăng ký đóng BHYT đối với người chỉ tham gia BHYT
+            {pageParams?.declarationName || 'Đăng ký đóng BHYT đối với người chỉ tham gia BHYT'}
+            {keKhaiInfo && (
+              <span className="ml-2 text-sm">
+                • Trạng thái:
+                <span className={`ml-1 px-2 py-1 rounded-full text-xs font-medium ${
+                  keKhaiInfo.trang_thai === 'draft'
+                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    : keKhaiInfo.trang_thai === 'submitted'
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+                }`}>
+                  {keKhaiInfo.trang_thai === 'draft' ? 'Nháp' :
+                   keKhaiInfo.trang_thai === 'submitted' ? 'Đã nộp' : keKhaiInfo.trang_thai}
+                </span>
+              </span>
+            )}
           </p>
         </div>
 
@@ -567,18 +1071,36 @@ const BhytDeclaration: React.FC = () => {
           {/* Action Buttons */}
           <div className="flex items-center space-x-3">
             <button
-              onClick={handleSave}
-              className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              onClick={resetForm}
+              disabled={savingData || submitting}
+              className="flex items-center space-x-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-4 h-4" />
-              <span>Lưu</span>
+              <RotateCcw className="w-4 h-4" />
+              <span>Reset Form</span>
+            </button>
+            <button
+              onClick={handleSaveAllParticipants}
+              disabled={savingData || submitting || !keKhaiInfo}
+              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {savingData ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              <span>{savingData ? 'Đang lưu...' : 'Lưu dữ liệu'}</span>
             </button>
             <button
               onClick={handleSubmit}
-              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              disabled={savingData || submitting || !keKhaiInfo || participants.length === 0}
+              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Send className="w-4 h-4" />
-              <span>Gửi kê khai</span>
+              {submitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              <span>{submitting ? 'Đang gửi...' : 'Gửi kê khai'}</span>
             </button>
           </div>
         </div>
@@ -833,7 +1355,6 @@ const BhytDeclaration: React.FC = () => {
               <input
                 type="text"
                 value={formData.phuongAn}
-                onChange={(e) => handleInputChange('phuongAn', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="ON/OFF"
                 readOnly
@@ -1059,7 +1580,8 @@ const BhytDeclaration: React.FC = () => {
               </label>
               <input
                 type="text"
-                value=""
+                value={formData.ghiChuDongPhi || ''}
+                onChange={(e) => handleInputChange('ghiChuDongPhi', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="Ghi chú về đóng phí"
               />
@@ -1085,7 +1607,6 @@ const BhytDeclaration: React.FC = () => {
               <input
                 type="date"
                 value={formData.denNgayTheMoi}
-                onChange={(e) => handleInputChange('denNgayTheMoi', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-green-50 dark:bg-green-900/20"
                 readOnly
               />
@@ -1108,10 +1629,27 @@ const BhytDeclaration: React.FC = () => {
             </h3>
             <button
               onClick={addParticipant}
-              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              disabled={savingData || submitting || !keKhaiInfo}
+              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="w-4 h-4" />
-              <span>Thêm người</span>
+              {savingData ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+              <span>{savingData ? 'Đang thêm...' : 'Thêm người'}</span>
+            </button>
+            <button
+              onClick={handleSaveAllParticipants}
+              disabled={savingData || submitting || !keKhaiInfo}
+              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {savingData ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              <span>{savingData ? 'Đang lưu...' : 'Lưu dữ liệu'}</span>
             </button>
           </div>
         </div>
@@ -1302,10 +1840,27 @@ const BhytDeclaration: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <button
                   onClick={addParticipant}
-                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  disabled={savingData || submitting || !keKhaiInfo}
+                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Thêm người</span>
+                  {savingData ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>{savingData ? 'Đang thêm...' : 'Thêm người'}</span>
+                </button>
+                <button
+                  onClick={handleSaveAllParticipants}
+                  disabled={savingData || submitting || !keKhaiInfo}
+                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingData ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span>{savingData ? 'Đang lưu...' : 'Lưu dữ liệu'}</span>
                 </button>
               </div>
             </div>

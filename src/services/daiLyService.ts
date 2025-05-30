@@ -303,14 +303,13 @@ class DaiLyService {
     }
   }
 
-  // Kiểm tra mã đại lý có tồn tại không
+  // Kiểm tra mã đại lý có tồn tại không (kiểm tra tất cả bản ghi, không chỉ active)
   async checkMaDaiLyExists(ma: string, excludeId?: number): Promise<boolean> {
     try {
       let query = supabase
         .from('dm_dai_ly')
-        .select('id')
-        .eq('ma', ma)
-        .eq('trang_thai', 'active');
+        .select('id, trang_thai')
+        .eq('ma', ma);
 
       if (excludeId) {
         query = query.neq('id', excludeId);
@@ -327,6 +326,105 @@ class DaiLyService {
     } catch (error) {
       console.error('Error in checkMaDaiLyExists:', error);
       throw error;
+    }
+  }
+
+  // Sinh mã đại lý tự động
+  async generateMaDaiLy(maTinh?: string, cap?: number): Promise<string> {
+    try {
+      // Lấy mã tỉnh (mặc định là 884 nếu không có)
+      const provinceCode = maTinh || '884';
+
+      // Tạo prefix dựa trên pattern hiện tại: 8840884000xxx
+      // Cấp 1 (tỉnh): 8840884000001, 8840884000002, ...
+      // Cấp 2 (huyện): 8840884000100, 8840884000200, ...
+      // Cấp 3 (xã): 8840884000150, 8840884000160, ...
+
+      const basePrefix = `${provinceCode}0${provinceCode}000`;
+
+      let startRange = 1;
+      let endRange = 99;
+
+      switch (cap) {
+        case 1: // Cấp tỉnh: 001-099
+          startRange = 1;
+          endRange = 99;
+          break;
+        case 2: // Cấp huyện: 100-199
+          startRange = 100;
+          endRange = 199;
+          break;
+        case 3: // Cấp xã: 200-999
+          startRange = 200;
+          endRange = 999;
+          break;
+        default: // Mặc định cấp huyện
+          startRange = 100;
+          endRange = 199;
+          break;
+      }
+
+      // Tìm số sequence tiếp theo trong range
+      const { data: existingCodes, error } = await supabase
+        .from('dm_dai_ly')
+        .select('ma')
+        .like('ma', `${basePrefix}%`)
+        .order('ma', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching existing codes:', error);
+        throw error;
+      }
+
+      // Tìm số tiếp theo trong range
+      const usedNumbers = new Set();
+      if (existingCodes) {
+        existingCodes.forEach(item => {
+          const numberPart = item.ma.replace(basePrefix, '');
+          const num = parseInt(numberPart);
+          if (!isNaN(num) && num >= startRange && num <= endRange) {
+            usedNumbers.add(num);
+          }
+        });
+      }
+
+      // Tìm số đầu tiên chưa được sử dụng
+      let nextNumber = startRange;
+      while (nextNumber <= endRange && usedNumbers.has(nextNumber)) {
+        nextNumber++;
+      }
+
+      if (nextNumber > endRange) {
+        // Nếu hết số trong range, sử dụng timestamp
+        const timestamp = Date.now().toString().slice(-6);
+        return `DL${timestamp}`;
+      }
+
+      // Tạo mã mới với padding 3 chữ số
+      const paddedNumber = nextNumber.toString().padStart(3, '0');
+      const newCode = `${basePrefix}${paddedNumber}`;
+
+      // Kiểm tra xem mã có tồn tại không (để đảm bảo)
+      const exists = await this.checkMaDaiLyExists(newCode);
+      if (exists) {
+        // Nếu tồn tại, thử với số tiếp theo
+        nextNumber++;
+        if (nextNumber <= endRange) {
+          const retryPaddedNumber = nextNumber.toString().padStart(3, '0');
+          return `${basePrefix}${retryPaddedNumber}`;
+        } else {
+          // Fallback
+          const timestamp = Date.now().toString().slice(-6);
+          return `DL${timestamp}`;
+        }
+      }
+
+      return newCode;
+    } catch (error) {
+      console.error('Error in generateMaDaiLy:', error);
+      // Fallback: tạo mã random
+      const timestamp = Date.now().toString().slice(-6);
+      return `DL${timestamp}`;
     }
   }
 }

@@ -43,22 +43,67 @@ class DaiLyDonViService {
     }
   }
 
-  // Lấy đơn vị chưa liên kết với bất kỳ đại lý nào
+  // Lấy tất cả đơn vị có thể liên kết (cho mô hình many-to-many)
+  // Trong mô hình many-to-many, tất cả đơn vị đều có thể liên kết với đại lý mới
   async getUnlinkedDonVi(): Promise<VDonViDaiLy[]> {
     try {
-      const { data, error } = await supabase
-        .from('v_don_vi_dai_ly')
-        .select('*')
-        .eq('don_vi_trang_thai', 'active')
-        .is('dai_ly_id', null)
+      // Lấy tất cả đơn vị active - trong mô hình many-to-many, tất cả đơn vị đều có thể liên kết
+      const { data: allDonVi, error: allError } = await supabase
+        .from('dm_don_vi')
+        .select(`
+          id,
+          ma_co_quan_bhxh,
+          ma_so_bhxh,
+          ten_don_vi,
+          is_bhxh_tn,
+          is_bhyt,
+          type,
+          trang_thai,
+          ngay_tao,
+          ngay_cap_nhat,
+          dm_khoi_kcb_id
+        `)
+        .eq('trang_thai', 'active')
         .order('ten_don_vi', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching unlinked don vi:', error);
-        throw error;
+      if (allError) {
+        console.error('Error fetching all don vi:', allError);
+        throw allError;
       }
 
-      return data || [];
+      // Trong mô hình many-to-many, tất cả đơn vị đều có thể liên kết với đại lý mới
+      // Không cần loại bỏ đơn vị đã liên kết với đại lý khác
+
+      // Transform to VDonViDaiLy format
+      const result: VDonViDaiLy[] = allDonVi?.map(donVi => ({
+        don_vi_id: donVi.id,
+        ma_co_quan_bhxh: donVi.ma_co_quan_bhxh,
+        ma_so_bhxh: donVi.ma_so_bhxh,
+        ten_don_vi: donVi.ten_don_vi,
+        is_bhxh_tn: donVi.is_bhxh_tn,
+        is_bhyt: donVi.is_bhyt,
+        type: donVi.type,
+        don_vi_trang_thai: donVi.trang_thai,
+        don_vi_ngay_tao: donVi.ngay_tao,
+        don_vi_ngay_cap_nhat: donVi.ngay_cap_nhat,
+        dm_khoi_kcb_id: donVi.dm_khoi_kcb_id,
+        ma_khoi_kcb: null,
+        ten_khoi_kcb: null,
+        mo_ta_khoi: null,
+        loai_dich_vu: donVi.is_bhxh_tn && donVi.is_bhyt ? 'BHXH & BHYT' :
+                      donVi.is_bhxh_tn ? 'BHXH' : 'BHYT',
+        loai_don_vi: donVi.type === 1 ? 'Đơn vị thu cấp tỉnh' : 'Đơn vị thu cấp huyện',
+        dai_ly_id: null,
+        ma_dai_ly: null,
+        ten_dai_ly: null,
+        loai_dai_ly: null,
+        cap_dai_ly: null,
+        ma_tinh_dai_ly: null,
+        ngay_lien_ket: null,
+        ghi_chu_lien_ket: null
+      })) || [];
+
+      return result;
     } catch (error) {
       console.error('Error in getUnlinkedDonVi:', error);
       throw error;
@@ -254,15 +299,27 @@ class DaiLyDonViService {
     }
   }
 
-  // Lấy đơn vị có thể liên kết với đại lý (chưa liên kết hoặc có thể liên kết thêm)
+  // Lấy đơn vị có thể liên kết với đại lý (chưa liên kết với đại lý này)
   async getAvailableDonViForDaiLy(daiLyId: number): Promise<VDonViDaiLy[]> {
     try {
-      // Lấy tất cả đơn vị
+      // Lấy tất cả đơn vị active
       const { data: allDonVi, error: allError } = await supabase
-        .from('v_don_vi_dai_ly')
-        .select('*')
-        .eq('don_vi_trang_thai', 'active')
-        .is('dai_ly_id', null); // Chỉ lấy record không có liên kết
+        .from('dm_don_vi')
+        .select(`
+          id,
+          ma_co_quan_bhxh,
+          ma_so_bhxh,
+          ten_don_vi,
+          is_bhxh_tn,
+          is_bhyt,
+          type,
+          trang_thai,
+          ngay_tao,
+          ngay_cap_nhat,
+          dm_khoi_kcb_id
+        `)
+        .eq('trang_thai', 'active')
+        .order('ten_don_vi', { ascending: true });
 
       if (allError) {
         console.error('Error fetching all don vi:', allError);
@@ -283,10 +340,39 @@ class DaiLyDonViService {
 
       const linkedDonViIds = new Set(linkedDonVi?.map(item => item.don_vi_id) || []);
 
-      // Lọc ra đơn vị chưa liên kết với đại lý này
-      const availableDonVi = allDonVi?.filter(donVi => !linkedDonViIds.has(donVi.don_vi_id)) || [];
+      // Lọc ra đơn vị chưa liên kết với đại lý này (có thể đã liên kết với đại lý khác)
+      const availableDonVi = allDonVi?.filter(donVi => !linkedDonViIds.has(donVi.id)) || [];
 
-      return availableDonVi;
+      // Transform to VDonViDaiLy format
+      const result: VDonViDaiLy[] = availableDonVi.map(donVi => ({
+        don_vi_id: donVi.id,
+        ma_co_quan_bhxh: donVi.ma_co_quan_bhxh,
+        ma_so_bhxh: donVi.ma_so_bhxh,
+        ten_don_vi: donVi.ten_don_vi,
+        is_bhxh_tn: donVi.is_bhxh_tn,
+        is_bhyt: donVi.is_bhyt,
+        type: donVi.type,
+        don_vi_trang_thai: donVi.trang_thai,
+        don_vi_ngay_tao: donVi.ngay_tao,
+        don_vi_ngay_cap_nhat: donVi.ngay_cap_nhat,
+        dm_khoi_kcb_id: donVi.dm_khoi_kcb_id,
+        ma_khoi_kcb: null,
+        ten_khoi_kcb: null,
+        mo_ta_khoi: null,
+        loai_dich_vu: donVi.is_bhxh_tn && donVi.is_bhyt ? 'BHXH & BHYT' :
+                      donVi.is_bhxh_tn ? 'BHXH' : 'BHYT',
+        loai_don_vi: donVi.type === 1 ? 'Đơn vị thu cấp tỉnh' : 'Đơn vị thu cấp huyện',
+        dai_ly_id: null,
+        ma_dai_ly: null,
+        ten_dai_ly: null,
+        loai_dai_ly: null,
+        cap_dai_ly: null,
+        ma_tinh_dai_ly: null,
+        ngay_lien_ket: null,
+        ghi_chu_lien_ket: null
+      }));
+
+      return result;
     } catch (error) {
       console.error('Error in getAvailableDonViForDaiLy:', error);
       throw error;
