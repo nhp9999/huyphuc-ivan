@@ -53,6 +53,9 @@ const KeKhai603: React.FC = () => {
     isDeleting: false
   });
 
+  // State cho việc tạo kê khai mới
+  const [isCreating, setIsCreating] = useState(false);
+
   const [formData, setFormData] = useState({
     // Thông tin đại lý
     bienLaiDienTu: true,
@@ -236,14 +239,58 @@ const KeKhai603: React.FC = () => {
     // Implement save logic
   };
 
-  const handleSubmit = () => {
-    console.log('Submitting declaration:', formData);
-    // Chuyển hướng đến trang kê khai BHYT
-    setCurrentPage('ke-khai-603', {
-      declarationCode,
-      declarationName,
-      formData
-    });
+  const handleSubmit = async () => {
+    console.log('Creating new declaration:', formData);
+
+    // Validate required fields first
+    if (!formData.chonDonVi) {
+      alert('Vui lòng chọn đơn vị trước khi tạo kê khai mới.');
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+
+      // Prepare data for creating new declaration
+      const keKhaiData = {
+        ten_ke_khai: declarationName,
+        loai_ke_khai: declarationCode,
+        dai_ly_id: formData.chonDaiLy ? parseInt(formData.chonDaiLy) : undefined,
+        don_vi_id: formData.chonDonVi ? parseInt(formData.chonDonVi) : undefined,
+        doi_tuong_tham_gia: formData.doiTuongThamGia,
+        hinh_thuc_tinh: formData.hinhThucTinh,
+        luong_co_so: formData.luongCoSo ? parseFloat(formData.luongCoSo.replace(/[.,]/g, '')) : undefined,
+        nguon_dong: formData.nguonDong,
+        noi_dang_ky_kcb_ban_dau: formData.noiDangKyKCBBanDau || undefined,
+        bien_lai_ngay_tham_gia: formData.bienLaiNgayThamGia || undefined,
+        so_thang: formData.soThang ? parseInt(formData.soThang) : undefined,
+        ngay_tao: formData.ngay || undefined,
+        ty_le_nsnn_ho_tro: formData.tyLeNSNNHoTro ? parseFloat(formData.tyLeNSNNHoTro) : undefined,
+        ghi_chu: formData.ghiChu || undefined,
+        created_by: 'system' // TODO: Get from user context
+      };
+
+      // Create new declaration in database
+      const newKeKhai = await keKhaiService.createKeKhai(keKhaiData);
+
+      // Reload the list to show the new declaration
+      await loadKeKhaiData();
+
+      // Navigate to the new declaration form
+      setCurrentPage('ke-khai-603-form', {
+        declarationCode,
+        declarationName,
+        formData,
+        keKhaiId: newKeKhai.id
+      });
+
+      console.log(`Đã tạo kê khai mới: ${newKeKhai.ma_ke_khai}`);
+    } catch (error) {
+      console.error('Error creating new declaration:', error);
+      alert('Có lỗi xảy ra khi tạo kê khai mới. Vui lòng thử lại.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleExport = () => {
@@ -337,11 +384,15 @@ const KeKhai603: React.FC = () => {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!formData.chonDonVi}
+            disabled={!formData.chonDonVi || isCreating}
             className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-3 sm:py-2 rounded-lg transition-colors min-h-[44px] text-sm sm:text-base"
           >
-            <Send className="w-4 h-4" />
-            <span>Thêm Mới</span>
+            {isCreating ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+            <span>{isCreating ? 'Đang tạo...' : 'Thêm Mới'}</span>
           </button>
         </div>
       </div>
@@ -673,7 +724,7 @@ const KeKhai603: React.FC = () => {
                         <div className="flex space-x-2">
                           <button
                             onClick={() => {
-                              setCurrentPage('ke-khai-603', {
+                              setCurrentPage('ke-khai-603-form', {
                                 declarationCode,
                                 declarationName,
                                 formData: {},
@@ -723,7 +774,7 @@ const KeKhai603: React.FC = () => {
                         <div className="col-span-2 flex space-x-2">
                           <button
                             onClick={() => {
-                              setCurrentPage('ke-khai-603', {
+                              setCurrentPage('ke-khai-603-form', {
                                 declarationCode,
                                 declarationName,
                                 formData: {},

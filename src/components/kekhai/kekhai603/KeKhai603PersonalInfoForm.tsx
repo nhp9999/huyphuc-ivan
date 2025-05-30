@@ -1,6 +1,6 @@
 import React from 'react';
 import { KeKhai603FormData } from '../../../hooks/useKeKhai603FormData';
-import { Search, RotateCcw, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 
 interface KeKhai603PersonalInfoFormProps {
   formData: KeKhai603FormData;
@@ -8,7 +8,6 @@ interface KeKhai603PersonalInfoFormProps {
   handleSearch: () => void;
   handleKeyPress: (e: React.KeyboardEvent) => void;
   searchLoading: boolean;
-  resetForm: () => void;
 }
 
 export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps> = ({
@@ -16,8 +15,7 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
   handleInputChange,
   handleSearch,
   handleKeyPress,
-  searchLoading,
-  resetForm
+  searchLoading
 }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -182,17 +180,6 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
               placeholder="Nhập dân tộc"
             />
           </div>
-        </div>
-
-        {/* Reset Button */}
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={resetForm}
-            className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            <RotateCcw className="h-4 w-4" />
-            <span>Đặt lại</span>
-          </button>
         </div>
       </div>
     </div>

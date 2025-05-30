@@ -12,6 +12,7 @@ import BhxhIdLookup from './pages/BhxhIdLookup';
 import FamilyLookup from './pages/FamilyLookup';
 import DeclarationCategories from './pages/DeclarationCategories';
 import KeKhai603 from './pages/KeKhai603';
+import KeKhai603Form from './pages/KeKhai603Form';
 import DeclarationHistory from './pages/DeclarationHistory';
 import DonViManagement from './pages/DonViManagement';
 import DaiLyManagement from './pages/DaiLyManagement';
@@ -40,6 +41,8 @@ const AppContent: React.FC = () => {
         return <DeclarationHistory />;
       case 'ke-khai-603':
         return <KeKhai603 />;
+      case 'ke-khai-603-form':
+        return <KeKhai603Form />;
       case 'don-vi-management':
         return <DonViManagement />;
       case 'dai-ly-management':

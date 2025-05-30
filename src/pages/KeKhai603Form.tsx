@@ -14,7 +14,7 @@ import { KeKhai603ParticipantTable } from '../components/kekhai/kekhai603/KeKhai
 import { KeKhai603ListModeTable } from '../components/kekhai/kekhai603/KeKhai603ListModeTable';
 
 const KeKhai603Form: React.FC = () => {
-  const { pageParams } = useNavigation();
+  const { pageParams, setCurrentPage } = useNavigation();
 
   // Custom hooks
   const { formData, handleInputChange, resetForm } = useKeKhai603FormData();
@@ -266,7 +266,6 @@ const KeKhai603Form: React.FC = () => {
                 handleSearch={handleSearch}
                 handleKeyPress={handleKeyPress}
                 searchLoading={searchLoading}
-                resetForm={resetForm}
               />
 
               {/* Card Information Form */}
