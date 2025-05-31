@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { KeKhai603FormData } from '../../../hooks/useKeKhai603FormData';
 import { Search, Loader2 } from 'lucide-react';
+import { tinhService, TinhOption } from '../../../services/tinhService';
 
 interface KeKhai603PersonalInfoFormProps {
   formData: KeKhai603FormData;
@@ -17,6 +18,26 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
   handleKeyPress,
   searchLoading
 }) => {
+  const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
+  const [loadingTinh, setLoadingTinh] = useState(true);
+
+  // Load province data on component mount
+  useEffect(() => {
+    const loadTinhData = async () => {
+      try {
+        setLoadingTinh(true);
+        const options = await tinhService.getTinhOptions();
+        setTinhOptions(options);
+      } catch (error) {
+        console.error('Error loading province data:', error);
+      } finally {
+        setLoadingTinh(false);
+      }
+    };
+
+    loadTinhData();
+  }, []);
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -179,6 +200,128 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Nhập dân tộc"
             />
+          </div>
+
+          {/* Địa chỉ khai sinh (KS) */}
+          <div className="md:col-span-8 lg:col-span-10 xl:col-span-12">
+            <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">
+              Địa chỉ khai sinh (KS)
+            </h3>
+          </div>
+
+          {/* Tỉnh KS */}
+          <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Tỉnh KS
+            </label>
+            <select
+              value={formData.maTinhKS}
+              onChange={(e) => handleInputChange('maTinhKS', e.target.value)}
+              disabled={loadingTinh}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">
+                {loadingTinh ? 'Đang tải...' : 'Chọn tỉnh/thành phố'}
+              </option>
+              {tinhOptions.map((tinh) => (
+                <option key={tinh.value} value={tinh.value}>
+                  {tinh.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Huyện KS */}
+          <div className="md:col-span-3 lg:col-span-3 xl:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Huyện KS
+            </label>
+            <select
+              value={formData.maHuyenKS}
+              onChange={(e) => handleInputChange('maHuyenKS', e.target.value)}
+              disabled={!formData.maTinhKS}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">Chọn quận/huyện</option>
+              {/* TODO: Load districts based on selected province */}
+            </select>
+          </div>
+
+          {/* Xã KS */}
+          <div className="md:col-span-3 lg:col-span-4 xl:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Xã KS
+            </label>
+            <select
+              value={formData.maXaKS}
+              onChange={(e) => handleInputChange('maXaKS', e.target.value)}
+              disabled={!formData.maHuyenKS}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">Chọn phường/xã</option>
+              {/* TODO: Load wards based on selected district */}
+            </select>
+          </div>
+
+          {/* Địa chỉ nhận kết quả (NKQ) */}
+          <div className="md:col-span-8 lg:col-span-10 xl:col-span-12">
+            <h3 className="text-md font-medium text-gray-900 dark:text-white mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">
+              Địa chỉ nhận kết quả (NKQ)
+            </h3>
+          </div>
+
+          {/* Tỉnh NKQ */}
+          <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Tỉnh NKQ
+            </label>
+            <select
+              value={formData.maTinhNkq}
+              onChange={(e) => handleInputChange('maTinhNkq', e.target.value)}
+              disabled={loadingTinh}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">
+                {loadingTinh ? 'Đang tải...' : 'Chọn tỉnh/thành phố'}
+              </option>
+              {tinhOptions.map((tinh) => (
+                <option key={tinh.value} value={tinh.value}>
+                  {tinh.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Huyện NKQ */}
+          <div className="md:col-span-3 lg:col-span-3 xl:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Huyện NKQ
+            </label>
+            <select
+              value={formData.maHuyenNkq}
+              onChange={(e) => handleInputChange('maHuyenNkq', e.target.value)}
+              disabled={!formData.maTinhNkq}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">Chọn quận/huyện</option>
+              {/* TODO: Load districts based on selected province */}
+            </select>
+          </div>
+
+          {/* Xã NKQ */}
+          <div className="md:col-span-3 lg:col-span-4 xl:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Xã NKQ
+            </label>
+            <select
+              value={formData.maXaNkq}
+              onChange={(e) => handleInputChange('maXaNkq', e.target.value)}
+              disabled={!formData.maHuyenNkq}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">Chọn phường/xã</option>
+              {/* TODO: Load wards based on selected district */}
+            </select>
           </div>
         </div>
       </div>

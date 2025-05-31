@@ -331,3 +331,14 @@ export interface DanhSachNguoiThamGia {
   created_at?: string;
   updated_at?: string;
 }
+
+// Interface cho bảng dm_tinh
+export interface DmTinh {
+  id: number;
+  ma?: string;
+  ten: string;
+  text: string;
+  value: string;
+  created_at: string;
+  updated_at: string;
+}

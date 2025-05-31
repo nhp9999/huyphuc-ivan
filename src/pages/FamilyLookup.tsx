@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Users, MapPin, User, AlertCircle, CheckCircle, Loader, Phone, Calendar, Hash } from 'lucide-react';
+import { tinhService, TinhOption } from '../services/tinhService';
 
 interface FamilySearchCriteria {
   tinhKS: string;
@@ -42,6 +43,26 @@ const FamilyLookup: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<FamilyLookupResponse | null>(null);
   const [error, setError] = useState('');
+  const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
+  const [loadingTinh, setLoadingTinh] = useState(true);
+
+  // Load province data on component mount
+  useEffect(() => {
+    const loadTinhData = async () => {
+      try {
+        setLoadingTinh(true);
+        const options = await tinhService.getTinhOptions();
+        setTinhOptions(options);
+      } catch (error) {
+        console.error('Error loading province data:', error);
+        setError('Không thể tải dữ liệu tỉnh thành. Vui lòng thử lại.');
+      } finally {
+        setLoadingTinh(false);
+      }
+    };
+
+    loadTinhData();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,14 +161,16 @@ const FamilyLookup: React.FC = () => {
                   setError('');
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                disabled={isLoading}
+                disabled={isLoading || loadingTinh}
               >
-                <option value="">Chọn tỉnh/thành phố</option>
-                <option value="01">Hà Nội</option>
-                <option value="79">TP. Hồ Chí Minh</option>
-                <option value="48">Đà Nẵng</option>
-                <option value="92">Cần Thơ</option>
-                <option value="31">Hải Phòng</option>
+                <option value="">
+                  {loadingTinh ? 'Đang tải...' : 'Chọn tỉnh/thành phố'}
+                </option>
+                {tinhOptions.map((tinh) => (
+                  <option key={tinh.value} value={tinh.value}>
+                    {tinh.label}
+                  </option>
+                ))}
               </select>
             </div>
 
