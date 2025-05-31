@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, CreditCard, User, Calendar, AlertCircle, CheckCircle, Loader, Hash, MapPin } from 'lucide-react';
 import { bhxhService } from '../services/bhxhService';
 import { tinhService, TinhOption } from '../services/tinhService';
+import { huyenService, HuyenOption } from '../services/huyenService';
 import { BhxhLookupResponse } from '../types/bhxh';
 
 interface SearchCriteria {
@@ -29,6 +30,8 @@ const BhxhIdLookup: React.FC = () => {
   const [error, setError] = useState('');
   const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
   const [loadingTinh, setLoadingTinh] = useState(true);
+  const [huyenOptions, setHuyenOptions] = useState<HuyenOption[]>([]);
+  const [loadingHuyen, setLoadingHuyen] = useState(false);
 
   // Load province data on component mount
   useEffect(() => {
@@ -48,10 +51,39 @@ const BhxhIdLookup: React.FC = () => {
     loadTinhData();
   }, []);
 
+  // Load district data when province changes
+  useEffect(() => {
+    const loadHuyenData = async () => {
+      if (!searchCriteria.tinhKS) {
+        setHuyenOptions([]);
+        return;
+      }
+
+      try {
+        setLoadingHuyen(true);
+        const options = await huyenService.getHuyenOptionsByTinh(searchCriteria.tinhKS);
+        setHuyenOptions(options);
+      } catch (error) {
+        console.error('Error loading district data:', error);
+        setHuyenOptions([]);
+      } finally {
+        setLoadingHuyen(false);
+      }
+    };
+
+    loadHuyenData();
+  }, [searchCriteria.tinhKS]);
+
   // Helper function to get province name by value
   const getTinhName = (value: string): string => {
     const tinh = tinhOptions.find(t => t.value === value);
     return tinh?.label || value;
+  };
+
+  // Helper function to get district name by value
+  const getHuyenName = (value: string): string => {
+    const huyen = huyenOptions.find(h => h.value === value);
+    return huyen?.label || value;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,18 +176,16 @@ const BhxhIdLookup: React.FC = () => {
                   setError('');
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                disabled={isLoading || !searchCriteria.tinhKS}
+                disabled={isLoading || !searchCriteria.tinhKS || loadingHuyen}
               >
-                <option value="">Chọn quận/huyện</option>
-                {searchCriteria.tinhKS && (
-                  <>
-                    <option value="001">Ba Đình</option>
-                    <option value="002">Hoàn Kiếm</option>
-                    <option value="003">Tây Hồ</option>
-                    <option value="004">Long Biên</option>
-                    <option value="005">Cầu Giấy</option>
-                  </>
-                )}
+                <option value="">
+                  {loadingHuyen ? 'Đang tải...' : 'Chọn quận/huyện'}
+                </option>
+                {huyenOptions.map((huyen) => (
+                  <option key={huyen.value} value={huyen.value}>
+                    {huyen.label}
+                  </option>
+                ))}
               </select>
             </div>
 

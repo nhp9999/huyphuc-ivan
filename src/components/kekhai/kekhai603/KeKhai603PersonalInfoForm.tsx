@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { KeKhai603FormData } from '../../../hooks/useKeKhai603FormData';
 import { Search, Loader2 } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../services/tinhService';
+import { huyenService, HuyenOption } from '../../../services/huyenService';
 
 interface KeKhai603PersonalInfoFormProps {
   formData: KeKhai603FormData;
@@ -20,6 +21,10 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
 }) => {
   const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
   const [loadingTinh, setLoadingTinh] = useState(true);
+  const [huyenKSOptions, setHuyenKSOptions] = useState<HuyenOption[]>([]);
+  const [huyenNKQOptions, setHuyenNKQOptions] = useState<HuyenOption[]>([]);
+  const [loadingHuyenKS, setLoadingHuyenKS] = useState(false);
+  const [loadingHuyenNKQ, setLoadingHuyenNKQ] = useState(false);
 
   // Load province data on component mount
   useEffect(() => {
@@ -37,6 +42,52 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
 
     loadTinhData();
   }, []);
+
+  // Load KS districts when KS province changes
+  useEffect(() => {
+    const loadHuyenKSData = async () => {
+      if (!formData.maTinhKS) {
+        setHuyenKSOptions([]);
+        return;
+      }
+
+      try {
+        setLoadingHuyenKS(true);
+        const options = await huyenService.getHuyenOptionsByTinh(formData.maTinhKS);
+        setHuyenKSOptions(options);
+      } catch (error) {
+        console.error('Error loading KS district data:', error);
+        setHuyenKSOptions([]);
+      } finally {
+        setLoadingHuyenKS(false);
+      }
+    };
+
+    loadHuyenKSData();
+  }, [formData.maTinhKS]);
+
+  // Load NKQ districts when NKQ province changes
+  useEffect(() => {
+    const loadHuyenNKQData = async () => {
+      if (!formData.maTinhNkq) {
+        setHuyenNKQOptions([]);
+        return;
+      }
+
+      try {
+        setLoadingHuyenNKQ(true);
+        const options = await huyenService.getHuyenOptionsByTinh(formData.maTinhNkq);
+        setHuyenNKQOptions(options);
+      } catch (error) {
+        console.error('Error loading NKQ district data:', error);
+        setHuyenNKQOptions([]);
+      } finally {
+        setLoadingHuyenNKQ(false);
+      }
+    };
+
+    loadHuyenNKQData();
+  }, [formData.maTinhNkq]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -239,11 +290,17 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
             <select
               value={formData.maHuyenKS}
               onChange={(e) => handleInputChange('maHuyenKS', e.target.value)}
-              disabled={!formData.maTinhKS}
+              disabled={!formData.maTinhKS || loadingHuyenKS}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
-              <option value="">Chọn quận/huyện</option>
-              {/* TODO: Load districts based on selected province */}
+              <option value="">
+                {loadingHuyenKS ? 'Đang tải...' : 'Chọn quận/huyện'}
+              </option>
+              {huyenKSOptions.map((huyen) => (
+                <option key={huyen.value} value={huyen.value}>
+                  {huyen.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -300,11 +357,17 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
             <select
               value={formData.maHuyenNkq}
               onChange={(e) => handleInputChange('maHuyenNkq', e.target.value)}
-              disabled={!formData.maTinhNkq}
+              disabled={!formData.maTinhNkq || loadingHuyenNKQ}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
-              <option value="">Chọn quận/huyện</option>
-              {/* TODO: Load districts based on selected province */}
+              <option value="">
+                {loadingHuyenNKQ ? 'Đang tải...' : 'Chọn quận/huyện'}
+              </option>
+              {huyenNKQOptions.map((huyen) => (
+                <option key={huyen.value} value={huyen.value}>
+                  {huyen.label}
+                </option>
+              ))}
             </select>
           </div>
 

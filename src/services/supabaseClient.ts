@@ -342,3 +342,15 @@ export interface DmTinh {
   created_at: string;
   updated_at: string;
 }
+
+// Interface cho bảng dm_huyen
+export interface DmHuyen {
+  id: number;
+  ma?: string;
+  ten: string;
+  text: string;
+  value: string;
+  ma_tinh: string;
+  created_at: string;
+  updated_at: string;
+}
