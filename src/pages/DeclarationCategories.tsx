@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigation } from '../context/NavigationContext';
-import { Search, FileText, Eye, Download, Filter, RefreshCw, AlertCircle } from 'lucide-react';
+import { Search, FileText, Eye, Download, Filter, RefreshCw, AlertCircle, EyeOff } from 'lucide-react';
 import { danhMucThuTucService, ThuTucSearchParams } from '../services/danhMucThuTucService';
 import { DanhMucThuTuc } from '../services/supabaseClient';
 import Toast from '../components/Toast';
@@ -12,6 +12,7 @@ interface DeclarationCategory {
   ten: string;
   linhVuc: number;
   moTa?: string;
+  trangThai: string;
 }
 
 const DeclarationCategories: React.FC = () => {
@@ -24,16 +25,21 @@ const DeclarationCategories: React.FC = () => {
   const [selectedLinhVuc, setSelectedLinhVuc] = useState<number | null>(null);
   const [linhVucOptions, setLinhVucOptions] = useState<{ value: number; label: string }[]>([]);
   const [statistics, setStatistics] = useState<{ linh_vuc: number; so_luong: number; ten_linh_vuc: string }[]>([]);
+  const [showOnlyDeveloped, setShowOnlyDeveloped] = useState<boolean>(() => {
+    // Load từ localStorage, mặc định là true (chỉ hiển thị thủ tục đã phát triển)
+    const saved = localStorage.getItem('showOnlyDevelopedProcedures');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   // State cho toast notification
   const [toast, setToast] = useState({
     isVisible: false,
     message: '',
-    type: 'warning' as 'success' | 'error' | 'warning'
+    type: 'warning' as 'success' | 'error' | 'warning' | 'info'
   });
 
   // Helper function để hiển thị toast
-  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'warning') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'warning') => {
     setToast({
       isVisible: true,
       message,
@@ -53,7 +59,8 @@ const DeclarationCategories: React.FC = () => {
       ma: item.ma,
       ten: item.ten,
       linhVuc: item.linh_vuc,
-      moTa: item.mo_ta
+      moTa: item.mo_ta,
+      trangThai: item.trang_thai
     }));
   };
 
@@ -62,8 +69,12 @@ const DeclarationCategories: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      const searchParams: ThuTucSearchParams = {
+        showOnlyDeveloped: showOnlyDeveloped // true = chỉ lấy 'active', false = lấy tất cả
+      };
+
       const [thuTucData, linhVucData, statsData] = await Promise.all([
-        danhMucThuTucService.getAllThuTuc(),
+        danhMucThuTucService.searchThuTuc(searchParams), // Sử dụng searchThuTuc thay vì getAllThuTuc
         danhMucThuTucService.getLinhVucList(),
         danhMucThuTucService.getThongKeTheoLinhVuc()
       ]);
@@ -86,6 +97,23 @@ const DeclarationCategories: React.FC = () => {
     loadData();
   }, []);
 
+  // Reload data when showOnlyDeveloped changes
+  useEffect(() => {
+    if (allData.length > 0) { // Chỉ reload nếu đã có dữ liệu
+      loadData();
+    }
+  }, [showOnlyDeveloped]);
+
+  // Toggle function để ẩn hiện thủ tục chưa phát triển
+  const handleToggleDeveloped = () => {
+    const newValue = !showOnlyDeveloped;
+    setShowOnlyDeveloped(newValue);
+    localStorage.setItem('showOnlyDevelopedProcedures', JSON.stringify(newValue));
+
+    // Tự động tìm kiếm lại với filter mới
+    handleSearch();
+  };
+
   // Search and filter functions
   const handleSearch = async () => {
     setLoading(true);
@@ -93,7 +121,8 @@ const DeclarationCategories: React.FC = () => {
     try {
       const searchParams: ThuTucSearchParams = {
         searchTerm: searchTerm.trim() || undefined,
-        linhVuc: selectedLinhVuc || undefined
+        linhVuc: selectedLinhVuc || undefined,
+        showOnlyDeveloped: showOnlyDeveloped // true = chỉ lấy 'active', false = lấy tất cả
       };
 
       const results = await danhMucThuTucService.searchThuTuc(searchParams);
@@ -130,18 +159,23 @@ const DeclarationCategories: React.FC = () => {
   };
 
   const handleDeclarationClick = (item: DeclarationCategory) => {
-    // Chỉ chuyển đến trang Kê khai 603 nếu ký hiệu là "603"
-    if (item.kyHieu === '603') {
-      setCurrentPage('ke-khai-603', {
-        code: item.kyHieu,
-        name: item.ten,
-        ma: item.ma
-      });
+    // Chỉ cho phép click vào thủ tục đã phát triển (active)
+    if (item.trangThai === 'active') {
+      if (item.kyHieu === '603') {
+        setCurrentPage('ke-khai-603', {
+          code: item.kyHieu,
+          name: item.ten,
+          ma: item.ma
+        });
+      } else {
+        // Có thể thêm logic để chuyển đến các trang kê khai khác đã phát triển
+        showToast(`Thủ tục "${item.kyHieu} - ${item.ten}" đã sẵn sàng nhưng chưa được tích hợp.`, 'info');
+      }
     } else {
-      // Hiển thị thông báo cho các thủ tục khác chưa được hỗ trợ
-      console.log(`Clicked on procedure: ${item.kyHieu} - ${item.ten}`);
-      // Có thể thêm logic để chuyển đến các trang kê khai khác trong tương lai
-      showToast(`Thủ tục "${item.kyHieu} - ${item.ten}" sẽ được hỗ trợ trong phiên bản tiếp theo.`, 'warning');
+      // Hiển thị thông báo cho các thủ tục chưa được phát triển
+      const statusText = item.trangThai === 'draft' ? 'đang phát triển' : 'chưa phát triển';
+      console.log(`Clicked on ${statusText} procedure: ${item.kyHieu} - ${item.ten}`);
+      showToast(`Thủ tục "${item.kyHieu} - ${item.ten}" ${statusText === 'đang phát triển' ? 'đang được phát triển' : 'sẽ được hỗ trợ trong phiên bản tiếp theo'}.`, 'warning');
     }
   };
 
@@ -156,6 +190,21 @@ const DeclarationCategories: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          <button
+            onClick={handleToggleDeveloped}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+              showOnlyDeveloped
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            {showOnlyDeveloped ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+            <span>{showOnlyDeveloped ? 'Chỉ hiện sẵn sàng' : 'Hiện tất cả'}</span>
+          </button>
           <button
             onClick={handleRefresh}
             disabled={loading}
@@ -285,9 +334,9 @@ const DeclarationCategories: React.FC = () => {
                 key={item.stt}
                 onClick={() => handleDeclarationClick(item)}
                 className={`transition-all duration-200 group ${
-                  item.kyHieu === '603'
+                  item.trangThai === 'active'
                     ? 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-gray-700 dark:hover:to-gray-600 cursor-pointer'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer opacity-75'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer opacity-60'
                 }`}
               >
                 {/* Desktop Layout */}
@@ -312,9 +361,17 @@ const DeclarationCategories: React.FC = () => {
                     <div className="col-span-6 text-sm text-gray-900 dark:text-white">
                       <div className="flex items-center space-x-2">
                         <span>{item.ten}</span>
-                        {item.kyHieu === '603' && (
+                        {item.trangThai === 'active' ? (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
                             Sẵn sàng
+                          </span>
+                        ) : item.trangThai === 'draft' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400">
+                            Đang phát triển
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400">
+                            Chưa phát triển
                           </span>
                         )}
                       </div>
@@ -380,9 +437,17 @@ const DeclarationCategories: React.FC = () => {
                       <p className="text-sm text-gray-900 dark:text-white leading-relaxed flex-1">
                         {item.ten}
                       </p>
-                      {item.kyHieu === '603' && (
+                      {item.trangThai === 'active' ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 flex-shrink-0">
                           Sẵn sàng
+                        </span>
+                      ) : item.trangThai === 'draft' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 flex-shrink-0">
+                          Đang phát triển
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400 flex-shrink-0">
+                          Chưa phát triển
                         </span>
                       )}
                     </div>
@@ -434,8 +499,10 @@ const DeclarationCategories: React.FC = () => {
           <li>• <strong>Tìm kiếm:</strong> Nhập mã hoặc tên thủ tục để tìm kiếm nhanh</li>
           <li>• <strong>Lĩnh vực:</strong> Lọc theo loại thủ tục (Đăng ký, Cấp lại/Đổi thẻ, Giải quyết chế độ, v.v.)</li>
           <li>• <strong>Ký hiệu:</strong> Mã định danh duy nhất của từng thủ tục</li>
+          <li>• <strong>Hiển thị thủ tục:</strong> Mặc định chỉ hiện thủ tục sẵn sàng, click "Hiện tất cả" để xem thêm</li>
+          <li>• <strong>Badge "Sẵn sàng":</strong> Thủ tục đã được phát triển và có thể sử dụng</li>
+          <li>• <strong>Badge "Chưa phát triển":</strong> Thủ tục sẽ được hỗ trợ trong phiên bản tiếp theo (chỉ hiện khi bật "Hiện tất cả")</li>
           <li>• <strong>Kê khai 603:</strong> Click vào thủ tục có ký hiệu "603" để bắt đầu kê khai BHYT</li>
-          <li>• <strong>Badge "Sẵn sàng":</strong> Chỉ ra thủ tục đã được hỗ trợ trong hệ thống</li>
           <li>• <strong>Làm mới:</strong> Tải lại dữ liệu mới nhất từ hệ thống</li>
           <li>• Danh mục được đồng bộ từ cơ sở dữ liệu và cập nhật theo quy định mới nhất</li>
         </ul>

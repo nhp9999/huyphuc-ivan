@@ -16,7 +16,7 @@ export interface DanhMucThuTuc {
   ten: string;
   linh_vuc: number;
   mo_ta?: string;
-  trang_thai: string;
+  trang_thai: string; // 'active' = đã phát triển, 'inactive' = chưa phát triển, 'draft' = đang phát triển
   ngay_tao: string;
   ngay_cap_nhat: string;
 }

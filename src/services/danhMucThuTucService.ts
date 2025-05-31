@@ -4,6 +4,7 @@ export interface ThuTucSearchParams {
   searchTerm?: string;
   linhVuc?: number;
   trangThai?: string;
+  showOnlyDeveloped?: boolean; // true = chỉ hiện 'active', false = hiện tất cả
 }
 
 class DanhMucThuTucService {
@@ -13,7 +14,7 @@ class DanhMucThuTucService {
       const { data, error } = await supabase
         .from('danh_muc_thu_tuc')
         .select('*')
-        .eq('trang_thai', 'active')
+        .in('trang_thai', ['active', 'inactive', 'draft']) // Lấy tất cả trạng thái
         .order('stt', { ascending: true });
 
       if (error) {
@@ -33,8 +34,14 @@ class DanhMucThuTucService {
     try {
       let query = supabase
         .from('danh_muc_thu_tuc')
-        .select('*')
-        .eq('trang_thai', 'active');
+        .select('*');
+
+      // Lọc theo trạng thái phát triển
+      if (params.showOnlyDeveloped) {
+        query = query.eq('trang_thai', 'active'); // Chỉ lấy thủ tục đã phát triển
+      } else {
+        query = query.in('trang_thai', ['active', 'inactive', 'draft']); // Lấy tất cả
+      }
 
       // Tìm kiếm theo từ khóa
       if (params.searchTerm && params.searchTerm.trim()) {
@@ -47,7 +54,7 @@ class DanhMucThuTucService {
         query = query.eq('linh_vuc', params.linhVuc);
       }
 
-      // Lọc theo trạng thái
+      // Lọc theo trạng thái cụ thể (nếu có)
       if (params.trangThai) {
         query = query.eq('trang_thai', params.trangThai);
       }
