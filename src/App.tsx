@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NavigationProvider } from './context/NavigationContext';
 import Layout from './components/Layout';
+import OrganizationSelector from './components/OrganizationSelector';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
@@ -26,7 +27,7 @@ import PhanQuyenManagement from './pages/PhanQuyenManagement';
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, setCurrentOrganization } = useAuth();
 
   if (isLoading) {
     return (
@@ -41,6 +42,18 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Nếu user có nhiều tổ chức và chưa chọn tổ chức hiện tại
+  if (user?.organizations && user.organizations.length > 0 && !user.currentOrganization) {
+    return (
+      <OrganizationSelector
+        organizations={user.organizations}
+        onSelect={(org) => {
+          setCurrentOrganization(org);
+        }}
+      />
+    );
   }
 
   return <Layout>{children}</Layout>;

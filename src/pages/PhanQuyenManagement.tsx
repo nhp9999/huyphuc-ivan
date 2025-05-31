@@ -15,6 +15,11 @@ import {
 } from 'lucide-react';
 import { VNguoiDungPhanQuyen } from '../services/supabaseClient';
 import nguoiDungService from '../services/nguoiDungService';
+import phanQuyenService from '../services/phanQuyenService';
+import congTyService from '../services/congTyService';
+import coQuanBhxhService from '../services/coQuanBhxhService';
+import PhanQuyenCreateModal from '../components/PhanQuyenCreateModal';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 const PhanQuyenManagement: React.FC = () => {
   const [phanQuyenList, setPhanQuyenList] = useState<VNguoiDungPhanQuyen[]>([]);
@@ -24,6 +29,10 @@ const PhanQuyenManagement: React.FC = () => {
   const [organizationTypeFilter, setOrganizationTypeFilter] = useState<string>('all');
   const [permissionLevelFilter, setPermissionLevelFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedPermissionForDelete, setSelectedPermissionForDelete] = useState<VNguoiDungPhanQuyen | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Load dữ liệu phân quyền
@@ -78,6 +87,62 @@ const PhanQuyenManagement: React.FC = () => {
 
     setFilteredPhanQuyenList(filtered);
   }, [phanQuyenList, searchTerm, organizationTypeFilter, permissionLevelFilter, statusFilter]);
+
+  // Handlers
+  const handleCreateSuccess = () => {
+    setShowCreateModal(false);
+    loadPhanQuyenData();
+  };
+
+  const handleDelete = (phanQuyen: VNguoiDungPhanQuyen) => {
+    setSelectedPermissionForDelete(phanQuyen);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedPermissionForDelete) return;
+
+    setDeleteLoading(true);
+    try {
+      // Xác định organization ID
+      let organizationId: number | undefined;
+      if (selectedPermissionForDelete.loai_to_chuc === 'cong_ty') {
+        // Tìm công ty theo tên (cần cải thiện sau)
+        const congTyList = await congTyService.getActiveCongTy();
+        const congTy = congTyList.find(ct => ct.ten_cong_ty === selectedPermissionForDelete.ten_cong_ty);
+        organizationId = congTy?.id;
+      } else if (selectedPermissionForDelete.loai_to_chuc === 'co_quan_bhxh') {
+        // Tìm cơ quan theo tên (cần cải thiện sau)
+        const coQuanList = await coQuanBhxhService.getActiveCoQuanBhxh();
+        const coQuan = coQuanList.find(cq => cq.ten_co_quan === selectedPermissionForDelete.ten_co_quan);
+        organizationId = coQuan?.id;
+      }
+
+      await phanQuyenService.deletePhanQuyenByUserAndOrg(
+        selectedPermissionForDelete.id,
+        selectedPermissionForDelete.loai_to_chuc,
+        organizationId
+      );
+
+      await loadPhanQuyenData();
+      setShowDeleteModal(false);
+      setSelectedPermissionForDelete(null);
+    } catch (err) {
+      console.error('Error deleting permission:', err);
+      setError('Không thể xóa phân quyền. Vui lòng thử lại.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setSelectedPermissionForDelete(null);
+  };
+
+  const handleModalClose = () => {
+    setShowCreateModal(false);
+  };
 
   const getOrganizationTypeBadge = (type: string) => {
     switch (type) {
@@ -193,7 +258,10 @@ const PhanQuyenManagement: React.FC = () => {
             Quản lý phân quyền người dùng theo tổ chức và vai trò
           </p>
         </div>
-        <button className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors gap-2">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors gap-2"
+        >
           <Plus className="h-5 w-5" />
           Thêm phân quyền
         </button>
@@ -386,6 +454,7 @@ const PhanQuyenManagement: React.FC = () => {
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
+                          onClick={() => handleDelete(phanQuyen)}
                           className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                           title="Xóa"
                         >
@@ -400,6 +469,25 @@ const PhanQuyenManagement: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {showCreateModal && (
+        <PhanQuyenCreateModal
+          onClose={handleModalClose}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        title="Xóa phân quyền"
+        message="Bạn có chắc chắn muốn xóa phân quyền này? Người dùng sẽ mất quyền truy cập vào tổ chức."
+        itemName={selectedPermissionForDelete ? `${selectedPermissionForDelete.ten_vai_tro} - ${selectedPermissionForDelete.ho_ten} (${selectedPermissionForDelete.ten_cong_ty || selectedPermissionForDelete.ten_co_quan || 'Hệ thống'})` : ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        loading={deleteLoading}
+      />
     </div>
   );
 };

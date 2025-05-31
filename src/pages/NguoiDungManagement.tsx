@@ -1,29 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
+import {
+  Users,
+  Plus,
+  Search,
+  Edit,
+  Trash2,
   Eye,
   Filter,
   Download,
   RefreshCw,
   UserCheck,
+  User,
   Mail,
-  Phone
+  Phone,
+  Skull
 } from 'lucide-react';
-import { VNguoiDungPhanQuyen } from '../services/supabaseClient';
+import { VNguoiDungPhanQuyen, DmNguoiDung } from '../services/supabaseClient';
 import nguoiDungService from '../services/nguoiDungService';
+import NguoiDungCreateModal from '../components/NguoiDungCreateModal';
+import NguoiDungEditModal from '../components/NguoiDungEditModal';
+import PhanQuyenCreateModal from '../components/PhanQuyenCreateModal';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import ConfirmHardDeleteModal from '../components/ConfirmHardDeleteModal';
+import { useAuth } from '../context/AuthContext';
 
 const NguoiDungManagement: React.FC = () => {
+  const { user } = useAuth();
   const [nguoiDungList, setNguoiDungList] = useState<VNguoiDungPhanQuyen[]>([]);
   const [filteredNguoiDungList, setFilteredNguoiDungList] = useState<VNguoiDungPhanQuyen[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showHardDeleteModal, setShowHardDeleteModal] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<DmNguoiDung | null>(null);
+  const [selectedUserForDelete, setSelectedUserForDelete] = useState<VNguoiDungPhanQuyen | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [hardDeleteLoading, setHardDeleteLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Kiểm tra xem user hiện tại có phải Super Admin không
+  const isSuperAdmin = user?.currentOrganization?.permission_level === 'super_admin' ||
+                       user?.organizations?.some(org => org.permission_level === 'super_admin');
 
   // Load dữ liệu người dùng
   const loadNguoiDungData = async () => {
@@ -129,6 +152,104 @@ const NguoiDungManagement: React.FC = () => {
     }
   };
 
+  // Handlers
+  const handleCreateSuccess = (userId?: number) => {
+    setShowCreateModal(false);
+    if (userId) {
+      // Hiển thị modal phân quyền cho user vừa tạo
+      setSelectedUserId(userId);
+      setShowPermissionModal(true);
+    } else {
+      loadNguoiDungData();
+    }
+  };
+
+  const handlePermissionSuccess = () => {
+    setShowPermissionModal(false);
+    setSelectedUserId(null);
+    loadNguoiDungData();
+  };
+
+  const handleEdit = async (nguoiDung: VNguoiDungPhanQuyen) => {
+    try {
+      // Lấy thông tin chi tiết người dùng để edit
+      const userDetail = await nguoiDungService.getNguoiDungById(nguoiDung.id);
+      setSelectedUserForEdit(userDetail);
+      setShowEditModal(true);
+    } catch (err) {
+      console.error('Error fetching user details:', err);
+      setError('Không thể tải thông tin người dùng. Vui lòng thử lại.');
+    }
+  };
+
+  const handleEditSuccess = () => {
+    setShowEditModal(false);
+    setSelectedUserForEdit(null);
+    loadNguoiDungData();
+  };
+
+  const handleDelete = (nguoiDung: VNguoiDungPhanQuyen) => {
+    setSelectedUserForDelete(nguoiDung);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedUserForDelete) return;
+
+    setDeleteLoading(true);
+    try {
+      await nguoiDungService.deleteNguoiDung(selectedUserForDelete.id, 'current_user');
+      await loadNguoiDungData();
+      setShowDeleteModal(false);
+      setSelectedUserForDelete(null);
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      setError('Không thể xóa người dùng. Vui lòng thử lại.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setSelectedUserForDelete(null);
+  };
+
+  const handleHardDelete = (nguoiDung: VNguoiDungPhanQuyen) => {
+    setSelectedUserForDelete(nguoiDung);
+    setShowHardDeleteModal(true);
+  };
+
+  const handleConfirmHardDelete = async () => {
+    if (!selectedUserForDelete) return;
+
+    setHardDeleteLoading(true);
+    try {
+      await nguoiDungService.hardDeleteNguoiDung(selectedUserForDelete.id);
+      await loadNguoiDungData();
+      setShowHardDeleteModal(false);
+      setSelectedUserForDelete(null);
+    } catch (err) {
+      console.error('Error hard deleting user:', err);
+      setError('Không thể xóa vĩnh viễn người dùng. Vui lòng thử lại.');
+    } finally {
+      setHardDeleteLoading(false);
+    }
+  };
+
+  const handleCancelHardDelete = () => {
+    setShowHardDeleteModal(false);
+    setSelectedUserForDelete(null);
+  };
+
+  const handleModalClose = () => {
+    setShowCreateModal(false);
+    setShowEditModal(false);
+    setShowPermissionModal(false);
+    setSelectedUserId(null);
+    setSelectedUserForEdit(null);
+  };
+
   // Lấy danh sách vai trò unique
   const uniqueRoles = Array.from(new Set(nguoiDungList.map(nd => nd.ma_vai_tro)));
 
@@ -156,7 +277,10 @@ const NguoiDungManagement: React.FC = () => {
             Quản lý thông tin người dùng và phân quyền trong hệ thống
           </p>
         </div>
-        <button className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors gap-2">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors gap-2"
+        >
           <Plus className="h-5 w-5" />
           Thêm người dùng
         </button>
@@ -177,7 +301,7 @@ const NguoiDungManagement: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm kiếm theo email, tên, SĐT..."
+              placeholder="Tìm kiếm theo username, tên, SĐT..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -292,7 +416,7 @@ const NguoiDungManagement: React.FC = () => {
                             {nguoiDung.ho_ten}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
+                            <User className="h-3 w-3" />
                             {nguoiDung.email}
                           </div>
                           {nguoiDung.so_dien_thoai && (
@@ -333,17 +457,30 @@ const NguoiDungManagement: React.FC = () => {
                           <Eye className="h-4 w-4" />
                         </button>
                         <button
+                          onClick={() => handleEdit(nguoiDung)}
                           className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                           title="Chỉnh sửa"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
+                          onClick={() => handleDelete(nguoiDung)}
                           className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                          title="Xóa"
+                          title="Xóa (Soft Delete)"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
+
+                        {/* Hard Delete - Chỉ cho Super Admin */}
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleHardDelete(nguoiDung)}
+                            className="text-red-800 hover:text-red-900 dark:text-red-300 dark:hover:text-red-100 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 p-1 rounded"
+                            title="XÓA VĨNH VIỄN (Super Admin Only)"
+                          >
+                            <Skull className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -353,6 +490,52 @@ const NguoiDungManagement: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {showCreateModal && (
+        <NguoiDungCreateModal
+          onClose={handleModalClose}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
+
+      {showEditModal && selectedUserForEdit && (
+        <NguoiDungEditModal
+          nguoiDung={selectedUserForEdit}
+          onClose={handleModalClose}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+
+      {showPermissionModal && selectedUserId && (
+        <PhanQuyenCreateModal
+          nguoiDungId={selectedUserId}
+          onClose={handleModalClose}
+          onSuccess={handlePermissionSuccess}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        title="Xóa người dùng"
+        message="Bạn có chắc chắn muốn xóa người dùng này?"
+        itemName={selectedUserForDelete ? `${selectedUserForDelete.ho_ten} (${selectedUserForDelete.email})` : ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        loading={deleteLoading}
+      />
+
+      {/* Hard Delete Confirmation Modal - Super Admin Only */}
+      <ConfirmHardDeleteModal
+        isOpen={showHardDeleteModal}
+        title="XÓA VĨNH VIỄN NGƯỜI DÙNG"
+        message="Bạn sắp XÓA VĨNH VIỄN người dùng này khỏi hệ thống. Tất cả dữ liệu sẽ bị mất hoàn toàn và KHÔNG THỂ KHÔI PHỤC."
+        itemName={selectedUserForDelete ? `${selectedUserForDelete.ho_ten} (${selectedUserForDelete.email})` : ''}
+        onConfirm={handleConfirmHardDelete}
+        onCancel={handleCancelHardDelete}
+        loading={hardDeleteLoading}
+      />
     </div>
   );
 };

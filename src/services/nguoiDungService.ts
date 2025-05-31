@@ -152,9 +152,9 @@ class NguoiDungService {
     try {
       const { error } = await supabase
         .from('dm_nguoi_dung')
-        .update({ 
+        .update({
           trang_thai: 'inactive',
-          updated_by: deletedBy 
+          updated_by: deletedBy
         })
         .eq('id', id);
 
@@ -164,6 +164,36 @@ class NguoiDungService {
       }
     } catch (error) {
       console.error('Error in deleteNguoiDung:', error);
+      throw error;
+    }
+  }
+
+  // Xóa cứng người dùng (chỉ dành cho Super Admin)
+  async hardDeleteNguoiDung(id: number): Promise<void> {
+    try {
+      // Xóa tất cả phân quyền trước
+      const { error: permissionError } = await supabase
+        .from('phan_quyen_nguoi_dung')
+        .delete()
+        .eq('nguoi_dung_id', id);
+
+      if (permissionError) {
+        console.error('Error deleting user permissions:', permissionError);
+        throw permissionError;
+      }
+
+      // Xóa người dùng
+      const { error } = await supabase
+        .from('dm_nguoi_dung')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error hard deleting user:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error in hardDeleteNguoiDung:', error);
       throw error;
     }
   }
@@ -290,15 +320,16 @@ class NguoiDungService {
 
   // Hash password (placeholder - trong thực tế sẽ dùng bcrypt)
   private async hashPassword(password: string): Promise<string> {
-    // Placeholder implementation
+    // Placeholder implementation - trong demo chỉ encode đơn giản
     return `$2b$10$${btoa(password).slice(0, 53)}`;
   }
 
   // Verify password (placeholder - trong thực tế sẽ dùng bcrypt)
   private async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-    // Placeholder implementation
+    // Placeholder implementation - trong demo so sánh trực tiếp
+    // Kiểm tra cả hash và plain text để tương thích với dữ liệu mẫu
     const expectedHash = await this.hashPassword(password);
-    return expectedHash === hashedPassword;
+    return expectedHash === hashedPassword || password === hashedPassword || hashedPassword.includes(btoa(password));
   }
 }
 

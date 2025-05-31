@@ -298,6 +298,41 @@ class PhanQuyenService {
       throw error;
     }
   }
+
+  // Xóa phân quyền theo user và tổ chức
+  async deletePhanQuyenByUserAndOrg(
+    userId: number,
+    organizationType: string,
+    organizationId?: number
+  ): Promise<void> {
+    try {
+      let query = supabase
+        .from('phan_quyen_nguoi_dung')
+        .update({
+          trang_thai: 'inactive',
+          updated_by: 'current_user'
+        })
+        .eq('nguoi_dung_id', userId)
+        .eq('loai_to_chuc', organizationType)
+        .eq('trang_thai', 'active');
+
+      if (organizationType === 'cong_ty' && organizationId) {
+        query = query.eq('cong_ty_id', organizationId);
+      } else if (organizationType === 'co_quan_bhxh' && organizationId) {
+        query = query.eq('co_quan_bhxh_id', organizationId);
+      }
+
+      const { error } = await query;
+
+      if (error) {
+        console.error('Error deleting permission by user and org:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error in deletePhanQuyenByUserAndOrg:', error);
+      throw error;
+    }
+  }
 }
 
 export const phanQuyenService = new PhanQuyenService();

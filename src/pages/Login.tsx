@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   Mail,
+  User,
   Building2,
   AlertCircle,
   Shield,
@@ -19,14 +20,14 @@ import {
 } from 'lucide-react';
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [isFormValid, setIsFormValid] = useState(false);
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, loginError } = useAuth();
   const { theme } = useTheme();
 
   // Password strength calculation
@@ -41,9 +42,8 @@ const Login: React.FC = () => {
 
   // Form validation
   useEffect(() => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    setIsFormValid(emailRegex.test(email) && password.length >= 6);
-  }, [email, password]);
+    setIsFormValid(username.trim().length >= 3 && password.length >= 6);
+  }, [username, password]);
 
   // Update password strength when password changes
   useEffect(() => {
@@ -54,14 +54,14 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (!email || !password) {
-      setError('Vui lòng nhập đầy đủ email và mật khẩu');
+    if (!username || !password) {
+      setError('Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu');
       return;
     }
 
-    const success = await login(email, password);
-    if (!success) {
-      setError('Email hoặc mật khẩu không đúng');
+    const success = await login(username, password);
+    if (!success && loginError) {
+      setError(loginError);
     }
   };
 
@@ -208,25 +208,25 @@ const Login: React.FC = () => {
                   </div>
                 )}
 
-                {/* Email Field */}
+                {/* Username Field */}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Địa chỉ Email
+                  <label htmlFor="username" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Tên đăng nhập
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-gray-400" />
+                      <User className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
+                      id="username"
+                      name="username"
+                      type="text"
+                      autoComplete="username"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
                       className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400 dark:hover:border-gray-500 form-input"
-                      placeholder="Nhập địa chỉ email của bạn"
+                      placeholder="Nhập tên đăng nhập của bạn"
                     />
                   </div>
                 </div>
@@ -350,10 +350,10 @@ const Login: React.FC = () => {
                 </button>
 
                 {/* Form Validation Hint */}
-                {!isFormValid && (email || password) && (
+                {!isFormValid && (username || password) && (
                   <div className="text-center animate-smooth-scale">
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Vui lòng nhập email hợp lệ và mật khẩu tối thiểu 6 ký tự
+                      Vui lòng nhập tên đăng nhập (tối thiểu 3 ký tự) và mật khẩu (tối thiểu 6 ký tự)
                     </p>
                   </div>
                 )}
@@ -370,12 +370,16 @@ const Login: React.FC = () => {
                 <div className="flex items-center space-x-2 mb-2">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-gentle-glow"></div>
                   <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold">
-                    Thông tin đăng nhập demo
+                    Tài khoản demo có sẵn
                   </p>
                 </div>
                 <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
-                  <p><span className="font-medium">Email:</span> admin@example.com</p>
-                  <p><span className="font-medium">Mật khẩu:</span> password</p>
+                  <p><span className="font-medium">Super Admin:</span> superadmin@system.vn / password123</p>
+                  <p><span className="font-medium">Admin ABC:</span> admin.abc@company.vn / password123</p>
+                  <p><span className="font-medium">Nhân viên thu:</span> thu1@abc.com / password123</p>
+                  <p className="text-xs text-blue-500 dark:text-blue-300 mt-1 italic">
+                    * Sử dụng email làm tên đăng nhập
+                  </p>
                 </div>
               </div>
             </div>
