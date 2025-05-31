@@ -3,6 +3,7 @@ import { KeKhai603FormData } from '../../../hooks/useKeKhai603FormData';
 import { Search, Loader2 } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../services/tinhService';
 import { huyenService, HuyenOption } from '../../../services/huyenService';
+import { xaService, XaOption } from '../../../services/xaService';
 
 interface KeKhai603PersonalInfoFormProps {
   formData: KeKhai603FormData;
@@ -25,6 +26,10 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
   const [huyenNKQOptions, setHuyenNKQOptions] = useState<HuyenOption[]>([]);
   const [loadingHuyenKS, setLoadingHuyenKS] = useState(false);
   const [loadingHuyenNKQ, setLoadingHuyenNKQ] = useState(false);
+  const [xaKSOptions, setXaKSOptions] = useState<XaOption[]>([]);
+  const [xaNKQOptions, setXaNKQOptions] = useState<XaOption[]>([]);
+  const [loadingXaKS, setLoadingXaKS] = useState(false);
+  const [loadingXaNKQ, setLoadingXaNKQ] = useState(false);
 
   // Load province data on component mount
   useEffect(() => {
@@ -88,6 +93,52 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
 
     loadHuyenNKQData();
   }, [formData.maTinhNkq]);
+
+  // Load KS wards when KS district changes
+  useEffect(() => {
+    const loadXaKSData = async () => {
+      if (!formData.maHuyenKS || !formData.maTinhKS) {
+        setXaKSOptions([]);
+        return;
+      }
+
+      try {
+        setLoadingXaKS(true);
+        const options = await xaService.getXaOptionsByHuyen(formData.maHuyenKS, formData.maTinhKS);
+        setXaKSOptions(options);
+      } catch (error) {
+        console.error('Error loading KS ward data:', error);
+        setXaKSOptions([]);
+      } finally {
+        setLoadingXaKS(false);
+      }
+    };
+
+    loadXaKSData();
+  }, [formData.maHuyenKS, formData.maTinhKS]);
+
+  // Load NKQ wards when NKQ district changes
+  useEffect(() => {
+    const loadXaNKQData = async () => {
+      if (!formData.maHuyenNkq || !formData.maTinhNkq) {
+        setXaNKQOptions([]);
+        return;
+      }
+
+      try {
+        setLoadingXaNKQ(true);
+        const options = await xaService.getXaOptionsByHuyen(formData.maHuyenNkq, formData.maTinhNkq);
+        setXaNKQOptions(options);
+      } catch (error) {
+        console.error('Error loading NKQ ward data:', error);
+        setXaNKQOptions([]);
+      } finally {
+        setLoadingXaNKQ(false);
+      }
+    };
+
+    loadXaNKQData();
+  }, [formData.maHuyenNkq, formData.maTinhNkq]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -312,11 +363,17 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
             <select
               value={formData.maXaKS}
               onChange={(e) => handleInputChange('maXaKS', e.target.value)}
-              disabled={!formData.maHuyenKS}
+              disabled={!formData.maHuyenKS || loadingXaKS}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
-              <option value="">Chọn phường/xã</option>
-              {/* TODO: Load wards based on selected district */}
+              <option value="">
+                {loadingXaKS ? 'Đang tải...' : 'Chọn phường/xã'}
+              </option>
+              {xaKSOptions.map((xa) => (
+                <option key={xa.value} value={xa.value}>
+                  {xa.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -379,11 +436,17 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
             <select
               value={formData.maXaNkq}
               onChange={(e) => handleInputChange('maXaNkq', e.target.value)}
-              disabled={!formData.maHuyenNkq}
+              disabled={!formData.maHuyenNkq || loadingXaNKQ}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
-              <option value="">Chọn phường/xã</option>
-              {/* TODO: Load wards based on selected district */}
+              <option value="">
+                {loadingXaNKQ ? 'Đang tải...' : 'Chọn phường/xã'}
+              </option>
+              {xaNKQOptions.map((xa) => (
+                <option key={xa.value} value={xa.value}>
+                  {xa.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>

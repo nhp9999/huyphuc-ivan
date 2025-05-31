@@ -3,6 +3,7 @@ import { Search, CreditCard, User, Calendar, AlertCircle, CheckCircle, Loader, H
 import { bhxhService } from '../services/bhxhService';
 import { tinhService, TinhOption } from '../services/tinhService';
 import { huyenService, HuyenOption } from '../services/huyenService';
+import { xaService, XaOption } from '../services/xaService';
 import { BhxhLookupResponse } from '../types/bhxh';
 
 interface SearchCriteria {
@@ -32,6 +33,8 @@ const BhxhIdLookup: React.FC = () => {
   const [loadingTinh, setLoadingTinh] = useState(true);
   const [huyenOptions, setHuyenOptions] = useState<HuyenOption[]>([]);
   const [loadingHuyen, setLoadingHuyen] = useState(false);
+  const [xaOptions, setXaOptions] = useState<XaOption[]>([]);
+  const [loadingXa, setLoadingXa] = useState(false);
 
   // Load province data on component mount
   useEffect(() => {
@@ -73,6 +76,29 @@ const BhxhIdLookup: React.FC = () => {
 
     loadHuyenData();
   }, [searchCriteria.tinhKS]);
+
+  // Load ward data when district changes
+  useEffect(() => {
+    const loadXaData = async () => {
+      if (!searchCriteria.huyenKS || !searchCriteria.tinhKS) {
+        setXaOptions([]);
+        return;
+      }
+
+      try {
+        setLoadingXa(true);
+        const options = await xaService.getXaOptionsByHuyen(searchCriteria.huyenKS, searchCriteria.tinhKS);
+        setXaOptions(options);
+      } catch (error) {
+        console.error('Error loading ward data:', error);
+        setXaOptions([]);
+      } finally {
+        setLoadingXa(false);
+      }
+    };
+
+    loadXaData();
+  }, [searchCriteria.huyenKS, searchCriteria.tinhKS]);
 
   // Helper function to get province name by value
   const getTinhName = (value: string): string => {
@@ -201,17 +227,16 @@ const BhxhIdLookup: React.FC = () => {
                   setError('');
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                disabled={isLoading || !searchCriteria.huyenKS}
+                disabled={isLoading || !searchCriteria.huyenKS || loadingXa}
               >
-                <option value="">Chọn phường/xã</option>
-                {searchCriteria.huyenKS && (
-                  <>
-                    <option value="00001">Phúc Xá</option>
-                    <option value="00002">Trúc Bạch</option>
-                    <option value="00003">Vĩnh Phúc</option>
-                    <option value="00004">Cống Vị</option>
-                  </>
-                )}
+                <option value="">
+                  {loadingXa ? 'Đang tải...' : 'Chọn phường/xã'}
+                </option>
+                {xaOptions.map((xa) => (
+                  <option key={xa.value} value={xa.value}>
+                    {xa.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
