@@ -1,7 +1,8 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { NavigationProvider, useNavigation } from './context/NavigationContext';
+import { NavigationProvider } from './context/NavigationContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
@@ -19,43 +20,9 @@ import DaiLyManagement from './pages/DaiLyManagement';
 import DaiLyDonViLinkManagement from './pages/DaiLyDonViLinkManagement';
 
 
-const AppContent: React.FC = () => {
+// Protected Route component
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
-  const { currentPage } = useNavigation();
-
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'bhyt-lookup':
-        return <BhytLookup />;
-      case 'bhxh-lookup':
-        return <BhxhLookup />;
-      case 'bhxh-id-lookup':
-        return <BhxhIdLookup />;
-      case 'family-lookup':
-        return <FamilyLookup />;
-      case 'declaration-categories':
-        return <DeclarationCategories />;
-      case 'declaration-history':
-        return <DeclarationHistory />;
-      case 'ke-khai-603':
-        return <KeKhai603 />;
-      case 'ke-khai-603-form':
-        return <KeKhai603Form />;
-      case 'don-vi-management':
-        return <DonViManagement />;
-      case 'dai-ly-management':
-        return <DaiLyManagement />;
-      case 'dai-ly-don-vi-link':
-        return <DaiLyDonViLinkManagement />;
-
-      case 'settings':
-        return <Settings />;
-      default:
-        return <Dashboard />;
-    }
-  };
 
   if (isLoading) {
     return (
@@ -69,13 +36,122 @@ const AppContent: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <Login />;
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Layout>{children}</Layout>;
+};
+
+const AppContent: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+        <div className="flex items-center space-x-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="text-gray-600 dark:text-gray-400">Đang tải...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <Layout>
-      {renderCurrentPage()}
-    </Layout>
+    <Routes>
+      {/* Public routes */}
+      <Route
+        path="/login"
+        element={!isAuthenticated ? <Login /> : <Navigate to="/" replace />}
+      />
+
+      {/* Protected routes */}
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/bhyt-lookup" element={
+        <ProtectedRoute>
+          <BhytLookup />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/bhxh-lookup" element={
+        <ProtectedRoute>
+          <BhxhLookup />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/bhxh-id-lookup" element={
+        <ProtectedRoute>
+          <BhxhIdLookup />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/family-lookup" element={
+        <ProtectedRoute>
+          <FamilyLookup />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/declaration-categories" element={
+        <ProtectedRoute>
+          <DeclarationCategories />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/declaration-history" element={
+        <ProtectedRoute>
+          <DeclarationHistory />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/ke-khai-603" element={
+        <ProtectedRoute>
+          <KeKhai603 />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/ke-khai-603-form" element={
+        <ProtectedRoute>
+          <KeKhai603Form />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/don-vi-management" element={
+        <ProtectedRoute>
+          <DonViManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/dai-ly-management" element={
+        <ProtectedRoute>
+          <DaiLyManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/dai-ly-don-vi-link" element={
+        <ProtectedRoute>
+          <DaiLyDonViLinkManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/settings" element={
+        <ProtectedRoute>
+          <Settings />
+        </ProtectedRoute>
+      } />
+
+      {/* Catch all route - redirect to dashboard */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 
@@ -83,9 +159,11 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <NavigationProvider>
-          <AppContent />
-        </NavigationProvider>
+        <Router>
+          <NavigationProvider>
+            <AppContent />
+          </NavigationProvider>
+        </Router>
       </AuthProvider>
     </ThemeProvider>
   );

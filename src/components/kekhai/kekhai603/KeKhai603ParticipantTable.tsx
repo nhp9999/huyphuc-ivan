@@ -38,7 +38,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
           </button>
         </div>
       </div>
-      
+
       <div className="p-6">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -141,7 +141,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <button
                       onClick={() => handleRemoveParticipant(index)}
-                      disabled={participants.length <= 1 || savingData}
+                      disabled={savingData}
                       className="p-2 text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Xóa người tham gia"
                     >
@@ -153,6 +153,14 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
             </tbody>
           </table>
         </div>
+
+        {participants.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-gray-500 dark:text-gray-400">
+              Chưa có người tham gia nào. Nhấn "Thêm người" để bắt đầu.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

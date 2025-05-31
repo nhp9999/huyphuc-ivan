@@ -38,7 +38,7 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
           </button>
         </div>
       </div>
-      
+
       <div className="p-6">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -151,7 +151,7 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
                   <td className="py-3 px-2">
                     <button
                       onClick={() => handleRemoveParticipant(index)}
-                      disabled={participants.length <= 1 || savingData}
+                      disabled={savingData}
                       className="p-2 text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Xóa người tham gia"
                     >
@@ -163,7 +163,7 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
             </tbody>
           </table>
         </div>
-        
+
         {participants.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500 dark:text-gray-400">

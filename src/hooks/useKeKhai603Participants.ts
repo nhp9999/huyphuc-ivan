@@ -95,14 +95,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         noiNhanHoSo: item.noi_nhan_ho_so || ''
       }));
 
-      // If no participants exist, create one default participant
-      if (convertedParticipants.length === 0) {
-        const defaultParticipant = await createDefaultParticipant();
-        setParticipants([defaultParticipant]);
-        setInitialized(true);
-        return [defaultParticipant];
-      }
-
+      // Set participants (can be empty array)
       setParticipants(convertedParticipants);
       setInitialized(true);
       return convertedParticipants;
@@ -112,54 +105,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
     }
   };
 
-  // Create default participant and save to database
-  const createDefaultParticipant = async (): Promise<KeKhai603Participant> => {
-    if (!keKhaiId) {
-      throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
-    }
 
-    try {
-      const newParticipantData = {
-        ke_khai_id: keKhaiId,
-        stt: 1,
-        ho_ten: '',
-        gioi_tinh: 'Nam',
-        muc_luong: 0,
-        ty_le_dong: 4.5,
-        so_tien_dong: 0,
-        ngay_bien_lai: new Date().toISOString().split('T')[0],
-        so_thang_dong: 0
-      };
-
-      // Save to database
-      const savedParticipant = await keKhaiService.addNguoiThamGia(newParticipantData);
-
-      // Return UI format
-      return {
-        id: savedParticipant.id,
-        hoTen: '',
-        maSoBHXH: '',
-        ngaySinh: '',
-        gioiTinh: 'Nam',
-        noiDangKyKCB: '',
-        mucLuong: '',
-        tyLeDong: '4.5',
-        soTienDong: '',
-        tuNgayTheCu: '',
-        denNgayTheCu: '',
-        ngayBienLai: new Date().toISOString().split('T')[0],
-        sttHo: '',
-        soThangDong: '',
-        maTinhNkq: '',
-        maHuyenNkq: '',
-        maXaNkq: '',
-        noiNhanHoSo: ''
-      };
-    } catch (error) {
-      console.error('Error creating default participant:', error);
-      throw error;
-    }
-  };
 
   // Handle participant field changes
   const handleParticipantChange = async (index: number, field: keyof KeKhai603Participant, value: string) => {
@@ -277,11 +223,6 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
   const removeParticipant = async (index: number) => {
     const participant = participants[index];
     if (!participant) return;
-
-    // Don't allow removal if only one participant
-    if (participants.length <= 1) {
-      throw new Error('Phải có ít nhất một người tham gia trong kê khai');
-    }
 
     try {
       setSavingData(true);

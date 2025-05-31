@@ -231,11 +231,6 @@ const KeKhai603Form: React.FC = () => {
 
   // Handle remove participant
   const handleRemoveParticipant = async (index: number) => {
-    if (participants.length <= 1) {
-      showToast('Phải có ít nhất một người tham gia trong kê khai', 'warning');
-      return;
-    }
-
     try {
       await removeParticipant(index);
       showToast('Đã xóa người tham gia thành công!', 'success');

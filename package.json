@@ -12,11 +12,14 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
     "@types/react-datepicker": "^6.2.0",
+    "@types/react-router-dom": "^5.3.3",
     "axios": "^1.9.0",
+    "caniuse-lite": "^1.0.30001720",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-datepicker": "^8.4.0",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.6.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
