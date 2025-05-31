@@ -18,6 +18,10 @@ import DeclarationHistory from './pages/DeclarationHistory';
 import DonViManagement from './pages/DonViManagement';
 import DaiLyManagement from './pages/DaiLyManagement';
 import DaiLyDonViLinkManagement from './pages/DaiLyDonViLinkManagement';
+import CongTyManagement from './pages/CongTyManagement';
+import CoQuanBhxhManagement from './pages/CoQuanBhxhManagement';
+import NguoiDungManagement from './pages/NguoiDungManagement';
+import PhanQuyenManagement from './pages/PhanQuyenManagement';
 
 
 // Protected Route component
@@ -140,6 +144,30 @@ const AppContent: React.FC = () => {
       <Route path="/dai-ly-don-vi-link" element={
         <ProtectedRoute>
           <DaiLyDonViLinkManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/cong-ty-management" element={
+        <ProtectedRoute>
+          <CongTyManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/co-quan-bhxh-management" element={
+        <ProtectedRoute>
+          <CoQuanBhxhManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/nguoi-dung-management" element={
+        <ProtectedRoute>
+          <NguoiDungManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/phan-quyen-management" element={
+        <ProtectedRoute>
+          <PhanQuyenManagement />
         </ProtectedRoute>
       } />
 

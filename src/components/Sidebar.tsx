@@ -12,7 +12,9 @@ import {
   CreditCard,
   Shield,
   Hash,
-  Store
+  Store,
+  UserCheck,
+  Building
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -52,6 +54,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
         { icon: <Building2 size={20} />, label: 'Quản lý đơn vị', page: 'don-vi-management' as const, badge: null },
         { icon: <Store size={20} />, label: 'Quản lý đại lý', page: 'dai-ly-management' as const, badge: null },
         { icon: <Hash size={20} />, label: 'Liên kết Đại lý-Đơn vị', page: 'dai-ly-don-vi-link' as const, badge: null },
+      ]
+    },
+    {
+      title: 'Hệ thống Multi-Company',
+      items: [
+        { icon: <Building size={20} />, label: 'Quản lý công ty', page: 'cong-ty-management' as const, badge: null },
+        { icon: <Shield size={20} />, label: 'Quản lý cơ quan BHXH', page: 'co-quan-bhxh-management' as const, badge: null },
+        { icon: <Users size={20} />, label: 'Quản lý người dùng', page: 'nguoi-dung-management' as const, badge: null },
+        { icon: <UserCheck size={20} />, label: 'Phân quyền hệ thống', page: 'phan-quyen-management' as const, badge: null },
       ]
     },
     {

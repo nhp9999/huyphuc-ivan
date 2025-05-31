@@ -285,6 +285,9 @@ export interface DanhSachKeKhai {
   ty_le_nsnn_ho_tro?: number;
   ghi_chu?: string;
   trang_thai: string;
+  cong_ty_id?: number;
+  co_quan_bhxh_id?: number;
+  loai_to_chuc?: string;
   created_at?: string;
   updated_at?: string;
   created_by?: string;
@@ -328,6 +331,9 @@ export interface DanhSachNguoiThamGia {
   tu_ngay_the_moi?: string;
   den_ngay_the_moi?: string;
   ngay_bien_lai?: string;
+  cong_ty_id?: number;
+  co_quan_bhxh_id?: number;
+  loai_to_chuc?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -366,4 +372,172 @@ export interface DmXa {
   ma_tinh: string;
   created_at: string;
   updated_at: string;
+}
+
+// Interface cho bảng dm_cong_ty
+export interface DmCongTy {
+  id: number;
+  ma_cong_ty: string;
+  ten_cong_ty: string;
+  dia_chi?: string;
+  so_dien_thoai?: string;
+  email?: string;
+  ma_so_thue?: string;
+  nguoi_dai_dien?: string;
+  ghi_chu?: string;
+  trang_thai: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+// Interface cho bảng dm_co_quan_bhxh
+export interface DmCoQuanBhxh {
+  id: number;
+  ma_co_quan: string;
+  ten_co_quan: string;
+  dia_chi?: string;
+  so_dien_thoai?: string;
+  email?: string;
+  ma_tinh?: string;
+  ma_huyen?: string;
+  cap_co_quan: string; // 'tinh', 'huyen', 'trung_uong'
+  co_quan_cha_id?: number;
+  ghi_chu?: string;
+  trang_thai: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+// Interface cho bảng dm_vai_tro
+export interface DmVaiTro {
+  id: number;
+  ma_vai_tro: string;
+  ten_vai_tro: string;
+  mo_ta?: string;
+  quyen_han?: string; // JSON string chứa danh sách quyền
+  cap_do: string; // 'user', 'admin', 'super_admin'
+  trang_thai: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+// Interface cho bảng dm_nguoi_dung
+export interface DmNguoiDung {
+  id: number;
+  email: string;
+  mat_khau: string;
+  ho_ten: string;
+  so_dien_thoai?: string;
+  dia_chi?: string;
+  ngay_sinh?: string;
+  gioi_tinh?: string;
+  avatar_url?: string;
+  last_login?: string;
+  trang_thai: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+// Interface cho bảng phan_quyen_nguoi_dung
+export interface PhanQuyenNguoiDung {
+  id: number;
+  nguoi_dung_id: number;
+  vai_tro_id: number;
+  cong_ty_id?: number;
+  co_quan_bhxh_id?: number;
+  loai_to_chuc: string; // 'cong_ty', 'co_quan_bhxh', 'he_thong'
+  cap_do_quyen: string; // 'user', 'admin', 'super_admin'
+  ngay_bat_dau?: string;
+  ngay_ket_thuc?: string;
+  trang_thai: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+// Interface cho bảng cong_tac_vien
+export interface CongTacVien {
+  id: number;
+  ma_ctv: string;
+  ho_ten: string;
+  so_dien_thoai?: string;
+  email?: string;
+  dia_chi?: string;
+  nhan_vien_thu_id: number; // FK to dm_nguoi_dung
+  cong_ty_id?: number;
+  co_quan_bhxh_id?: number;
+  loai_to_chuc: string;
+  ngay_bat_dau?: string;
+  ngay_ket_thuc?: string;
+  ghi_chu?: string;
+  trang_thai: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+// Interface cho view v_nguoi_dung_phan_quyen
+export interface VNguoiDungPhanQuyen {
+  id: number;
+  email: string;
+  ho_ten: string;
+  so_dien_thoai?: string;
+  trang_thai_nguoi_dung: string;
+  ma_vai_tro: string;
+  ten_vai_tro: string;
+  cap_do: string;
+  loai_to_chuc: string;
+  cap_do_quyen: string;
+  ma_cong_ty?: string;
+  ten_cong_ty?: string;
+  ma_co_quan?: string;
+  ten_co_quan?: string;
+  ngay_bat_dau?: string;
+  ngay_ket_thuc?: string;
+  trang_thai_phan_quyen: string;
+}
+
+// Interface cho view v_cong_tac_vien_chi_tiet
+export interface VCongTacVienChiTiet {
+  id: number;
+  ma_ctv: string;
+  ho_ten: string;
+  so_dien_thoai?: string;
+  email?: string;
+  loai_to_chuc: string;
+  ma_cong_ty?: string;
+  ten_cong_ty?: string;
+  ma_co_quan?: string;
+  ten_co_quan?: string;
+  ten_nhan_vien_thu: string;
+  email_nhan_vien_thu: string;
+  ngay_bat_dau?: string;
+  ngay_ket_thuc?: string;
+  trang_thai: string;
+}
+
+// Interface cho view v_co_quan_bhxh_chi_tiet
+export interface VCoQuanBhxhChiTiet {
+  id: number;
+  ma_co_quan: string;
+  ten_co_quan: string;
+  dia_chi?: string;
+  so_dien_thoai?: string;
+  email?: string;
+  cap_co_quan: string;
+  trang_thai: string;
+  ma_co_quan_cha?: string;
+  ten_co_quan_cha?: string;
+  ten_tinh?: string;
+  ten_huyen?: string;
 }

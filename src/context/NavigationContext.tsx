@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-type Page = 'dashboard' | 'settings' | 'calendar' | 'messages' | 'help' | 'bhyt-lookup' | 'bhxh-lookup' | 'bhxh-id-lookup' | 'family-lookup' | 'declaration-categories' | 'ke-khai-603' | 'ke-khai-603-form' | 'declaration-history' | 'don-vi-management' | 'dai-ly-management' | 'dai-ly-don-vi-link';
+type Page = 'dashboard' | 'settings' | 'calendar' | 'messages' | 'help' | 'bhyt-lookup' | 'bhxh-lookup' | 'bhxh-id-lookup' | 'family-lookup' | 'declaration-categories' | 'ke-khai-603' | 'ke-khai-603-form' | 'declaration-history' | 'don-vi-management' | 'dai-ly-management' | 'dai-ly-don-vi-link' | 'cong-ty-management' | 'co-quan-bhxh-management' | 'nguoi-dung-management' | 'phan-quyen-management';
 
 interface NavigationContextType {
   currentPage: Page;
@@ -26,7 +26,11 @@ const pageToRoute: Record<Page, string> = {
   'declaration-history': '/declaration-history',
   'don-vi-management': '/don-vi-management',
   'dai-ly-management': '/dai-ly-management',
-  'dai-ly-don-vi-link': '/dai-ly-don-vi-link'
+  'dai-ly-don-vi-link': '/dai-ly-don-vi-link',
+  'cong-ty-management': '/cong-ty-management',
+  'co-quan-bhxh-management': '/co-quan-bhxh-management',
+  'nguoi-dung-management': '/nguoi-dung-management',
+  'phan-quyen-management': '/phan-quyen-management'
 };
 
 // Map routes to page names
