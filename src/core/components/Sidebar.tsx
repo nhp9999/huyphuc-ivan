@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigation } from '../contexts/NavigationContext';
+import { useUserRole } from '../hooks/useUserRole';
 import Tooltip from '../../shared/components/ui/Tooltip';
 import {
   LayoutDashboard,
@@ -26,8 +27,37 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
   const { currentPage, setCurrentPage } = useNavigation();
+  const { isNhanVienThu, isNhanVienTongHop, isAdmin, isSuperAdmin, loading } = useUserRole();
 
-  const navSections = [
+  // Định nghĩa menu cho nhân viên thu
+  const nhanVienThuSections = [
+    {
+      title: 'Kê khai',
+      items: [
+        { icon: <FileText size={20} />, label: 'Danh mục kê khai', page: 'declaration-categories' as const, badge: null },
+        { icon: <History size={20} />, label: 'Lịch sử kê khai', page: 'declaration-history' as const, badge: null },
+        { icon: <CreditCard size={20} />, label: 'Thanh toán của tôi', page: 'my-payments' as const, badge: 'New' },
+      ]
+    },
+    {
+      title: 'Tra cứu',
+      items: [
+        { icon: <CreditCard size={20} />, label: 'Tra cứu thông tin BHYT', page: 'bhyt-lookup' as const, badge: null },
+        { icon: <Shield size={20} />, label: 'Tra cứu thông tin BHXH', page: 'bhxh-lookup' as const, badge: null },
+        { icon: <Hash size={20} />, label: 'Tra cứu mã số BHXH', page: 'bhxh-id-lookup' as const, badge: null },
+        { icon: <Users size={20} />, label: 'Tra cứu hộ gia đình', page: 'family-lookup' as const, badge: null },
+      ]
+    },
+    {
+      title: 'Hệ thống',
+      items: [
+        { icon: <Settings size={20} />, label: 'Cài đặt', page: 'settings' as const, badge: null },
+      ]
+    }
+  ];
+
+  // Định nghĩa menu đầy đủ cho admin và nhân viên tổng hợp
+  const fullNavSections = [
     {
       title: 'Tổng quan',
       items: [
@@ -77,6 +107,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
       ]
     }
   ];
+
+  // Chọn menu sections dựa trên vai trò người dùng
+  const getNavSections = () => {
+    if (loading) {
+      return []; // Hiển thị menu rỗng khi đang tải
+    }
+
+    // Nhân viên thu chỉ thấy menu hạn chế
+    if (isNhanVienThu() && !isAdmin() && !isSuperAdmin()) {
+      return nhanVienThuSections;
+    }
+
+    // Tất cả các vai trò khác (nhân viên tổng hợp, admin, super admin) thấy menu đầy đủ
+    return fullNavSections;
+  };
+
+  const navSections = getNavSections();
 
   return (
     <aside

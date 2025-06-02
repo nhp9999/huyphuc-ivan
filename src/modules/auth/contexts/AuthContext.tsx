@@ -7,6 +7,8 @@ interface User {
   name: string;
   organizations?: UserOrganization[];
   currentOrganization?: UserOrganization;
+  roles?: string[]; // Thêm thông tin vai trò
+  permissions?: string[]; // Thêm thông tin quyền
 }
 
 interface AuthContextType {
