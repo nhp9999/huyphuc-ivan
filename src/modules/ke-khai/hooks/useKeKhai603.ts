@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { keKhaiService } from '../services/keKhaiService';
 import { DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
+import { useAuth } from '../../auth/contexts/AuthContext';
 import { KeKhai603Participant } from './useKeKhai603Participants';
 
 // Interface for page parameters
@@ -13,6 +14,7 @@ export interface PageParams {
 
 // Custom hook for KeKhai603 management
 export const useKeKhai603 = (pageParams?: PageParams) => {
+  const { user } = useAuth();
   const [keKhaiInfo, setKeKhaiInfo] = useState<DanhSachKeKhai | null>(null);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +63,16 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
 
     // If no pageParams or no formData, create default declaration for testing
     if (!pageParams?.formData) {
+      // Prepare organization data based on user's current organization
+      const organizationData: { cong_ty_id?: number; co_quan_bhxh_id?: number } = {};
+      if (user?.currentOrganization) {
+        if (user.currentOrganization.organization_type === 'cong_ty') {
+          organizationData.cong_ty_id = user.currentOrganization.organization_id;
+        } else if (user.currentOrganization.organization_type === 'co_quan_bhxh') {
+          organizationData.co_quan_bhxh_id = user.currentOrganization.organization_id;
+        }
+      }
+
       const defaultKeKhaiData = {
         ten_ke_khai: 'Kê khai 603 test',
         loai_ke_khai: '603',
@@ -68,7 +80,8 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
         hinh_thuc_tinh: 'Hỗ trợ dựa trên mức đóng từng người',
         luong_co_so: 2340000,
         nguon_dong: 'Tự đóng',
-        created_by: 'system'
+        created_by: user?.id || 'system',
+        ...organizationData
       };
 
       try {
@@ -94,6 +107,16 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
     try {
       setSaving(true);
 
+      // Prepare organization data based on user's current organization
+      const organizationData: { cong_ty_id?: number; co_quan_bhxh_id?: number } = {};
+      if (user?.currentOrganization) {
+        if (user.currentOrganization.organization_type === 'cong_ty') {
+          organizationData.cong_ty_id = user.currentOrganization.organization_id;
+        } else if (user.currentOrganization.organization_type === 'co_quan_bhxh') {
+          organizationData.co_quan_bhxh_id = user.currentOrganization.organization_id;
+        }
+      }
+
       // Create new declaration in database
       const keKhaiData = {
         ten_ke_khai: pageParams.declarationName || 'Kê khai 603',
@@ -110,7 +133,8 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
         ngay_tao: pageParams.formData.ngay || undefined,
         ty_le_nsnn_ho_tro: pageParams.formData.tyLeNSNNHoTro ? parseFloat(pageParams.formData.tyLeNSNNHoTro) : undefined,
         ghi_chu: pageParams.formData.ghiChu || undefined,
-        created_by: 'system' // TODO: Get from user context
+        created_by: user?.id || 'system',
+        ...organizationData
       };
 
       const newKeKhai = await keKhaiService.createKeKhai(keKhaiData);
@@ -156,7 +180,7 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
       // Update declaration status to submitted
       await keKhaiService.updateKeKhai(keKhaiInfo.id, {
         trang_thai: 'submitted',
-        updated_by: 'system' // TODO: Get from user context
+        updated_by: user?.id || 'system'
       } as any);
 
       return {
@@ -186,7 +210,7 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
       // 1. Update declaration information with form data if provided
       const updateData: any = {
         trang_thai: 'draft',
-        updated_by: 'system' // TODO: Get from user context
+        updated_by: user?.id || 'system'
       };
 
       // Add form data to declaration if provided

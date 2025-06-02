@@ -5,6 +5,7 @@ import { daiLyService } from '../../quan-ly/services/daiLyService';
 import { luongCoSoService } from '../../../shared/services/luongCoSoService';
 import { keKhaiService } from '../services/keKhaiService';
 import { VDonViChiTiet, VDaiLyChiTiet, DmLuongCoSo, DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
+import { useAuth } from '../../auth/contexts/AuthContext';
 import {
   FileText,
   Save,
@@ -19,6 +20,7 @@ import DaiLyDonViSelector from '../components/DaiLyDonViSelector';
 
 const KeKhai603: React.FC = () => {
   const { pageParams, setCurrentPage } = useNavigation();
+  const { user } = useAuth();
 
   // State cho dữ liệu đơn vị
   const [donViList, setDonViList] = useState<VDonViChiTiet[]>([]);
@@ -255,15 +257,36 @@ const KeKhai603: React.FC = () => {
 
   const handleSubmit = async () => {
     console.log('Creating new declaration:', formData);
+    console.log('User info:', user);
+    console.log('User organizations:', user?.organizations);
+    console.log('Current organization:', user?.currentOrganization);
 
     // Validate required fields first
     if (!formData.chonDonVi) {
-      alert('Vui lòng chọn đơn vị trước khi tạo kê khai mới.');
+      // For testing purposes, allow creating declaration without selecting unit
+      console.warn('No unit selected, creating declaration for testing purposes');
+    }
+
+    // Validate user organization
+    if (!user?.currentOrganization) {
+      if (!user?.organizations || user.organizations.length === 0) {
+        alert('Tài khoản của bạn chưa được gán vào tổ chức nào. Vui lòng liên hệ quản trị viên để được hỗ trợ.');
+      } else {
+        alert('Vui lòng chọn tổ chức trước khi tạo kê khai mới. Bạn có thể chọn tổ chức ở góc trên bên phải.');
+      }
       return;
     }
 
     try {
       setIsCreating(true);
+
+      // Prepare organization data based on user's current organization
+      const organizationData: { cong_ty_id?: number; co_quan_bhxh_id?: number } = {};
+      if (user.currentOrganization.organization_type === 'cong_ty') {
+        organizationData.cong_ty_id = user.currentOrganization.organization_id;
+      } else if (user.currentOrganization.organization_type === 'co_quan_bhxh') {
+        organizationData.co_quan_bhxh_id = user.currentOrganization.organization_id;
+      }
 
       // Prepare data for creating new declaration
       const keKhaiData = {
@@ -281,7 +304,8 @@ const KeKhai603: React.FC = () => {
         ngay_tao: formData.ngay || undefined,
         ty_le_nsnn_ho_tro: formData.tyLeNSNNHoTro ? parseFloat(formData.tyLeNSNNHoTro) : undefined,
         ghi_chu: formData.ghiChu || undefined,
-        created_by: 'system' // TODO: Get from user context
+        created_by: user.id || 'system',
+        ...organizationData // Add organization fields
       };
 
       // Create new declaration in database

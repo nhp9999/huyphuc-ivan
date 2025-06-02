@@ -17,6 +17,9 @@ export interface CreateKeKhaiRequest {
   ty_le_nsnn_ho_tro?: number;
   ghi_chu?: string;
   created_by?: string;
+  // Organization fields - required by check_ke_khai_organization constraint
+  cong_ty_id?: number;
+  co_quan_bhxh_id?: number;
 }
 
 export interface CreateNguoiThamGiaRequest {

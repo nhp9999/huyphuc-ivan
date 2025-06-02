@@ -66,7 +66,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadUserOrganizations = async (userId: string) => {
     try {
       const organizations = await nguoiDungService.getUserOrganizations(parseInt(userId));
-      setUser(prev => prev ? { ...prev, organizations } : null);
+      setUser(prev => {
+        if (!prev) return null;
+
+        const updatedUser = { ...prev, organizations };
+
+        // Auto-select first organization if user has only one and no current organization
+        if (organizations.length === 1 && !prev.currentOrganization) {
+          updatedUser.currentOrganization = organizations[0];
+          localStorage.setItem('currentOrganization', JSON.stringify(organizations[0]));
+        }
+
+        return updatedUser;
+      });
     } catch (error) {
       console.error('Error loading user organizations:', error);
     }
