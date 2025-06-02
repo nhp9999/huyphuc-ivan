@@ -1,0 +1,49 @@
+/* CSS Module for KeKhai603ListModeTable */
+
+/* Override CSKCBSelector height in table */
+.cskcbTableCell {
+  height: 42px;
+  overflow: visible; /* Changed from hidden to visible to allow dropdown */
+}
+
+/* Target only the main selector div, not the dropdown */
+.cskcbTableCell > div:first-child > div:first-child {
+  height: 42px !important;
+  padding: 10px 12px !important;
+  align-items: center !important;
+}
+
+/* Hide the second line (code + type) in CSKCBSelector when in table */
+.cskcbTableCell > div:first-child > div:first-child > div > div:first-child > div:last-child > div:last-child {
+  display: none !important;
+}
+
+/* Ensure proper alignment */
+.cskcbTableCell > div:first-child > div:first-child > div > div:first-child {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* Make sure the text doesn't wrap */
+.cskcbTableCell > div:first-child > div:first-child > div > div:first-child > div:last-child > div:first-child {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Ensure dropdown is not affected by table overflow */
+.cskcbTableCell {
+  position: static !important;
+}
+
+/* Make sure dropdown appears above everything */
+.cskcbTableCell :global(.fixed) {
+  position: fixed !important;
+  z-index: 99999 !important;
+}
+
+/* Ensure table cell doesn't clip dropdown */
+.cskcbTableCell td {
+  overflow: visible !important;
+}

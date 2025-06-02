@@ -27,6 +27,13 @@ export interface KeKhai603Participant {
   noiNhanHoSo: string;
 }
 
+// Default CSKCB - Trung tâm Y tế thị xã Tịnh Biên
+const DEFAULT_CSKCB = {
+  value: '006',
+  ten: 'Trung tâm Y tế thị xã Tịnh Biên',
+  maTinh: '89'
+};
+
 // Initial participant data
 const createInitialParticipant = (): KeKhai603Participant => ({
   id: 0,
@@ -34,10 +41,10 @@ const createInitialParticipant = (): KeKhai603Participant => ({
   maSoBHXH: '',
   ngaySinh: '',
   gioiTinh: 'Nam',
-  noiDangKyKCB: '',
-  tinhKCB: '',
-  maBenhVien: '',
-  tenBenhVien: '',
+  noiDangKyKCB: DEFAULT_CSKCB.ten,
+  tinhKCB: DEFAULT_CSKCB.maTinh,
+  maBenhVien: DEFAULT_CSKCB.value,
+  tenBenhVien: DEFAULT_CSKCB.ten,
   mucLuong: '',
   tyLeDong: '4.5',
   soTienDong: '',
@@ -86,10 +93,10 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         maSoBHXH: item.ma_so_bhxh || '',
         ngaySinh: item.ngay_sinh || '',
         gioiTinh: item.gioi_tinh || 'Nam',
-        noiDangKyKCB: item.noi_dang_ky_kcb || '',
-        tinhKCB: item.tinh_kcb || '',
-        maBenhVien: item.ma_benh_vien || '',
-        tenBenhVien: '', // Will be populated from CSKCB lookup
+        noiDangKyKCB: item.noi_dang_ky_kcb || DEFAULT_CSKCB.ten,
+        tinhKCB: item.tinh_kcb || DEFAULT_CSKCB.maTinh,
+        maBenhVien: item.ma_benh_vien || DEFAULT_CSKCB.value,
+        tenBenhVien: item.noi_dang_ky_kcb || DEFAULT_CSKCB.ten, // Use the name from database or default
         mucLuong: item.muc_luong?.toString() || '',
         tyLeDong: item.ty_le_dong?.toString() || '4.5',
         soTienDong: item.so_tien_dong?.toString() || '',
@@ -121,6 +128,11 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
     const participant = participants[index];
     if (!participant) return;
 
+    // Validate mã BHXH - chỉ cho phép số và tối đa 10 ký tự
+    if (field === 'maSoBHXH') {
+      value = value.replace(/\D/g, '').slice(0, 10);
+    }
+
     // Update local state first
     setParticipants(prev => prev.map((p, i) => {
       if (i === index) {
@@ -142,53 +154,8 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
       return p;
     }));
 
-    // Save to database only if participant has ID (already saved)
-    if (participant.id) {
-      try {
-        const updateData: any = {};
-
-        // Map field names from UI to database
-        const fieldMapping: { [key: string]: string } = {
-          'hoTen': 'ho_ten',
-          'maSoBHXH': 'ma_so_bhxh',
-          'ngaySinh': 'ngay_sinh',
-          'gioiTinh': 'gioi_tinh',
-          'noiDangKyKCB': 'noi_dang_ky_kcb',
-          'tinhKCB': 'tinh_kcb',
-          'maBenhVien': 'ma_benh_vien',
-          'tenBenhVien': '', // Skip - this is derived field
-          'mucLuong': 'muc_luong',
-          'tyLeDong': 'ty_le_dong',
-          'soTienDong': 'so_tien_dong',
-          'tuNgayTheCu': 'tu_ngay_the_cu',
-          'denNgayTheCu': 'den_ngay_the_cu',
-          'ngayBienLai': 'ngay_bien_lai',
-          'sttHo': 'stt_ho',
-          'soThangDong': 'so_thang_dong',
-          'maTinhNkq': 'ma_tinh_nkq',
-          'maHuyenNkq': 'ma_huyen_nkq',
-          'maXaNkq': 'ma_xa_nkq',
-          'noiNhanHoSo': 'noi_nhan_ho_so'
-        };
-
-        const dbField = fieldMapping[field];
-        if (dbField && dbField !== '') { // Skip empty mapping (like tenBenhVien)
-          // Convert value if needed
-          if (dbField === 'muc_luong' || dbField === 'ty_le_dong' || dbField === 'so_tien_dong' || dbField === 'so_thang_dong') {
-            const numValue = parseFloat(value.replace(/[.,]/g, ''));
-            updateData[dbField] = isNaN(numValue) ? null : numValue;
-          } else {
-            updateData[dbField] = value || null;
-          }
-
-          // Update database
-          await keKhaiService.updateNguoiThamGia(participant.id, updateData);
-        }
-      } catch (error) {
-        console.error('Error updating participant:', error);
-        // Don't show toast to avoid spam, just log error
-      }
-    }
+    // Note: Auto-save has been disabled. Data will only be saved when user clicks "Ghi dữ liệu" button.
+    // The auto-save logic has been removed to prevent unwanted database updates.
   };
 
   // Add new participant
@@ -211,6 +178,9 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         stt: participants.length + 1,
         ho_ten: '',
         gioi_tinh: 'Nam',
+        noi_dang_ky_kcb: DEFAULT_CSKCB.ten,
+        tinh_kcb: DEFAULT_CSKCB.maTinh,
+        ma_benh_vien: DEFAULT_CSKCB.value,
         muc_luong: 0,
         ty_le_dong: 4.5,
         so_tien_dong: 0,

@@ -16,6 +16,10 @@ import { KeKhai603ListModeTable } from '../components/kekhai603/KeKhai603ListMod
 const KeKhai603Form: React.FC = () => {
   const { pageParams, setCurrentPage } = useNavigation();
 
+  // State for tracking save status
+  const [lastSavedTime, setLastSavedTime] = React.useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false);
+
   // Custom hooks
   const { formData, handleInputChange, resetForm } = useKeKhai603FormData();
   const { toast, showToast, hideToast } = useToast();
@@ -41,10 +45,18 @@ const KeKhai603Form: React.FC = () => {
     updateParticipantWithApiData
   } = useKeKhai603Participants(keKhaiInfo?.id);
 
+  // Track changes to mark as unsaved
+  React.useEffect(() => {
+    if (participants.length > 0 || Object.values(formData).some(value => value !== '')) {
+      setHasUnsavedChanges(true);
+    }
+  }, [participants, formData]);
+
   // Show message when participants are loaded
   React.useEffect(() => {
     if (participants.length > 0 && participants[0].id > 0) {
       showToast(`Đã tải ${participants.length} người tham gia từ database`, 'success');
+      setHasUnsavedChanges(false); // Data loaded from DB is considered saved
     }
   }, [participants.length]);
 
@@ -52,6 +64,7 @@ const KeKhai603Form: React.FC = () => {
   React.useEffect(() => {
     if (keKhaiInfo) {
       showToast(`Kê khai ${keKhaiInfo.ma_ke_khai} đã sẵn sàng`, 'success');
+      setHasUnsavedChanges(false); // Initial load is considered saved
     }
   }, [keKhaiInfo]);
 
@@ -150,6 +163,9 @@ const KeKhai603Form: React.FC = () => {
       const result = await saveAllParticipants(participants, formData);
       if (result.success) {
         showToast(result.message, 'success');
+        // Mark as saved
+        setHasUnsavedChanges(false);
+        setLastSavedTime(new Date());
       } else {
         showToast(result.message, 'error');
       }
@@ -296,6 +312,7 @@ const KeKhai603Form: React.FC = () => {
                   handleRemoveParticipant={handleRemoveParticipant}
                   searchLoading={searchLoading}
                   savingData={savingData}
+                  hasUnsavedChanges={hasUnsavedChanges}
                 />
               )}
 
