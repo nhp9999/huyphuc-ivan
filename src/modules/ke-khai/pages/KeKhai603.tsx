@@ -4,7 +4,8 @@ import { donViService } from '../../quan-ly/services/donViService';
 import { daiLyService } from '../../quan-ly/services/daiLyService';
 import { luongCoSoService } from '../../../shared/services/luongCoSoService';
 import { keKhaiService } from '../services/keKhaiService';
-import { VDonViChiTiet, VDaiLyChiTiet, DmLuongCoSo, DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
+import paymentService from '../services/paymentService';
+import { VDonViChiTiet, VDaiLyChiTiet, DmLuongCoSo, DanhSachKeKhai, ThanhToan } from '../../../shared/services/api/supabaseClient';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import {
   FileText,
@@ -14,13 +15,18 @@ import {
   RefreshCw,
   AlertCircle,
   Trash2,
-  Eye
+  Eye,
+  CreditCard,
+  QrCode
 } from 'lucide-react';
 import DaiLyDonViSelector from '../components/DaiLyDonViSelector';
+import PaymentQRModal from '../components/PaymentQRModal';
+import { useToast } from '../../../shared/hooks/useToast';
 
 const KeKhai603: React.FC = () => {
   const { pageParams, setCurrentPage } = useNavigation();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   // State cho dữ liệu đơn vị
   const [donViList, setDonViList] = useState<VDonViChiTiet[]>([]);
@@ -58,6 +64,11 @@ const KeKhai603: React.FC = () => {
 
   // State cho việc tạo kê khai mới
   const [isCreating, setIsCreating] = useState(false);
+
+  // State cho thanh toán
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
+  const [creatingPayment, setCreatingPayment] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     // Thông tin đại lý
@@ -396,6 +407,96 @@ const KeKhai603: React.FC = () => {
     }
   };
 
+  // Tạo thanh toán cho kê khai
+  const handleCreatePayment = async (keKhai: DanhSachKeKhai) => {
+    try {
+      setCreatingPayment(keKhai.id);
+
+      // Tính tổng số tiền cần thanh toán
+      const totalAmount = await paymentService.calculateTotalAmount(keKhai.id);
+
+      // Tạo yêu cầu thanh toán
+      const payment = await paymentService.createPayment({
+        ke_khai_id: keKhai.id,
+        so_tien: totalAmount,
+        phuong_thuc_thanh_toan: 'qr_code',
+        payment_description: `Thanh toán kê khai ${keKhai.ma_ke_khai}`,
+        created_by: user?.id
+      });
+
+      // Cập nhật trạng thái kê khai thành pending_payment
+      await keKhaiService.updateKeKhai(keKhai.id, {
+        trang_thai: 'pending_payment',
+        payment_status: 'pending',
+        total_amount: totalAmount,
+        payment_required_at: new Date().toISOString(),
+        payment_id: payment.id,
+        updated_at: new Date().toISOString(),
+        updated_by: user?.id
+      } as any);
+
+      // Reload danh sách để cập nhật trạng thái
+      await loadKeKhaiData();
+
+      // Hiển thị modal thanh toán
+      setSelectedPayment(payment);
+      setShowPaymentModal(true);
+
+      showToast('Đã tạo yêu cầu thanh toán thành công!', 'success');
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi tạo thanh toán';
+      showToast(errorMessage, 'error');
+    } finally {
+      setCreatingPayment(null);
+    }
+  };
+
+  // Xem thanh toán
+  const handleViewPayment = async (keKhai: DanhSachKeKhai) => {
+    try {
+      const payment = await paymentService.getPaymentByKeKhaiId(keKhai.id);
+      if (payment) {
+        setSelectedPayment(payment);
+        setShowPaymentModal(true);
+      } else {
+        showToast('Không tìm thấy thông tin thanh toán', 'error');
+      }
+    } catch (error) {
+      console.error('Error fetching payment info:', error);
+      showToast('Không thể lấy thông tin thanh toán', 'error');
+    }
+  };
+
+  // Đóng modal thanh toán
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false);
+    setSelectedPayment(null);
+  };
+
+  // Xử lý khi thanh toán được xác nhận
+  const handlePaymentConfirmed = async () => {
+    // Reload danh sách để cập nhật trạng thái
+    await loadKeKhaiData();
+    handleClosePaymentModal();
+    showToast('Thanh toán đã được xác nhận!', 'success');
+  };
+
+  // Kiểm tra xem kê khai có cần thanh toán không
+  const needsPayment = (keKhai: DanhSachKeKhai): boolean => {
+    return keKhai.trang_thai === 'submitted' && !keKhai.payment_status;
+  };
+
+  // Kiểm tra xem kê khai có đang chờ thanh toán không
+  const isPendingPayment = (keKhai: DanhSachKeKhai): boolean => {
+    return keKhai.trang_thai === 'pending_payment' || keKhai.payment_status === 'pending';
+  };
+
+  // Kiểm tra xem kê khai đã thanh toán chưa
+  const isPaid = (keKhai: DanhSachKeKhai): boolean => {
+    return keKhai.trang_thai === 'paid' || keKhai.payment_status === 'completed';
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
@@ -656,9 +757,10 @@ const KeKhai603: React.FC = () => {
                 <div className="hidden lg:block bg-gray-50 dark:bg-gray-700 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700">
                   <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     <div className="col-span-2">Mã kê khai</div>
-                    <div className="col-span-3">Tên kê khai</div>
+                    <div className="col-span-2">Tên kê khai</div>
                     <div className="col-span-2">Đối tượng tham gia</div>
                     <div className="col-span-1">Trạng thái</div>
+                    <div className="col-span-1">Thanh toán</div>
                     <div className="col-span-2">Ngày tạo</div>
                     <div className="col-span-2">Thao tác</div>
                   </div>
@@ -709,6 +811,33 @@ const KeKhai603: React.FC = () => {
                             <Eye className="w-4 h-4" />
                             <span>Xem chi tiết</span>
                           </button>
+
+                          {/* Payment button for mobile */}
+                          {needsPayment(keKhai) && (
+                            <button
+                              onClick={() => handleCreatePayment(keKhai)}
+                              disabled={creatingPayment === keKhai.id}
+                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center"
+                              title="Tạo thanh toán"
+                            >
+                              {creatingPayment === keKhai.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CreditCard className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
+
+                          {isPendingPayment(keKhai) && (
+                            <button
+                              onClick={() => handleViewPayment(keKhai)}
+                              className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center"
+                              title="Xem QR thanh toán"
+                            >
+                              <QrCode className="w-4 h-4" />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => openDeleteModal(keKhai)}
                             className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center"
@@ -723,7 +852,7 @@ const KeKhai603: React.FC = () => {
                         <div className="col-span-2 font-medium text-blue-600 dark:text-blue-400">
                           {keKhai.ma_ke_khai}
                         </div>
-                        <div className="col-span-3 text-sm text-gray-900 dark:text-white">
+                        <div className="col-span-2 text-sm text-gray-900 dark:text-white">
                           {keKhai.ten_ke_khai}
                         </div>
                         <div className="col-span-2 text-sm text-gray-500 dark:text-gray-400">
@@ -735,11 +864,36 @@ const KeKhai603: React.FC = () => {
                               ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                               : keKhai.trang_thai === 'submitted'
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                              : keKhai.trang_thai === 'pending_payment'
+                              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                              : keKhai.trang_thai === 'paid'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                               : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
                           }`}>
                             {keKhai.trang_thai === 'draft' ? 'Nháp' :
-                             keKhai.trang_thai === 'submitted' ? 'Đã nộp' : keKhai.trang_thai}
+                             keKhai.trang_thai === 'submitted' ? 'Đã nộp' :
+                             keKhai.trang_thai === 'pending_payment' ? 'Chờ thanh toán' :
+                             keKhai.trang_thai === 'paid' ? 'Đã thanh toán' : keKhai.trang_thai}
                           </span>
+                        </div>
+                        <div className="col-span-1">
+                          {isPaid(keKhai) ? (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                              Đã thanh toán
+                            </span>
+                          ) : isPendingPayment(keKhai) ? (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+                              Chờ thanh toán
+                            </span>
+                          ) : needsPayment(keKhai) ? (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                              Cần thanh toán
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+                              Chưa xác định
+                            </span>
+                          )}
                         </div>
                         <div className="col-span-2 text-sm text-gray-500 dark:text-gray-400">
                           {new Date(keKhai.created_at || '').toLocaleDateString('vi-VN')}
@@ -759,6 +913,33 @@ const KeKhai603: React.FC = () => {
                             <Eye className="w-3 h-3" />
                             <span>Xem chi tiết</span>
                           </button>
+
+                          {/* Payment buttons for desktop */}
+                          {needsPayment(keKhai) && (
+                            <button
+                              onClick={() => handleCreatePayment(keKhai)}
+                              disabled={creatingPayment === keKhai.id}
+                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-2 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                              title="Tạo thanh toán"
+                            >
+                              {creatingPayment === keKhai.id ? (
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <CreditCard className="w-3 h-3" />
+                              )}
+                            </button>
+                          )}
+
+                          {isPendingPayment(keKhai) && (
+                            <button
+                              onClick={() => handleViewPayment(keKhai)}
+                              className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                              title="Xem QR thanh toán"
+                            >
+                              <QrCode className="w-3 h-3" />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => openDeleteModal(keKhai)}
                             className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm transition-colors flex items-center justify-center"
@@ -838,6 +1019,15 @@ const KeKhai603: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Payment QR Modal */}
+      {showPaymentModal && selectedPayment && (
+        <PaymentQRModal
+          payment={selectedPayment}
+          onClose={handleClosePaymentModal}
+          onPaymentConfirmed={handlePaymentConfirmed}
+        />
       )}
 
     </div>

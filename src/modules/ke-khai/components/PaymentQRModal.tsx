@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, RefreshCw, CheckCircle, Clock, AlertCircle, Image } from 'lucide-react';
+import { X, Copy, RefreshCw, CheckCircle, Clock, AlertCircle, CreditCard } from 'lucide-react';
 import { ThanhToan } from '../../../shared/services/api/supabaseClient';
 import paymentService from '../services/paymentService';
+import keKhaiService from '../services/keKhaiService';
 import { useToast } from '../../../shared/hooks/useToast';
+import { useAuth } from '../../auth';
+import PaymentConfirmModal from './PaymentConfirmModal';
 
 interface PaymentQRModalProps {
   payment: ThanhToan;
@@ -17,8 +20,11 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
 }) => {
   const [currentPayment, setCurrentPayment] = useState<ThanhToan>(payment);
   const [isChecking, setIsChecking] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const { showToast } = useToast();
+  const { user } = useAuth();
 
   // Tính thời gian còn lại
   useEffect(() => {
@@ -86,7 +92,7 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
     try {
       const updatedPayment = await paymentService.checkPaymentStatus(currentPayment.id);
       setCurrentPayment(updatedPayment);
-      
+
       if (updatedPayment.trang_thai === 'completed') {
         showToast('Thanh toán thành công!', 'success');
         onPaymentConfirmed();
@@ -98,6 +104,48 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
     } finally {
       setIsChecking(false);
     }
+  };
+
+  const confirmPaymentManually = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handlePaymentConfirm = async (proofImageUrl?: string) => {
+    setIsConfirming(true);
+    try {
+      // Sử dụng keKhaiService.confirmPayment để cập nhật cả payment và kê khai
+      await keKhaiService.confirmPayment(
+        currentPayment.ke_khai_id, // keKhaiId
+        currentPayment.id, // paymentId
+        undefined, // transactionId
+        user?.id?.toString(), // confirmedBy
+        proofImageUrl, // proofImageUrl
+        'Xác nhận thủ công bởi người dùng' // confirmationNote
+      );
+
+      // Cập nhật trạng thái payment local
+      const updatedPayment = {
+        ...currentPayment,
+        trang_thai: 'completed' as const,
+        paid_at: new Date().toISOString(),
+        proof_image_url: proofImageUrl,
+        confirmation_note: 'Xác nhận thủ công bởi người dùng'
+      };
+
+      setCurrentPayment(updatedPayment);
+      setShowConfirmModal(false);
+      showToast('Đã xác nhận thanh toán thành công!', 'success');
+      onPaymentConfirmed();
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      showToast('Không thể xác nhận thanh toán', 'error');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleConfirmModalClose = () => {
+    setShowConfirmModal(false);
   };
 
   const getStatusIcon = () => {
@@ -131,194 +179,129 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
     }
   };
 
-  const qrData = currentPayment.qr_code_data ? JSON.parse(currentPayment.qr_code_data) : null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Thanh toán QR Code
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <X className="w-6 h-6" />
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-blue-500" />
+            <h2 className="text-lg font-medium">Thanh toán QR</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          {/* Payment Status */}
-          <div className="flex items-center justify-center mb-6">
-            <div className="flex items-center space-x-2">
+        <div className="p-4 space-y-4">
+          {/* Status */}
+          <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+            <div className="flex items-center gap-2">
               {getStatusIcon()}
-              <span className="text-lg font-medium text-gray-900 dark:text-white">
-                {getStatusText()}
-              </span>
+              <span className="font-medium">{getStatusText()}</span>
             </div>
+            {timeLeft > 0 && currentPayment.trang_thai === 'pending' && (
+              <div className="text-sm font-mono text-red-500">
+                {formatTimeLeft(timeLeft)}
+              </div>
+            )}
           </div>
 
-          {/* Timer */}
-          {timeLeft > 0 && currentPayment.trang_thai === 'pending' && (
-            <div className="text-center mb-6">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                Thời gian còn lại:
-              </p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {formatTimeLeft(timeLeft)}
-              </p>
-            </div>
-          )}
-
           {/* QR Code */}
-          {currentPayment.qr_code_url && currentPayment.trang_thai === 'pending' && (
-            <div className="text-center mb-6">
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 inline-block">
-                <img
-                  src={currentPayment.qr_code_url}
-                  alt="QR Code thanh toán"
-                  className="w-64 h-64 mx-auto"
-                />
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Quét mã QR để thanh toán
-              </p>
+          {currentPayment.qr_code_url && (
+            <div className="flex justify-center p-4 bg-gray-50 rounded-lg">
+              <img
+                src={currentPayment.qr_code_url}
+                alt="QR Code"
+                className={`w-64 h-64 ${currentPayment.trang_thai === 'completed' ? 'grayscale' : ''}`}
+              />
             </div>
           )}
 
           {/* Payment Info */}
-          {qrData && (
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
-              <h3 className="font-medium text-gray-900 dark:text-white mb-3">
-                Thông tin thanh toán
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Mã thanh toán:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {currentPayment.ma_thanh_toan}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Số tiền:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {paymentService.formatCurrency(currentPayment.so_tien)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Ngân hàng:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    AGRIBANK
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Số tài khoản:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    6706202903085
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Tên tài khoản:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    BAO HIEM XA HOI THI XA TINH BIEN
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Nội dung:</span>
-                  <span className="font-medium text-gray-900 dark:text-white text-sm break-all">
-                    {currentPayment.payment_description || `BHXH 103 00 ${currentPayment.ma_thanh_toan}`}
-                  </span>
-                </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between p-2 bg-blue-50 rounded">
+              <span>Mã thanh toán:</span>
+              <span className="font-medium">{currentPayment.ma_thanh_toan}</span>
+            </div>
+            <div className="flex justify-between p-2 bg-green-50 rounded">
+              <span>Số tiền:</span>
+              <span className="font-medium">{paymentService.formatCurrency(currentPayment.so_tien)}</span>
+            </div>
+            <div className="p-2 bg-gray-50 rounded space-y-2">
+              <div className="flex justify-between">
+                <span>Ngân hàng:</span>
+                <span className="font-medium">AGRIBANK</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Số tài khoản:</span>
+                <span className="font-medium">6706202903085</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tên TK:</span>
+                <span className="font-medium">BAO HIEM XA HOI THI XA TINH BIEN</span>
               </div>
             </div>
-          )}
-
-          {/* Payment Completed Info */}
-          {currentPayment.trang_thai === 'completed' && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
-              <div className="flex items-center mb-3">
-                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
-                <h3 className="font-medium text-green-800 dark:text-green-200">
-                  Thanh toán đã hoàn thành
-                </h3>
-              </div>
-              <div className="space-y-2 text-sm">
-                {currentPayment.paid_at && (
-                  <div className="flex justify-between">
-                    <span className="text-green-700 dark:text-green-300">Thời gian thanh toán:</span>
-                    <span className="font-medium text-green-800 dark:text-green-200">
-                      {new Date(currentPayment.paid_at).toLocaleString('vi-VN')}
-                    </span>
-                  </div>
-                )}
-                {currentPayment.transaction_id && (
-                  <div className="flex justify-between">
-                    <span className="text-green-700 dark:text-green-300">Mã giao dịch:</span>
-                    <span className="font-medium text-green-800 dark:text-green-200">
-                      {currentPayment.transaction_id}
-                    </span>
-                  </div>
-                )}
-                {currentPayment.confirmation_note && (
-                  <div className="mt-3">
-                    <span className="text-green-700 dark:text-green-300 text-sm">Ghi chú xác nhận:</span>
-                    <p className="text-green-800 dark:text-green-200 text-sm mt-1 bg-green-100 dark:bg-green-800/30 p-2 rounded">
-                      {currentPayment.confirmation_note}
-                    </p>
-                  </div>
-                )}
-                {currentPayment.proof_image_url && (
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-green-700 dark:text-green-300 text-sm">Ảnh chứng minh:</span>
-                    <button
-                      onClick={() => window.open(currentPayment.proof_image_url, '_blank')}
-                      className="flex items-center space-x-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
-                    >
-                      <Image className="w-4 h-4" />
-                      <span className="text-sm">Xem ảnh</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          </div>
 
           {/* Actions */}
-          <div className="flex space-x-3">
-            <button
-              onClick={copyQRData}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2"
-            >
-              <Copy className="w-4 h-4" />
-              <span>Sao chép thông tin</span>
-            </button>
-            
-            <button
-              onClick={refreshPaymentStatus}
-              disabled={isChecking}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center justify-center"
-            >
-              <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+          <div className="flex flex-col gap-2 pt-2">
+            <div className="flex gap-2">
+              <button
+                onClick={copyQRData}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                <span>Sao chép thông tin</span>
+              </button>
+              <button
+                onClick={refreshPaymentStatus}
+                disabled={isChecking}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
+                <span>Kiểm tra</span>
+              </button>
+            </div>
 
-          {/* Instructions */}
-          <div className="mt-6 text-sm text-gray-600 dark:text-gray-400">
-            <p className="mb-2">
-              <strong>Hướng dẫn thanh toán:</strong>
-            </p>
-            <ol className="list-decimal list-inside space-y-1">
-              <li>Mở ứng dụng ngân hàng trên điện thoại</li>
-              <li>Chọn chức năng quét QR Code</li>
-              <li>Quét mã QR ở trên</li>
-              <li>Kiểm tra thông tin và xác nhận thanh toán</li>
-              <li>Hệ thống sẽ tự động cập nhật trạng thái</li>
-            </ol>
+            {/* Manual Confirmation Button - Only show for pending payments */}
+            {currentPayment.trang_thai === 'pending' && (
+              <button
+                onClick={confirmPaymentManually}
+                disabled={isConfirming}
+                className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>✅ Tôi đã thanh toán</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-4 border-t bg-gray-50 text-sm">
+          <div className="flex items-center gap-2 text-gray-500">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Tự động cập nhật</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+          >
+            Đóng
+          </button>
+        </div>
+
+        {/* Payment Confirmation Modal */}
+        <PaymentConfirmModal
+          isOpen={showConfirmModal}
+          onClose={handleConfirmModalClose}
+          onConfirm={handlePaymentConfirm}
+          paymentAmount={currentPayment.so_tien}
+          paymentCode={currentPayment.ma_thanh_toan}
+          isLoading={isConfirming}
+        />
       </div>
     </div>
   );

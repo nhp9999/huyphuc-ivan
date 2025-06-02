@@ -9,14 +9,15 @@ import {
   Calendar,
   DollarSign,
   QrCode,
-  RefreshCw
+  RefreshCw,
+  Image
 } from 'lucide-react';
-import { DanhSachKeKhai, ThanhToan } from '../../../shared/services/api/supabaseClient';
-import keKhaiService from '../services/keKhaiService';
+import { DanhSachKeKhai, ThanhToan, supabase } from '../../../shared/services/api/supabaseClient';
 import paymentService from '../services/paymentService';
 import { useAuth } from '../../auth';
 import { useToast } from '../../../shared/hooks/useToast';
 import PaymentQRModal from '../components/PaymentQRModal';
+import PaymentProofModal from '../components/PaymentProofModal';
 
 const MyPayments: React.FC = () => {
   const { user } = useAuth();
@@ -30,29 +31,58 @@ const MyPayments: React.FC = () => {
   
   // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showProofModal, setShowProofModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
 
   // Load data
   const loadMyPayments = async () => {
     if (!user?.id) return;
-    
+
     setLoading(true);
     try {
-      // Lấy các kê khai cần thanh toán của user hiện tại
-      const searchParams = {
-        created_by: user.id,
-        trang_thai: filterStatus === 'all' ? undefined : filterStatus
-      };
-      const data = await keKhaiService.getKeKhaiForApproval(searchParams);
-      
-      // Lọc chỉ những kê khai có liên quan đến thanh toán
-      const paymentRelatedKeKhai = data.filter(kk => 
-        kk.trang_thai === 'pending_payment' || 
-        kk.trang_thai === 'paid' ||
-        kk.payment_status
-      );
-      
-      setKeKhaiList(paymentRelatedKeKhai);
+      // Lấy tất cả kê khai của user và join với thanh toán
+      const { data: keKhaiWithPayments, error } = await supabase
+        .from('danh_sach_ke_khai')
+        .select(`
+          *,
+          thanh_toan:thanh_toan!ke_khai_id (
+            id,
+            ma_thanh_toan,
+            so_tien,
+            trang_thai,
+            qr_code_url,
+            created_at,
+            paid_at,
+            proof_image_url
+          )
+        `)
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading my payments:', error);
+        throw error;
+      }
+
+      // Lọc chỉ những kê khai có thanh toán
+      const paymentRelatedKeKhai = keKhaiWithPayments?.filter((kk: any) =>
+        kk.thanh_toan && kk.thanh_toan.length > 0
+      ) || [];
+
+      // Áp dụng filter status nếu có
+      const filteredData = filterStatus === 'all'
+        ? paymentRelatedKeKhai
+        : paymentRelatedKeKhai.filter((kk: any) => {
+            const latestPayment = kk.thanh_toan[0]; // Lấy thanh toán mới nhất
+            if (filterStatus === 'pending_payment') {
+              return latestPayment.trang_thai === 'pending';
+            } else if (filterStatus === 'paid') {
+              return latestPayment.trang_thai === 'completed';
+            }
+            return true;
+          });
+
+      setKeKhaiList(filteredData);
     } catch (error) {
       console.error('Error loading my payments:', error);
       showToast('Không thể tải danh sách thanh toán', 'error');
@@ -71,46 +101,105 @@ const MyPayments: React.FC = () => {
     keKhai.ten_ke_khai.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Get status badge
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending_payment':
+  // Get object type badge
+  const getObjectTypeBadge = (loaiKeKhai: string) => {
+    switch (loaiKeKhai) {
+      case 'BHYT':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+            BHYT
+          </span>
+        );
+      case 'BHXH':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            BHXH
+          </span>
+        );
+      case 'BHTN':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+            BHTN
+          </span>
+        );
+      case 'BHTNLĐ':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+            BHTNLĐ
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+            {loaiKeKhai || 'N/A'}
+          </span>
+        );
+    }
+  };
+
+  // Get status badge based on payment status
+  const getPaymentStatusBadge = (keKhai: any) => {
+    const latestPayment = keKhai.thanh_toan?.[0];
+    if (!latestPayment) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          Chưa có thanh toán
+        </span>
+      );
+    }
+
+    switch (latestPayment.trang_thai) {
+      case 'pending':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
             <Clock className="w-3 h-3 mr-1" />
             Chờ thanh toán
           </span>
         );
-      case 'paid':
+      case 'completed':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
             <CheckCircle className="w-3 h-3 mr-1" />
             Đã thanh toán
           </span>
         );
+      case 'failed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Thất bại
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
             <AlertCircle className="w-3 h-3 mr-1" />
-            {status}
+            {latestPayment.trang_thai}
           </span>
         );
     }
   };
 
   // Handle view payment
-  const handleViewPayment = async (keKhai: DanhSachKeKhai) => {
-    try {
-      const payment = await paymentService.getPaymentByKeKhaiId(keKhai.id);
-      if (payment) {
-        setSelectedPayment(payment);
-        setShowPaymentModal(true);
-      } else {
-        showToast('Không tìm thấy thông tin thanh toán', 'error');
-      }
-    } catch (error) {
-      console.error('Error fetching payment info:', error);
-      showToast('Không thể lấy thông tin thanh toán', 'error');
+  const handleViewPayment = (keKhai: any) => {
+    const latestPayment = keKhai.thanh_toan?.[0];
+    if (latestPayment) {
+      setSelectedPayment(latestPayment);
+      setShowPaymentModal(true);
+    } else {
+      showToast('Không tìm thấy thông tin thanh toán', 'error');
+    }
+  };
+
+  // Handle view proof image
+  const handleViewProof = (keKhai: any) => {
+    const latestPayment = keKhai.thanh_toan?.[0];
+    if (latestPayment && latestPayment.proof_image_url) {
+      setSelectedPayment(latestPayment);
+      setShowProofModal(true);
+    } else {
+      showToast('Không có ảnh chứng từ', 'warning');
     }
   };
 
@@ -202,6 +291,9 @@ const MyPayments: React.FC = () => {
                       Kê khai
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Đối tượng
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Số tiền
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -209,6 +301,9 @@ const MyPayments: React.FC = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Ngày yêu cầu
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Ngày thanh toán
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Thao tác
@@ -229,46 +324,89 @@ const MyPayments: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        {getObjectTypeBadge(keKhai.loai_ke_khai)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <DollarSign className="w-4 h-4 text-green-500 mr-1" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {keKhai.total_amount ? paymentService.formatCurrency(keKhai.total_amount) : 'Chưa tính'}
+                            {(() => {
+                              const latestPayment = (keKhai as any).thanh_toan?.[0];
+                              return latestPayment?.so_tien
+                                ? paymentService.formatCurrency(latestPayment.so_tien)
+                                : 'Chưa tính';
+                            })()}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(keKhai.trang_thai)}
+                        {getPaymentStatusBadge(keKhai)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
-                          {keKhai.payment_required_at 
+                          {keKhai.payment_required_at
                             ? new Date(keKhai.payment_required_at).toLocaleDateString('vi-VN')
                             : 'N/A'
                           }
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {(() => {
+                            const latestPayment = (keKhai as any).thanh_toan?.[0];
+                            if (latestPayment?.paid_at) {
+                              return new Date(latestPayment.paid_at).toLocaleString('vi-VN');
+                            } else if (latestPayment?.trang_thai === 'pending') {
+                              return (
+                                <span className="text-orange-500 italic">Chờ thanh toán</span>
+                              );
+                            }
+                            return 'N/A';
+                          })()}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
-                          {keKhai.trang_thai === 'pending_payment' && (
-                            <button
-                              onClick={() => handleViewPayment(keKhai)}
-                              className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
-                              title="Thanh toán QR Code"
-                            >
-                              <QrCode className="w-4 h-4" />
-                            </button>
-                          )}
-                          
-                          {keKhai.trang_thai === 'paid' && (
-                            <button
-                              onClick={() => handleViewPayment(keKhai)}
-                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                              title="Xem thông tin thanh toán"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          )}
+                          {(() => {
+                            const latestPayment = (keKhai as any).thanh_toan?.[0];
+                            if (!latestPayment) return null;
+
+                            if (latestPayment.trang_thai === 'pending') {
+                              return (
+                                <button
+                                  onClick={() => handleViewPayment(keKhai)}
+                                  className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
+                                  title="Thanh toán QR Code"
+                                >
+                                  <QrCode className="w-4 h-4" />
+                                </button>
+                              );
+                            } else if (latestPayment.trang_thai === 'completed') {
+                              return (
+                                <>
+                                  <button
+                                    onClick={() => handleViewPayment(keKhai)}
+                                    className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                                    title="Xem thông tin thanh toán"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                  {latestPayment.proof_image_url && (
+                                    <button
+                                      onClick={() => handleViewProof(keKhai)}
+                                      className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                                      title="Xem ảnh chứng từ"
+                                    >
+                                      <Image className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -289,6 +427,17 @@ const MyPayments: React.FC = () => {
             setSelectedPayment(null);
           }}
           onPaymentConfirmed={handlePaymentConfirmed}
+        />
+      )}
+
+      {/* Payment Proof Modal */}
+      {showProofModal && selectedPayment && (
+        <PaymentProofModal
+          payment={selectedPayment}
+          onClose={() => {
+            setShowProofModal(false);
+            setSelectedPayment(null);
+          }}
         />
       )}
     </div>

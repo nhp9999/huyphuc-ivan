@@ -68,61 +68,54 @@ const DaiLyDonViSelector: React.FC<DaiLyDonViSelectorProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Thông tin đại lý */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          <Building2 className="inline h-4 w-4 mr-1" />
-          Chọn đại lý
-        </label>
-        
-        {userDaiLy.length === 0 ? (
-          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-            <div className="flex items-center space-x-2 text-yellow-800 dark:text-yellow-200">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">Không tìm thấy đại lý nào cho tài khoản này</span>
-            </div>
-          </div>
-        ) : userDaiLy.length === 1 ? (
-          // Hiển thị thông tin đại lý duy nhất (không cho phép thay đổi)
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
-            <div className="flex items-center space-x-2">
-              <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <div>
-                <div className="font-medium text-blue-900 dark:text-blue-100">
-                  {selectedDaiLy?.ten}
-                </div>
-                <div className="text-sm text-blue-600 dark:text-blue-400">
-                  Mã: {selectedDaiLy?.ma} | {selectedDaiLy?.loai_dai_ly}
-                </div>
+      {/* Container cho đại lý và đơn vị trên cùng một dòng */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Thông tin đại lý */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <Building2 className="inline h-4 w-4 mr-1" />
+            Chọn đại lý
+          </label>
+
+          {userDaiLy.length === 0 ? (
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+              <div className="flex items-center space-x-2 text-yellow-800 dark:text-yellow-200">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">Không tìm thấy đại lý nào cho tài khoản này</span>
               </div>
             </div>
-          </div>
-        ) : (
-          // Dropdown cho nhiều đại lý
-          <select
-            value={selectedDaiLy?.id || ''}
-            onChange={(e) => handleDaiLySelect(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="">-- Chọn đại lý --</option>
-            {userDaiLy.map((daiLy) => (
-              <option key={daiLy.id} value={daiLy.id}>
-                {daiLy.ten} ({daiLy.ma})
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+          ) : (
+            // Dropdown cho đại lý (bao gồm cả trường hợp chỉ có 1 đại lý)
+            <select
+              value={selectedDaiLy?.id || ''}
+              onChange={(e) => handleDaiLySelect(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">-- Chọn đại lý --</option>
+              {userDaiLy.map((daiLy) => (
+                <option key={daiLy.id} value={daiLy.id}>
+                  {daiLy.ten} ({daiLy.ma})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
 
-      {/* Thông tin đơn vị */}
-      {selectedDaiLy && (
+        {/* Thông tin đơn vị */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             <MapPin className="inline h-4 w-4 mr-1" />
             Chọn đơn vị
           </label>
-          
-          {donViList.length === 0 ? (
+
+          {!selectedDaiLy ? (
+            <div className="p-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-700 rounded-md">
+              <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">Vui lòng chọn đại lý trước</span>
+              </div>
+            </div>
+          ) : donViList.length === 0 ? (
             <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
               <div className="flex items-center space-x-2 text-yellow-800 dark:text-yellow-200">
                 <AlertCircle className="h-4 w-4" />
@@ -143,13 +136,14 @@ const DaiLyDonViSelector: React.FC<DaiLyDonViSelectorProps> = ({
               ))}
             </select>
           )}
-          
-          {donViList.length > 0 && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
-              <Users className="h-3 w-3" />
-              <span>{donViList.length} đơn vị có sẵn</span>
-            </div>
-          )}
+        </div>
+      </div>
+
+      {/* Thông tin bổ sung về số lượng đơn vị */}
+      {selectedDaiLy && donViList.length > 0 && (
+        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+          <Users className="h-3 w-3" />
+          <span>{donViList.length} đơn vị có sẵn</span>
         </div>
       )}
     </div>
