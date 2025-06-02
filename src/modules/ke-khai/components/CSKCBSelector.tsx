@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, ChevronDown, Building2, MapPin, Heart, Stethoscope } from 'lucide-react';
 import { DmCSKCB } from '../../../shared/services/api/supabaseClient';
-import cskcbService from '../../../shared/services/cskcbService';
+import { useCSKCBContext } from '../contexts/CSKCBContext';
 
 interface CSKCBSelectorProps {
   value: string;
@@ -24,7 +24,6 @@ const CSKCBSelector: React.FC<CSKCBSelectorProps> = ({
 }) => {
   const [cskcbList, setCSKCBList] = useState<DmCSKCB[]>([]);
   const [filteredList, setFilteredList] = useState<DmCSKCB[]>([]);
-  const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCSKCB, setSelectedCSKCB] = useState<DmCSKCB | null>(null);
@@ -32,6 +31,10 @@ const CSKCBSelector: React.FC<CSKCBSelectorProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Use CSKCB context for cached data
+  const { getCSKCBData, isLoading } = useCSKCBContext();
+  const loading = isLoading(maTinh);
 
   // Load CSKCB data when maTinh changes or component mounts
   useEffect(() => {
@@ -83,27 +86,16 @@ const CSKCBSelector: React.FC<CSKCBSelectorProps> = ({
   }, [isOpen]);
 
   const loadCSKCBData = async () => {
-    setLoading(true);
     try {
-      let data;
-      if (maTinh) {
-        // Load cơ sở KCB theo tỉnh cụ thể
-        data = await cskcbService.getCSKCBByTinh(maTinh);
-      } else {
-        // Load tất cả cơ sở KCB (giới hạn 500 để tránh tải quá nhiều)
-        data = await cskcbService.getCSKCBList({
-          trang_thai: 'active',
-          limit: 500
-        });
-      }
+      console.log(`CSKCBSelector: Loading data for maTinh=${maTinh}`);
+      const data = await getCSKCBData(maTinh);
       setCSKCBList(data);
       setFilteredList(data);
+      console.log(`CSKCBSelector: Loaded ${data.length} items for maTinh=${maTinh}`);
     } catch (error) {
-      console.error('Error loading CSKCB data:', error);
+      console.error('CSKCBSelector: Error loading CSKCB data:', error);
       setCSKCBList([]);
       setFilteredList([]);
-    } finally {
-      setLoading(false);
     }
   };
 
