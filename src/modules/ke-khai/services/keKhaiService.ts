@@ -1,5 +1,6 @@
 import { supabase } from '../../../shared/services/api/supabaseClient';
 import { DanhSachKeKhai, DanhSachNguoiThamGia } from '../../../shared/services/api/supabaseClient';
+import phanQuyenService from '../../quan-ly/services/phanQuyenService';
 
 export interface CreateKeKhaiRequest {
   ten_ke_khai: string;
@@ -524,6 +525,122 @@ class KeKhaiService {
       }
     } catch (error) {
       console.error('Error in deleteNguoiThamGia:', error);
+      throw error;
+    }
+  }
+
+  // Kiểm tra quyền admin của user
+  async isUserAdmin(userId: string): Promise<boolean> {
+    try {
+      const permissions = await phanQuyenService.getPhanQuyenByUserId(parseInt(userId));
+      return permissions.some(p => p.cap_do_quyen === 'admin' || p.cap_do_quyen === 'super_admin');
+    } catch (error) {
+      console.error('Error checking user admin status:', error);
+      return false; // Mặc định không có quyền admin
+    }
+  }
+
+  // Lấy danh sách kê khai cho admin (không filter theo created_by)
+  async getKeKhaiListForAdmin(params?: KeKhaiSearchParams): Promise<DanhSachKeKhai[]> {
+    try {
+      let query = supabase
+        .from('danh_sach_ke_khai')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (params?.ma_ke_khai) {
+        query = query.ilike('ma_ke_khai', `%${params.ma_ke_khai}%`);
+      }
+
+      if (params?.loai_ke_khai) {
+        query = query.eq('loai_ke_khai', params.loai_ke_khai);
+      }
+
+      if (params?.dai_ly_id) {
+        query = query.eq('dai_ly_id', params.dai_ly_id);
+      }
+
+      if (params?.don_vi_id) {
+        query = query.eq('don_vi_id', params.don_vi_id);
+      }
+
+      if (params?.trang_thai) {
+        query = query.eq('trang_thai', params.trang_thai);
+      }
+
+      if (params?.tu_ngay) {
+        query = query.gte('created_at', params.tu_ngay);
+      }
+
+      if (params?.den_ngay) {
+        query = query.lte('created_at', params.den_ngay);
+      }
+
+      // KHÔNG filter theo created_by - admin có thể xem tất cả
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching ke khai list for admin:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getKeKhaiListForAdmin:', error);
+      throw error;
+    }
+  }
+
+  // Lấy danh sách kê khai cần duyệt cho admin (không filter theo created_by)
+  async getKeKhaiForApprovalForAdmin(params?: KeKhaiSearchParams): Promise<DanhSachKeKhai[]> {
+    try {
+      let query = supabase
+        .from('danh_sach_ke_khai')
+        .select('*')
+        .in('trang_thai', ['submitted', 'processing'])
+        .order('created_at', { ascending: false });
+
+      if (params?.ma_ke_khai) {
+        query = query.ilike('ma_ke_khai', `%${params.ma_ke_khai}%`);
+      }
+
+      if (params?.loai_ke_khai) {
+        query = query.eq('loai_ke_khai', params.loai_ke_khai);
+      }
+
+      if (params?.dai_ly_id) {
+        query = query.eq('dai_ly_id', params.dai_ly_id);
+      }
+
+      if (params?.don_vi_id) {
+        query = query.eq('don_vi_id', params.don_vi_id);
+      }
+
+      if (params?.trang_thai) {
+        query = query.eq('trang_thai', params.trang_thai);
+      }
+
+      if (params?.tu_ngay) {
+        query = query.gte('created_at', params.tu_ngay);
+      }
+
+      if (params?.den_ngay) {
+        query = query.lte('created_at', params.den_ngay);
+      }
+
+      // KHÔNG filter theo created_by - admin có thể xem tất cả
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching ke khai for approval for admin:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getKeKhaiForApprovalForAdmin:', error);
       throw error;
     }
   }

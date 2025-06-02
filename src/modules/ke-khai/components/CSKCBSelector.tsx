@@ -176,21 +176,27 @@ const CSKCBSelector: React.FC<CSKCBSelectorProps> = ({
       {/* Selected value display */}
       <div
         ref={containerRef}
-        className={`w-full px-2 py-1 border-0 cursor-pointer focus:ring-1 focus:ring-blue-500 bg-transparent dark:text-white text-xs ${
-          disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+        className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+          disabled ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white hover:border-gray-400'
         }`}
         onClick={handleToggleOpen}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 flex-1 min-w-0 overflow-hidden">
             {selectedCSKCB ? (
-              <div className="flex-1 min-w-0 overflow-hidden">
-                <div className="text-xs text-gray-900 dark:text-white truncate">
-                  {selectedCSKCB.ten}
+              <>
+                {getTypeIcon(selectedCSKCB.loai_cskcb)}
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {selectedCSKCB.ten}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {selectedCSKCB.value} - {getTypeLabel(selectedCSKCB.loai_cskcb)}
+                  </div>
                 </div>
-              </div>
+              </>
             ) : (
-              <span className="text-gray-500 dark:text-gray-400 truncate text-xs">{placeholder}</span>
+              <span className="text-gray-500 dark:text-gray-400 truncate">{placeholder}</span>
             )}
           </div>
           <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />

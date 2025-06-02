@@ -153,12 +153,28 @@ const KeKhai603: React.FC = () => {
     setErrorKeKhai(null);
     try {
       // Lọc kê khai theo loại (603) và sắp xếp theo ngày tạo mới nhất
-      const searchParams = {
+      const searchParams: any = {
         loai_ke_khai: declarationCode,
         // Có thể thêm filter theo đại lý hoặc đơn vị nếu cần
       };
 
-      const keKhaiData = await keKhaiService.getKeKhaiList(searchParams);
+      // QUAN TRỌNG: Kiểm tra quyền user để quyết định filter
+      let keKhaiData: any[] = [];
+      if (user?.id) {
+        const isAdmin = await keKhaiService.isUserAdmin(user.id);
+        if (isAdmin) {
+          // Admin có thể xem tất cả kê khai (không filter theo created_by)
+          keKhaiData = await keKhaiService.getKeKhaiListForAdmin(searchParams);
+        } else {
+          // Chỉ hiển thị kê khai của user hiện tại nếu không phải admin
+          searchParams.created_by = user.id;
+          keKhaiData = await keKhaiService.getKeKhaiList(searchParams);
+        }
+      } else {
+        // Nếu không có user, không hiển thị gì
+        keKhaiData = [];
+      }
+
       setKeKhaiList(keKhaiData);
     } catch (err) {
       console.error('Error loading ke khai data:', err);

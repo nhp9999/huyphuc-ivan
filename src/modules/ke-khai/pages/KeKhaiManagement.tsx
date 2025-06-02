@@ -51,28 +51,44 @@ const KeKhaiManagement: React.FC = () => {
     setError(null);
     try {
       const searchParams: KeKhaiSearchParams = {};
-      
+
       if (searchTerm) {
         searchParams.ma_ke_khai = searchTerm;
       }
-      
+
       if (filterStatus !== 'all') {
         searchParams.trang_thai = filterStatus;
       }
-      
+
       if (filterType !== 'all') {
         searchParams.loai_ke_khai = filterType;
       }
-      
+
       if (dateFrom) {
         searchParams.tu_ngay = dateFrom;
       }
-      
+
       if (dateTo) {
         searchParams.den_ngay = dateTo;
       }
 
-      const data = await keKhaiService.getKeKhaiForApproval(searchParams);
+      // QUAN TRỌNG: Kiểm tra quyền user để quyết định filter
+      let data: any[] = [];
+      if (user?.id) {
+        const isAdmin = await keKhaiService.isUserAdmin(user.id);
+        if (isAdmin) {
+          // Admin có thể xem tất cả kê khai (không filter theo created_by)
+          data = await keKhaiService.getKeKhaiForApprovalForAdmin(searchParams);
+        } else {
+          // Chỉ hiển thị kê khai của user hiện tại nếu không phải admin
+          searchParams.created_by = user.id;
+          data = await keKhaiService.getKeKhaiForApproval(searchParams);
+        }
+      } else {
+        // Nếu không có user, không hiển thị gì
+        data = [];
+      }
+
       setKeKhaiList(data);
     } catch (err) {
       console.error('Error loading ke khai data:', err);
