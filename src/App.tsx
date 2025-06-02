@@ -1,28 +1,35 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { NavigationProvider } from './context/NavigationContext';
-import Layout from './components/Layout';
-import OrganizationSelector from './components/OrganizationSelector';
-import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
-import Login from './pages/Login';
-import BhytLookup from './pages/BhytLookup';
-import BhxhLookup from './pages/BhxhLookup';
-import BhxhIdLookup from './pages/BhxhIdLookup';
-import FamilyLookup from './pages/FamilyLookup';
-import DeclarationCategories from './pages/DeclarationCategories';
-import KeKhai603 from './pages/KeKhai603';
-import KeKhai603Form from './pages/KeKhai603Form';
-import DeclarationHistory from './pages/DeclarationHistory';
-import DonViManagement from './pages/DonViManagement';
-import DaiLyManagement from './pages/DaiLyManagement';
-import DaiLyDonViLinkManagement from './pages/DaiLyDonViLinkManagement';
-import CongTyManagement from './pages/CongTyManagement';
-import CoQuanBhxhManagement from './pages/CoQuanBhxhManagement';
-import NguoiDungManagement from './pages/NguoiDungManagement';
-import PhanQuyenManagement from './pages/PhanQuyenManagement';
+
+// Core imports
+import { ThemeProvider } from './core/contexts/ThemeContext';
+import { NavigationProvider } from './core/contexts/NavigationContext';
+import Layout from './core/components/Layout';
+
+// Module imports
+import { AuthProvider, useAuth, Login, OrganizationSelector } from './modules/auth';
+import { Dashboard, Settings } from './modules/dashboard';
+import {
+  BhytLookup,
+  BhxhLookup,
+  BhxhIdLookup,
+  FamilyLookup
+} from './modules/tra-cuu';
+import {
+  CongTyManagement,
+  CoQuanBhxhManagement,
+  DaiLyManagement,
+  DaiLyDonViLinkManagement,
+  DonViManagement,
+  NguoiDungManagement,
+  PhanQuyenManagement
+} from './modules/quan-ly';
+import {
+  KeKhai603,
+  KeKhai603Form,
+  DeclarationCategories,
+  DeclarationHistory
+} from './modules/ke-khai';
 
 
 // Protected Route component
