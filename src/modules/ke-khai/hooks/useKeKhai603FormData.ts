@@ -28,7 +28,8 @@ export interface KeKhai603FormData {
   soTienDong: string;
   tinhKCB: string;
   noiNhanHoSo: string;
-  maBenhVien: string;
+  maBenhVien: string; // Mã cơ sở KCB được chọn
+  tenBenhVien: string; // Tên cơ sở KCB được chọn
   maHoGiaDinh: string;
   phuongAn: string;
   trangThai: string;
@@ -75,6 +76,7 @@ const initialFormData: KeKhai603FormData = {
   tinhKCB: '',
   noiNhanHoSo: '',
   maBenhVien: '',
+  tenBenhVien: '',
   maHoGiaDinh: '',
   phuongAn: '',
   trangThai: '',

@@ -57,6 +57,10 @@ export interface CreateNguoiThamGiaRequest {
   tu_ngay_the_moi?: string;
   den_ngay_the_moi?: string;
   ngay_bien_lai?: string;
+  // Organization fields - required by database schema
+  cong_ty_id?: number;
+  co_quan_bhxh_id?: number;
+  loai_to_chuc?: string;
 }
 
 export interface KeKhaiSearchParams {
@@ -67,6 +71,18 @@ export interface KeKhaiSearchParams {
   trang_thai?: string;
   tu_ngay?: string;
   den_ngay?: string;
+  created_by?: string;
+}
+
+export interface ApproveKeKhaiRequest {
+  approved_by: string;
+  processing_notes?: string;
+}
+
+export interface RejectKeKhaiRequest {
+  rejected_by: string;
+  rejection_reason: string;
+  processing_notes?: string;
 }
 
 class KeKhaiService {
@@ -219,6 +235,61 @@ class KeKhaiService {
     }
   }
 
+  // Lấy danh sách kê khai cần duyệt (cho nhân viên tổng hợp)
+  async getKeKhaiForApproval(params?: KeKhaiSearchParams): Promise<DanhSachKeKhai[]> {
+    try {
+      let query = supabase
+        .from('danh_sach_ke_khai')
+        .select('*')
+        .in('trang_thai', ['submitted', 'processing'])
+        .order('created_at', { ascending: false });
+
+      if (params?.ma_ke_khai) {
+        query = query.ilike('ma_ke_khai', `%${params.ma_ke_khai}%`);
+      }
+
+      if (params?.loai_ke_khai) {
+        query = query.eq('loai_ke_khai', params.loai_ke_khai);
+      }
+
+      if (params?.dai_ly_id) {
+        query = query.eq('dai_ly_id', params.dai_ly_id);
+      }
+
+      if (params?.don_vi_id) {
+        query = query.eq('don_vi_id', params.don_vi_id);
+      }
+
+      if (params?.trang_thai) {
+        query = query.eq('trang_thai', params.trang_thai);
+      }
+
+      if (params?.tu_ngay) {
+        query = query.gte('created_at', params.tu_ngay);
+      }
+
+      if (params?.den_ngay) {
+        query = query.lte('created_at', params.den_ngay);
+      }
+
+      if (params?.created_by) {
+        query = query.eq('created_by', params.created_by);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching ke khai for approval:', error);
+        throw new Error('Không thể lấy danh sách kê khai cần duyệt');
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getKeKhaiForApproval:', error);
+      throw error;
+    }
+  }
+
   // Lấy chi tiết kê khai
   async getKeKhaiById(id: number): Promise<DanhSachKeKhai | null> {
     try {
@@ -254,6 +325,92 @@ class KeKhaiService {
       }
     } catch (error) {
       console.error('Error in deleteKeKhai:', error);
+      throw error;
+    }
+  }
+
+  // Duyệt kê khai
+  async approveKeKhai(id: number, data: ApproveKeKhaiRequest): Promise<DanhSachKeKhai> {
+    try {
+      const { data: result, error } = await supabase
+        .from('danh_sach_ke_khai')
+        .update({
+          trang_thai: 'approved',
+          approved_by: data.approved_by,
+          approved_at: new Date().toISOString(),
+          processing_notes: data.processing_notes,
+          updated_at: new Date().toISOString(),
+          updated_by: data.approved_by
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error approving ke khai:', error);
+        throw new Error('Không thể duyệt kê khai');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in approveKeKhai:', error);
+      throw error;
+    }
+  }
+
+  // Từ chối kê khai
+  async rejectKeKhai(id: number, data: RejectKeKhaiRequest): Promise<DanhSachKeKhai> {
+    try {
+      const { data: result, error } = await supabase
+        .from('danh_sach_ke_khai')
+        .update({
+          trang_thai: 'rejected',
+          rejected_by: data.rejected_by,
+          rejected_at: new Date().toISOString(),
+          rejection_reason: data.rejection_reason,
+          processing_notes: data.processing_notes,
+          updated_at: new Date().toISOString(),
+          updated_by: data.rejected_by
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error rejecting ke khai:', error);
+        throw new Error('Không thể từ chối kê khai');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in rejectKeKhai:', error);
+      throw error;
+    }
+  }
+
+  // Chuyển kê khai sang trạng thái đang xử lý
+  async setKeKhaiProcessing(id: number, userId: string, notes?: string): Promise<DanhSachKeKhai> {
+    try {
+      const { data: result, error } = await supabase
+        .from('danh_sach_ke_khai')
+        .update({
+          trang_thai: 'processing',
+          processing_notes: notes,
+          updated_at: new Date().toISOString(),
+          updated_by: userId
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error setting ke khai to processing:', error);
+        throw new Error('Không thể cập nhật trạng thái kê khai');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in setKeKhaiProcessing:', error);
       throw error;
     }
   }
@@ -373,3 +530,4 @@ class KeKhaiService {
 }
 
 export const keKhaiService = new KeKhaiService();
+export default keKhaiService;

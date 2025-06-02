@@ -10,6 +10,9 @@ export interface KeKhai603Participant {
   ngaySinh: string;
   gioiTinh: string;
   noiDangKyKCB: string;
+  tinhKCB: string; // Mã tỉnh KCB
+  maBenhVien: string; // Mã cơ sở KCB
+  tenBenhVien: string; // Tên cơ sở KCB
   mucLuong: string;
   tyLeDong: string;
   soTienDong: string;
@@ -32,6 +35,9 @@ const createInitialParticipant = (): KeKhai603Participant => ({
   ngaySinh: '',
   gioiTinh: 'Nam',
   noiDangKyKCB: '',
+  tinhKCB: '',
+  maBenhVien: '',
+  tenBenhVien: '',
   mucLuong: '',
   tyLeDong: '4.5',
   soTienDong: '',
@@ -81,6 +87,9 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         ngaySinh: item.ngay_sinh || '',
         gioiTinh: item.gioi_tinh || 'Nam',
         noiDangKyKCB: item.noi_dang_ky_kcb || '',
+        tinhKCB: item.tinh_kcb || '',
+        maBenhVien: item.ma_benh_vien || '',
+        tenBenhVien: '', // Will be populated from CSKCB lookup
         mucLuong: item.muc_luong?.toString() || '',
         tyLeDong: item.ty_le_dong?.toString() || '4.5',
         soTienDong: item.so_tien_dong?.toString() || '',
@@ -145,6 +154,9 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
           'ngaySinh': 'ngay_sinh',
           'gioiTinh': 'gioi_tinh',
           'noiDangKyKCB': 'noi_dang_ky_kcb',
+          'tinhKCB': 'tinh_kcb',
+          'maBenhVien': 'ma_benh_vien',
+          'tenBenhVien': '', // Skip - this is derived field
           'mucLuong': 'muc_luong',
           'tyLeDong': 'ty_le_dong',
           'soTienDong': 'so_tien_dong',
@@ -160,7 +172,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         };
 
         const dbField = fieldMapping[field];
-        if (dbField) {
+        if (dbField && dbField !== '') { // Skip empty mapping (like tenBenhVien)
           // Convert value if needed
           if (dbField === 'muc_luong' || dbField === 'ty_le_dong' || dbField === 'so_tien_dong' || dbField === 'so_thang_dong') {
             const numValue = parseFloat(value.replace(/[.,]/g, ''));
@@ -188,6 +200,12 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
     try {
       setSavingData(true);
 
+      // Get ke khai info to get organization details
+      const keKhaiInfo = await keKhaiService.getKeKhaiById(keKhaiId);
+      if (!keKhaiInfo) {
+        throw new Error('Không tìm thấy thông tin kê khai');
+      }
+
       const newParticipantData = {
         ke_khai_id: keKhaiId,
         stt: participants.length + 1,
@@ -197,7 +215,11 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         ty_le_dong: 4.5,
         so_tien_dong: 0,
         ngay_bien_lai: new Date().toISOString().split('T')[0],
-        so_thang_dong: 0
+        so_thang_dong: 0,
+        // Add organization fields from ke khai
+        cong_ty_id: keKhaiInfo.cong_ty_id,
+        co_quan_bhxh_id: keKhaiInfo.co_quan_bhxh_id,
+        loai_to_chuc: keKhaiInfo.loai_to_chuc || 'cong_ty'
       };
 
       // Save to database

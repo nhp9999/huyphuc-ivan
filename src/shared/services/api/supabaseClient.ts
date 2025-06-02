@@ -284,7 +284,7 @@ export interface DanhSachKeKhai {
   ngay_tao?: string;
   ty_le_nsnn_ho_tro?: number;
   ghi_chu?: string;
-  trang_thai: string;
+  trang_thai: string; // 'draft', 'submitted', 'processing', 'approved', 'rejected'
   cong_ty_id?: number;
   co_quan_bhxh_id?: number;
   loai_to_chuc?: string;
@@ -292,6 +292,13 @@ export interface DanhSachKeKhai {
   updated_at?: string;
   created_by?: string;
   updated_by?: string;
+  // Thêm các trường cho workflow duyệt kê khai
+  approved_by?: string;
+  approved_at?: string;
+  rejected_by?: string;
+  rejected_at?: string;
+  rejection_reason?: string;
+  processing_notes?: string;
 }
 
 // Interface cho bảng danh_sach_nguoi_tham_gia
@@ -347,6 +354,28 @@ export interface DmTinh {
   value: string;
   created_at: string;
   updated_at: string;
+}
+
+// Interface cho bảng dm_cskcb (Cơ sở Khám chữa bệnh)
+export interface DmCSKCB {
+  id: number;
+  ma: string;
+  ten: string;
+  text: string;
+  value: string;
+  ma_tinh: string;
+  dia_chi?: string;
+  so_dien_thoai?: string;
+  email?: string;
+  website?: string;
+  loai_cskcb?: string; // 'benh_vien', 'phong_kham', 'trung_tam_y_te', etc
+  cap_cskcb?: string; // 'trung_uong', 'tinh', 'huyen', 'xa'
+  trang_thai?: string; // 'active', 'inactive'
+  ghi_chu?: string;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string;
 }
 
 // Interface cho bảng dm_huyen
