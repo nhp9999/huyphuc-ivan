@@ -284,7 +284,7 @@ export interface DanhSachKeKhai {
   ngay_tao?: string;
   ty_le_nsnn_ho_tro?: number;
   ghi_chu?: string;
-  trang_thai: string; // 'draft', 'submitted', 'processing', 'approved', 'rejected'
+  trang_thai: string; // 'draft', 'submitted', 'processing', 'approved', 'rejected', 'pending_payment', 'paid'
   cong_ty_id?: number;
   co_quan_bhxh_id?: number;
   loai_to_chuc?: string;
@@ -295,10 +295,40 @@ export interface DanhSachKeKhai {
   // Thêm các trường cho workflow duyệt kê khai
   approved_by?: string;
   approved_at?: string;
+  // Thêm các trường cho thanh toán
+  payment_status?: string; // 'pending', 'processing', 'completed', 'failed', 'cancelled'
+  payment_id?: number;
+  total_amount?: number;
+  payment_required_at?: string;
+  payment_completed_at?: string;
   rejected_by?: string;
   rejected_at?: string;
   rejection_reason?: string;
   processing_notes?: string;
+}
+
+// Interface cho bảng thanh_toan
+export interface ThanhToan {
+  id: number;
+  ke_khai_id: number;
+  ma_thanh_toan: string;
+  so_tien: number;
+  phuong_thuc_thanh_toan: string; // 'qr_code', 'bank_transfer', 'cash'
+  trang_thai: string; // 'pending', 'processing', 'completed', 'failed', 'cancelled'
+  qr_code_data?: string;
+  qr_code_url?: string;
+  bank_info?: string; // JSON string chứa thông tin ngân hàng
+  transaction_id?: string;
+  payment_gateway?: string; // 'vietqr', 'vnpay', 'momo', etc.
+  payment_reference?: string;
+  payment_description?: string;
+  expired_at?: string;
+  paid_at?: string;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  updated_by?: string;
+  ghi_chu?: string;
 }
 
 // Interface cho bảng danh_sach_nguoi_tham_gia

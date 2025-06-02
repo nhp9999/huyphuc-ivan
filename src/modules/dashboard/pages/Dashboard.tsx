@@ -9,6 +9,7 @@ import TaskList from '../../../shared/components/widgets/TaskList';
 import QuickActions from '../../../shared/components/widgets/QuickActions';
 import SystemStatus from '../../../shared/components/widgets/SystemStatus';
 import QuickStats from '../../../shared/components/widgets/QuickStats';
+import PaymentNotification from '../../ke-khai/components/PaymentNotification';
 
 // Mock data for BHYT/BHXH dashboard
 const statsData = [
@@ -184,6 +185,9 @@ const quickStatsData = {
 const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
+      {/* Payment Notification */}
+      <PaymentNotification />
+
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tổng quan hệ thống</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">

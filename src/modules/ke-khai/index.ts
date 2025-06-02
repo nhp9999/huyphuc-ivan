@@ -4,6 +4,7 @@ export { default as KeKhai603Form } from './pages/KeKhai603Form';
 export { default as DeclarationCategories } from './pages/DeclarationCategories';
 export { default as DeclarationHistory } from './pages/DeclarationHistory';
 export { default as KeKhaiManagement } from './pages/KeKhaiManagement';
+export { default as MyPayments } from './pages/MyPayments';
 export { default as DaiLyDonViSelector } from './components/DaiLyDonViSelector';
 export { default as KeKhaiDetailModal } from './components/KeKhaiDetailModal';
 export { default as KeKhaiApprovalModal } from './components/KeKhaiApprovalModal';

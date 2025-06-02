@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Search,
-  Filter,
   Eye,
   CheckCircle,
   XCircle,
@@ -10,10 +9,7 @@ import {
   AlertCircle,
   Calendar,
   User,
-  Building,
-  Heart,
-  Stethoscope,
-  Building2
+  CreditCard
 } from 'lucide-react';
 import { DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
 import keKhaiService, { KeKhaiSearchParams } from '../services/keKhaiService';
@@ -21,7 +17,8 @@ import { useAuth } from '../../auth';
 import { useToast } from '../../../shared/hooks/useToast';
 import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import KeKhaiApprovalModal from '../components/KeKhaiApprovalModal';
-import cskcbService from '../../../shared/services/cskcbService';
+import PaymentQRModal from '../components/PaymentQRModal';
+import paymentService from '../services/paymentService';
 
 const KeKhaiManagement: React.FC = () => {
   const { user } = useAuth();
@@ -44,6 +41,8 @@ const KeKhaiManagement: React.FC = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState<any>(null);
 
   // Load data
   const loadKeKhaiData = async () => {
@@ -121,6 +120,20 @@ const KeKhaiManagement: React.FC = () => {
             Đang xử lý
           </span>
         );
+      case 'pending_payment':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Chờ thanh toán
+          </span>
+        );
+      case 'paid':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Đã thanh toán
+          </span>
+        );
       case 'approved':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
@@ -166,6 +179,30 @@ const KeKhaiManagement: React.FC = () => {
       approvalAction === 'approve' ? 'Đã duyệt kê khai thành công' : 'Đã từ chối kê khai thành công',
       'success'
     );
+  };
+
+  // Handle view payment
+  const handleViewPayment = async (keKhai: DanhSachKeKhai) => {
+    try {
+      const payment = await paymentService.getPaymentByKeKhaiId(keKhai.id);
+      if (payment) {
+        setPaymentInfo(payment);
+        setShowPaymentModal(true);
+      } else {
+        showToast('Không tìm thấy thông tin thanh toán', 'error');
+      }
+    } catch (error) {
+      console.error('Error fetching payment info:', error);
+      showToast('Không thể lấy thông tin thanh toán', 'error');
+    }
+  };
+
+  // Handle payment confirmed
+  const handlePaymentConfirmed = () => {
+    setShowPaymentModal(false);
+    setPaymentInfo(null);
+    loadKeKhaiData(); // Reload data
+    showToast('Thanh toán đã được xác nhận', 'success');
   };
 
   return (
@@ -346,7 +383,7 @@ const KeKhaiManagement: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          
+
                           {(keKhai.trang_thai === 'submitted' || keKhai.trang_thai === 'processing') && (
                             <>
                               <button
@@ -364,6 +401,16 @@ const KeKhaiManagement: React.FC = () => {
                                 <XCircle className="w-4 h-4" />
                               </button>
                             </>
+                          )}
+
+                          {keKhai.trang_thai === 'pending_payment' && (
+                            <button
+                              onClick={() => handleViewPayment(keKhai)}
+                              className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
+                              title="Xem thông tin thanh toán"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -396,6 +443,17 @@ const KeKhaiManagement: React.FC = () => {
             setSelectedKeKhai(null);
           }}
           onSuccess={handleApprovalSuccess}
+        />
+      )}
+
+      {showPaymentModal && paymentInfo && (
+        <PaymentQRModal
+          payment={paymentInfo}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setPaymentInfo(null);
+          }}
+          onPaymentConfirmed={handlePaymentConfirmed}
         />
       )}
     </div>

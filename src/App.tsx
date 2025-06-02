@@ -29,7 +29,8 @@ import {
   KeKhai603Form,
   DeclarationCategories,
   DeclarationHistory,
-  KeKhaiManagement
+  KeKhaiManagement,
+  MyPayments
 } from './modules/ke-khai';
 
 
@@ -153,6 +154,12 @@ const AppContent: React.FC = () => {
       <Route path="/ke-khai-management" element={
         <ProtectedRoute>
           <KeKhaiManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/my-payments" element={
+        <ProtectedRoute>
+          <MyPayments />
         </ProtectedRoute>
       } />
 

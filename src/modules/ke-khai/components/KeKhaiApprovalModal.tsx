@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, XCircle, AlertTriangle, FileText } from 'lucide-react';
-import { DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
+import { X, CheckCircle, XCircle, AlertTriangle, FileText, CreditCard } from 'lucide-react';
+import { DanhSachKeKhai, ThanhToan } from '../../../shared/services/api/supabaseClient';
 import keKhaiService, { ApproveKeKhaiRequest, RejectKeKhaiRequest } from '../services/keKhaiService';
 import { useAuth } from '../../auth';
+import PaymentQRModal from './PaymentQRModal';
 
 interface KeKhaiApprovalModalProps {
   keKhai: DanhSachKeKhai;
@@ -22,6 +23,8 @@ const KeKhaiApprovalModal: React.FC<KeKhaiApprovalModalProps> = ({
   const [rejectionReason, setRejectionReason] = useState('');
   const [processingNotes, setProcessingNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState<ThanhToan | null>(null);
 
   const isApprove = action === 'approve';
 
@@ -47,7 +50,13 @@ const KeKhaiApprovalModal: React.FC<KeKhaiApprovalModalProps> = ({
           approved_by: user.id,
           processing_notes: processingNotes.trim() || undefined
         };
-        await keKhaiService.approveKeKhai(keKhai.id, approveData);
+
+        // Duyệt kê khai và tạo yêu cầu thanh toán
+        const result = await keKhaiService.approveKeKhaiWithPayment(keKhai.id, approveData);
+
+        // Hiển thị modal thanh toán
+        setPaymentInfo(result.payment);
+        setShowPaymentModal(true);
       } else {
         const rejectData: RejectKeKhaiRequest = {
           rejected_by: user.id,
@@ -55,9 +64,8 @@ const KeKhaiApprovalModal: React.FC<KeKhaiApprovalModalProps> = ({
           processing_notes: processingNotes.trim() || undefined
         };
         await keKhaiService.rejectKeKhai(keKhai.id, rejectData);
+        onSuccess();
       }
-
-      onSuccess();
     } catch (err) {
       console.error('Error processing approval:', err);
       setError(
@@ -169,8 +177,8 @@ const KeKhaiApprovalModal: React.FC<KeKhaiApprovalModalProps> = ({
                 ? 'text-green-700 dark:text-green-300'
                 : 'text-red-700 dark:text-red-300'
             }`}>
-              {isApprove 
-                ? 'Kê khai sẽ được chuyển sang trạng thái "Đã duyệt" và không thể hoàn tác.'
+              {isApprove
+                ? 'Kê khai sẽ được duyệt và yêu cầu nhân viên thu thanh toán qua mã QR.'
                 : 'Kê khai sẽ được chuyển sang trạng thái "Từ chối" và cần được tạo lại.'
               }
             </p>
@@ -253,13 +261,28 @@ const KeKhaiApprovalModal: React.FC<KeKhaiApprovalModalProps> = ({
                     Đang xử lý...
                   </div>
                 ) : (
-                  isApprove ? 'Duyệt kê khai' : 'Từ chối kê khai'
+                  isApprove ? 'Duyệt kê khai & Tạo thanh toán' : 'Từ chối kê khai'
                 )}
               </button>
             </div>
           </div>
         </form>
       </div>
+
+      {/* Payment QR Modal */}
+      {showPaymentModal && paymentInfo && (
+        <PaymentQRModal
+          payment={paymentInfo}
+          onClose={() => {
+            setShowPaymentModal(false);
+            onClose();
+          }}
+          onPaymentConfirmed={() => {
+            setShowPaymentModal(false);
+            onSuccess();
+          }}
+        />
+      )}
     </div>
   );
 };

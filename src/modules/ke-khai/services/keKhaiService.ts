@@ -1,6 +1,7 @@
 import { supabase } from '../../../shared/services/api/supabaseClient';
-import { DanhSachKeKhai, DanhSachNguoiThamGia } from '../../../shared/services/api/supabaseClient';
+import { DanhSachKeKhai, DanhSachNguoiThamGia, ThanhToan } from '../../../shared/services/api/supabaseClient';
 import phanQuyenService from '../../quan-ly/services/phanQuyenService';
+import paymentService from './paymentService';
 
 export interface CreateKeKhaiRequest {
   ten_ke_khai: string;
@@ -330,7 +331,58 @@ class KeKhaiService {
     }
   }
 
-  // Duyệt kê khai
+  // Duyệt kê khai và tạo yêu cầu thanh toán
+  async approveKeKhaiWithPayment(id: number, data: ApproveKeKhaiRequest): Promise<{ keKhai: DanhSachKeKhai; payment: ThanhToan }> {
+    try {
+      // Tính tổng số tiền cần thanh toán
+      const totalAmount = await paymentService.calculateTotalAmount(id);
+
+      // Cập nhật trạng thái kê khai thành pending_payment
+      const { data: keKhaiResult, error: keKhaiError } = await supabase
+        .from('danh_sach_ke_khai')
+        .update({
+          trang_thai: 'pending_payment',
+          approved_by: data.approved_by,
+          approved_at: new Date().toISOString(),
+          processing_notes: data.processing_notes,
+          payment_status: 'pending',
+          total_amount: totalAmount,
+          payment_required_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          updated_by: data.approved_by
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (keKhaiError) {
+        console.error('Error approving ke khai:', keKhaiError);
+        throw new Error('Không thể duyệt kê khai');
+      }
+
+      // Tạo yêu cầu thanh toán
+      const payment = await paymentService.createPayment({
+        ke_khai_id: id,
+        so_tien: totalAmount,
+        phuong_thuc_thanh_toan: 'qr_code',
+        payment_description: `Thanh toán kê khai ${keKhaiResult.ma_ke_khai}`,
+        created_by: data.approved_by
+      });
+
+      // Cập nhật payment_id vào kê khai
+      await supabase
+        .from('danh_sach_ke_khai')
+        .update({ payment_id: payment.id })
+        .eq('id', id);
+
+      return { keKhai: keKhaiResult, payment };
+    } catch (error) {
+      console.error('Error in approveKeKhaiWithPayment:', error);
+      throw error;
+    }
+  }
+
+  // Duyệt kê khai (phương thức cũ - không yêu cầu thanh toán)
   async approveKeKhai(id: number, data: ApproveKeKhaiRequest): Promise<DanhSachKeKhai> {
     try {
       const { data: result, error } = await supabase
@@ -385,6 +437,48 @@ class KeKhaiService {
       return result;
     } catch (error) {
       console.error('Error in rejectKeKhai:', error);
+      throw error;
+    }
+  }
+
+  // Xác nhận thanh toán và hoàn thành kê khai
+  async confirmPayment(keKhaiId: number, paymentId: number, transactionId?: string, confirmedBy?: string): Promise<DanhSachKeKhai> {
+    try {
+      // Cập nhật trạng thái thanh toán
+      await paymentService.updatePaymentStatus(paymentId, 'completed', transactionId, confirmedBy);
+
+      // Cập nhật trạng thái kê khai thành paid
+      const { data: result, error } = await supabase
+        .from('danh_sach_ke_khai')
+        .update({
+          trang_thai: 'paid',
+          payment_status: 'completed',
+          payment_completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          updated_by: confirmedBy
+        })
+        .eq('id', keKhaiId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error confirming payment:', error);
+        throw new Error('Không thể xác nhận thanh toán');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in confirmPayment:', error);
+      throw error;
+    }
+  }
+
+  // Lấy thông tin thanh toán của kê khai
+  async getPaymentInfo(keKhaiId: number): Promise<ThanhToan | null> {
+    try {
+      return await paymentService.getPaymentByKeKhaiId(keKhaiId);
+    } catch (error) {
+      console.error('Error in getPaymentInfo:', error);
       throw error;
     }
   }
