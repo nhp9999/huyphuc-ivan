@@ -275,6 +275,105 @@ class NguoiDungService {
     }
   }
 
+  // Lấy đại lý của nhân viên thu dựa trên tổ chức hiện tại
+  async getUserDaiLy(userId: number, organizationType: string, organizationId: number): Promise<any[]> {
+    try {
+      // Sử dụng raw SQL để join các bảng và lấy đại lý của user
+      const { data, error } = await supabase.rpc('get_user_dai_ly', {
+        p_user_id: userId,
+        p_organization_type: organizationType,
+        p_organization_id: organizationId
+      });
+
+      if (error) {
+        console.error('Error fetching user dai ly:', error);
+        // Fallback: nếu function chưa có, dùng query trực tiếp
+        return await this.getUserDaiLyFallback(userId, organizationType, organizationId);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getUserDaiLy:', error);
+      // Fallback: dùng query trực tiếp
+      return await this.getUserDaiLyFallback(userId, organizationType, organizationId);
+    }
+  }
+
+  // Fallback method sử dụng query trực tiếp
+  private async getUserDaiLyFallback(userId: number, organizationType: string, organizationId: number): Promise<any[]> {
+    try {
+      let query = supabase
+        .from('v_dai_ly_chitiet')
+        .select('*')
+        .eq('trang_thai', 'active');
+
+      // Lọc đại lý theo tổ chức của user
+      if (organizationType === 'cong_ty') {
+        query = query.eq('cong_ty_id', organizationId);
+      } else if (organizationType === 'co_quan_bhxh') {
+        query = query.eq('co_quan_bhxh_id', organizationId);
+      }
+
+      query = query.order('ten', { ascending: true });
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching user dai ly fallback:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getUserDaiLyFallback:', error);
+      throw error;
+    }
+  }
+
+  // Lấy đơn vị của đại lý cho nhân viên thu
+  async getUserDonViByDaiLy(daiLyId: number): Promise<any[]> {
+    try {
+      // Sử dụng function để lấy đơn vị theo đại lý
+      const { data, error } = await supabase.rpc('get_don_vi_by_dai_ly', {
+        p_dai_ly_id: daiLyId
+      });
+
+      if (error) {
+        console.error('Error fetching don vi by dai ly:', error);
+        // Fallback: nếu function chưa có, dùng query trực tiếp
+        return await this.getUserDonViByDaiLyFallback(daiLyId);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getUserDonViByDaiLy:', error);
+      // Fallback: dùng query trực tiếp
+      return await this.getUserDonViByDaiLyFallback(daiLyId);
+    }
+  }
+
+  // Fallback method cho getUserDonViByDaiLy
+  private async getUserDonViByDaiLyFallback(daiLyId: number): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('v_dai_ly_don_vi')
+        .select('*')
+        .eq('dai_ly_id', daiLyId)
+        .not('don_vi_id', 'is', null)
+        .order('ten_don_vi', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching don vi by dai ly fallback:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getUserDonViByDaiLyFallback:', error);
+      throw error;
+    }
+  }
+
   // Tìm kiếm người dùng
   async searchNguoiDung(searchTerm: string): Promise<DmNguoiDung[]> {
     try {

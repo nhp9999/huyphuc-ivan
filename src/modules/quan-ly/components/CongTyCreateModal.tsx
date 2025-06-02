@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Building2, Save, AlertCircle } from 'lucide-react';
+import { X, Building2, Save, AlertCircle, Info } from 'lucide-react';
 import congTyService, { CreateCongTyRequest } from '../services/congTyService';
 
 interface CongTyCreateModalProps {
@@ -311,6 +311,21 @@ const CongTyCreateModal: React.FC<CongTyCreateModalProps> = ({ onClose, onSucces
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Ghi chú thêm về công ty"
             />
+          </div>
+
+          {/* Dai Ly Info */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+                  Quản lý đại lý
+                </h4>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  Sau khi tạo công ty thành công, bạn có thể chỉnh sửa công ty để thêm và quản lý các đại lý thuộc công ty này.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Actions */}

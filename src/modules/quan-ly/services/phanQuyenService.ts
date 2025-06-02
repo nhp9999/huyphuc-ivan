@@ -5,6 +5,7 @@ export interface CreatePhanQuyenRequest {
   vai_tro_id: number;
   cong_ty_id?: number;
   co_quan_bhxh_id?: number;
+  dai_ly_id?: number; // Thêm trường đại lý cho nhân viên thu
   loai_to_chuc: 'cong_ty' | 'co_quan_bhxh' | 'he_thong';
   cap_do_quyen: 'user' | 'admin' | 'super_admin';
   ngay_bat_dau?: string;
@@ -172,11 +173,42 @@ class PhanQuyenService {
     }
   }
 
+  // Lấy đại lý theo tổ chức (cho form phân quyền)
+  async getDaiLyByOrganization(organizationType: string, organizationId: number): Promise<any[]> {
+    try {
+      let query = supabase
+        .from('dm_dai_ly')
+        .select('id, ma, ten, cap, loai_to_chuc')
+        .eq('trang_thai', 'active');
+
+      // Lọc đại lý theo tổ chức
+      if (organizationType === 'cong_ty') {
+        query = query.eq('cong_ty_id', organizationId);
+      } else if (organizationType === 'co_quan_bhxh') {
+        query = query.eq('co_quan_bhxh_id', organizationId);
+      }
+
+      query = query.order('ten', { ascending: true });
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching dai ly by organization:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getDaiLyByOrganization:', error);
+      throw error;
+    }
+  }
+
   // Kiểm tra quyền của người dùng
   async checkUserPermission(
-    userId: number, 
-    organizationType: string, 
-    organizationId: number, 
+    userId: number,
+    organizationType: string,
+    organizationId: number,
     requiredPermission: string
   ): Promise<boolean> {
     try {

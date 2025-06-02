@@ -15,6 +15,7 @@ import {
   Trash2,
   Eye
 } from 'lucide-react';
+import DaiLyDonViSelector from '../components/DaiLyDonViSelector';
 
 const KeKhai603: React.FC = () => {
   const { pageParams, setCurrentPage } = useNavigation();
@@ -180,7 +181,20 @@ const KeKhai603: React.FC = () => {
     }));
   };
 
-  // Xử lý khi chọn đơn vị
+  // Xử lý khi chọn đại lý từ component mới
+  const handleNewDaiLyChange = (daiLyId: number | null) => {
+    handleInputChange('chonDaiLy', daiLyId ? daiLyId.toString() : '');
+  };
+
+  // Xử lý khi chọn đơn vị từ component mới
+  const handleNewDonViChange = (donViId: number | null) => {
+    handleInputChange('chonDonVi', donViId ? donViId.toString() : '');
+
+    // Reset đối tượng tham gia về mặc định khi thay đổi đơn vị
+    handleInputChange('doiTuongThamGia', 'GD - Hộ gia đình');
+  };
+
+  // Xử lý khi chọn đơn vị (legacy - giữ lại cho tương thích)
   const handleDonViChange = (donViId: string) => {
     const selectedDonViData = donViList.find(dv => dv.id.toString() === donViId);
     setSelectedDonVi(selectedDonViData || null);
@@ -453,16 +467,7 @@ const KeKhai603: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Thông tin đại lý</h3>
             <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 sm:mt-0">
-              {loadingDonVi ? (
-                <span className="flex items-center space-x-1">
-                  <RefreshCw className="w-3 h-3 animate-spin" />
-                  <span>Đang tải...</span>
-                </span>
-              ) : (
-                <span>
-                  Có <strong className="text-blue-600 dark:text-blue-400">{filteredDonViList.length}</strong> đơn vị BHYT khả dụng
-                </span>
-              )}
+              <span>Đại lý và đơn vị được tự động chọn theo tài khoản</span>
             </div>
           </div>
           <div className="space-y-4 sm:space-y-6">
@@ -478,84 +483,12 @@ const KeKhai603: React.FC = () => {
                 Biên lai điện tử
               </label>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Chọn đại lý (*)
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.chonDaiLy}
-                    onChange={(e) => handleDaiLyChange(e.target.value)}
-                    disabled={loadingDaiLy}
-                    className="w-full px-3 py-3 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">
-                      {loadingDaiLy
-                        ? 'Đang tải đại lý...'
-                        : filteredDaiLyList.length === 0
-                        ? 'Không có đại lý nào'
-                        : 'Chọn đại lý'}
-                    </option>
-                    {filteredDaiLyList.map((daiLy) => (
-                      <option key={daiLy.id} value={daiLy.id.toString()}>
-                        {daiLy.ma} - {daiLy.ten}
-                      </option>
-                    ))}
-                  </select>
-                  {loadingDaiLy && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {loadingDaiLy ? (
-                    <span className="flex items-center space-x-1">
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                      <span>Đang tải đại lý...</span>
-                    </span>
-                  ) : (
-                    <span>
-                      Có <strong className="text-green-600 dark:text-green-400">{filteredDaiLyList.length}</strong> đại lý khả dụng
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Chọn đơn vị (*)
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.chonDonVi}
-                    onChange={(e) => handleDonViChange(e.target.value)}
-                    disabled={loadingDonVi}
-                    className="w-full px-3 py-3 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <option value="">
-                      {loadingDonVi
-                        ? 'Đang tải đơn vị...'
-                        : filteredDonViList.length === 0
-                        ? 'Không có đơn vị BHYT nào'
-                        : 'Chọn đơn vị'}
-                    </option>
-                    {filteredDonViList.map((donVi) => (
-                      <option key={donVi.id} value={donVi.id.toString()}>
-                        {donVi.ma_so_bhxh} - {donVi.ten_don_vi}
-                      </option>
-                    ))}
-                  </select>
-                  {loadingDonVi && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            </div>
+            {/* Component mới để chọn đại lý và đơn vị */}
+            <DaiLyDonViSelector
+              onDaiLyChange={handleNewDaiLyChange}
+              onDonViChange={handleNewDonViChange}
+              selectedDonViId={formData.chonDonVi ? parseInt(formData.chonDonVi) : null}
+            />
           </div>
         </div>
 

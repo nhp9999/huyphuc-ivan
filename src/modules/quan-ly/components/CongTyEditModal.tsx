@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Building2, Save, AlertCircle } from 'lucide-react';
 import { DmCongTy } from '../../../shared/services/api/supabaseClient';
 import congTyService, { UpdateCongTyRequest } from '../services/congTyService';
+import DaiLyManagementSection from './DaiLyManagementSection';
 
 interface CongTyEditModalProps {
   congTy: DmCongTy;
@@ -26,6 +27,7 @@ const CongTyEditModal: React.FC<CongTyEditModalProps> = ({ congTy, onClose, onSu
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [daiLyCount, setDaiLyCount] = useState(0);
 
   const validateForm = async (): Promise<boolean> => {
     const errors: Record<string, string> = {};
@@ -137,7 +139,7 @@ const CongTyEditModal: React.FC<CongTyEditModalProps> = ({ congTy, onClose, onSu
                 Chỉnh sửa công ty
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Cập nhật thông tin công ty: {congTy.ten_cong_ty}
+                Cập nhật thông tin công ty và quản lý đại lý ({daiLyCount} đại lý)
               </p>
             </div>
           </div>
@@ -313,6 +315,14 @@ const CongTyEditModal: React.FC<CongTyEditModalProps> = ({ congTy, onClose, onSu
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Ghi chú thêm về công ty"
+            />
+          </div>
+
+          {/* Dai Ly Management Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+            <DaiLyManagementSection
+              congTyId={congTy.id}
+              onDaiLyCountChange={setDaiLyCount}
             />
           </div>
 

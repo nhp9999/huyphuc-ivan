@@ -195,6 +195,94 @@ class CongTyService {
       throw error;
     }
   }
+
+  // Lấy đại lý của công ty
+  async getDaiLyByCongTy(congTyId: number): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('dm_dai_ly')
+        .select('id, ma, ten, cap, loai_to_chuc, trang_thai, ngay_tao')
+        .eq('cong_ty_id', congTyId)
+        .eq('trang_thai', 'active')
+        .order('ten', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching dai ly by cong ty:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getDaiLyByCongTy:', error);
+      throw error;
+    }
+  }
+
+  // Lấy đại lý chưa thuộc công ty nào (để thêm vào công ty)
+  async getAvailableDaiLy(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('dm_dai_ly')
+        .select('id, ma, ten, cap, loai_to_chuc')
+        .is('cong_ty_id', null)
+        .eq('trang_thai', 'active')
+        .order('ten', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching available dai ly:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getAvailableDaiLy:', error);
+      throw error;
+    }
+  }
+
+  // Liên kết đại lý với công ty
+  async linkDaiLyToCongTy(daiLyId: number, congTyId: number): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('dm_dai_ly')
+        .update({
+          cong_ty_id: congTyId,
+          loai_to_chuc: 'cong_ty',
+          ngay_cap_nhat: new Date().toISOString()
+        })
+        .eq('id', daiLyId);
+
+      if (error) {
+        console.error('Error linking dai ly to cong ty:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error in linkDaiLyToCongTy:', error);
+      throw error;
+    }
+  }
+
+  // Hủy liên kết đại lý khỏi công ty
+  async unlinkDaiLyFromCongTy(daiLyId: number): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('dm_dai_ly')
+        .update({
+          cong_ty_id: null,
+          loai_to_chuc: null,
+          ngay_cap_nhat: new Date().toISOString()
+        })
+        .eq('id', daiLyId);
+
+      if (error) {
+        console.error('Error unlinking dai ly from cong ty:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error in unlinkDaiLyFromCongTy:', error);
+      throw error;
+    }
+  }
 }
 
 export const congTyService = new CongTyService();

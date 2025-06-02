@@ -23,6 +23,7 @@ const PhanQuyenCreateModal: React.FC<PhanQuyenCreateModalProps> = ({ nguoiDungId
   const [vaiTroList, setVaiTroList] = useState<DmVaiTro[]>([]);
   const [congTyList, setCongTyList] = useState<DmCongTy[]>([]);
   const [coQuanList, setCoQuanList] = useState<DmCoQuanBhxh[]>([]);
+  const [daiLyList, setDaiLyList] = useState<any[]>([]); // Thêm state cho đại lý
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -67,6 +68,11 @@ const PhanQuyenCreateModal: React.FC<PhanQuyenCreateModalProps> = ({ nguoiDungId
       errors.co_quan_bhxh_id = 'Cơ quan BHXH là bắt buộc';
     }
 
+    // Validation cho đại lý (bắt buộc với nhân viên thu)
+    if (isNhanVienThu() && !formData.dai_ly_id) {
+      errors.dai_ly_id = 'Đại lý là bắt buộc cho nhân viên thu';
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -74,11 +80,12 @@ const PhanQuyenCreateModal: React.FC<PhanQuyenCreateModalProps> = ({ nguoiDungId
   const handleInputChange = (field: keyof CreatePhanQuyenRequest, value: any) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
-      
+
       // Reset organization fields when changing type
       if (field === 'loai_to_chuc') {
         newData.cong_ty_id = undefined;
         newData.co_quan_bhxh_id = undefined;
+        newData.dai_ly_id = undefined; // Reset đại lý khi thay đổi loại tổ chức
       }
 
       return newData;
@@ -91,6 +98,35 @@ const PhanQuyenCreateModal: React.FC<PhanQuyenCreateModalProps> = ({ nguoiDungId
         [field]: ''
       }));
     }
+
+    // Load đại lý khi thay đổi tổ chức
+    if (field === 'cong_ty_id' || field === 'co_quan_bhxh_id') {
+      loadDaiLyByOrganization(value);
+    }
+  };
+
+  // Load đại lý theo tổ chức được chọn
+  const loadDaiLyByOrganization = async (organizationId?: number) => {
+    const orgId = organizationId || (formData.loai_to_chuc === 'cong_ty' ? formData.cong_ty_id : formData.co_quan_bhxh_id);
+
+    if (!orgId) {
+      setDaiLyList([]);
+      return;
+    }
+
+    try {
+      const daiLyData = await phanQuyenService.getDaiLyByOrganization(formData.loai_to_chuc, orgId);
+      setDaiLyList(daiLyData);
+    } catch (err) {
+      console.error('Error loading dai ly:', err);
+      setDaiLyList([]);
+    }
+  };
+
+  // Kiểm tra xem có phải vai trò nhân viên thu không
+  const isNhanVienThu = () => {
+    const selectedRole = vaiTroList.find(role => role.id === formData.vai_tro_id);
+    return selectedRole?.ten_vai_tro?.toLowerCase().includes('nhân viên thu') || selectedRole?.id === 1;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -285,6 +321,41 @@ const PhanQuyenCreateModal: React.FC<PhanQuyenCreateModalProps> = ({ nguoiDungId
                   {validationErrors.co_quan_bhxh_id}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Đại lý Selection - chỉ hiển thị cho nhân viên thu */}
+          {isNhanVienThu() && (formData.cong_ty_id || formData.co_quan_bhxh_id) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Chọn đại lý <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.dai_ly_id || ''}
+                onChange={(e) => handleInputChange('dai_ly_id', parseInt(e.target.value))}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                  validationErrors.dai_ly_id
+                    ? 'border-red-300 dark:border-red-600'
+                    : 'border-gray-300 dark:border-gray-600'
+                }`}
+              >
+                <option value="">
+                  {daiLyList.length === 0 ? 'Không có đại lý nào' : 'Chọn đại lý'}
+                </option>
+                {daiLyList.map(daiLy => (
+                  <option key={daiLy.id} value={daiLy.id}>
+                    {daiLy.ten} ({daiLy.ma})
+                  </option>
+                ))}
+              </select>
+              {validationErrors.dai_ly_id && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {validationErrors.dai_ly_id}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Nhân viên thu sẽ chỉ có thể làm việc với đại lý được chọn và các đơn vị thuộc đại lý này
+              </p>
             </div>
           )}
 
