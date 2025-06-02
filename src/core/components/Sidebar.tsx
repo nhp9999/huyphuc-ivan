@@ -15,7 +15,8 @@ import {
   Store,
   UserCheck,
   Building,
-  CheckCircle
+  CheckCircle,
+  DollarSign
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -40,6 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
         { icon: <History size={20} />, label: 'Lịch sử kê khai', page: 'declaration-history' as const, badge: null },
         { icon: <CheckCircle size={20} />, label: 'Quản lý kê khai', page: 'ke-khai-management' as const, badge: null },
         { icon: <CreditCard size={20} />, label: 'Thanh toán của tôi', page: 'my-payments' as const, badge: 'New' },
+        { icon: <DollarSign size={20} />, label: 'Quản lý thanh toán', page: 'payment-management' as const, badge: 'New' },
       ]
     },
     {

@@ -61,47 +61,13 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
       }
     }
 
-    // If no pageParams or no formData, create default declaration for testing
+    // If no pageParams or no formData, don't create default declaration
+    // This prevents automatic creation of unwanted declarations
     if (!pageParams?.formData) {
-      // Prepare organization data based on user's current organization
-      const organizationData: { cong_ty_id?: number; co_quan_bhxh_id?: number } = {};
-      if (user?.currentOrganization) {
-        if (user.currentOrganization.organization_type === 'cong_ty') {
-          organizationData.cong_ty_id = user.currentOrganization.organization_id;
-        } else if (user.currentOrganization.organization_type === 'co_quan_bhxh') {
-          organizationData.co_quan_bhxh_id = user.currentOrganization.organization_id;
-        }
-      }
-
-      const defaultKeKhaiData = {
-        ten_ke_khai: 'Kê khai 603 test',
-        loai_ke_khai: '603',
-        doi_tuong_tham_gia: 'GD - Hộ gia đình',
-        hinh_thuc_tinh: 'Hỗ trợ dựa trên mức đóng từng người',
-        luong_co_so: 2340000,
-        nguon_dong: 'Tự đóng',
-        created_by: user?.id || 'system',
-        ...organizationData
+      return {
+        success: false,
+        message: 'Không có thông tin để khởi tạo kê khai. Vui lòng tạo kê khai mới từ trang chính.'
       };
-
-      try {
-        setSaving(true);
-        const newKeKhai = await keKhaiService.createKeKhai(defaultKeKhaiData);
-        setKeKhaiInfo(newKeKhai);
-        return {
-          success: true,
-          message: `Đã tạo kê khai 603 ${newKeKhai.ma_ke_khai} thành công!`,
-          data: newKeKhai
-        };
-      } catch (error) {
-        console.error('Error creating default ke khai:', error);
-        return {
-          success: false,
-          message: 'Có lỗi xảy ra khi tạo kê khai 603. Vui lòng thử lại.'
-        };
-      } finally {
-        setSaving(false);
-      }
     }
 
     try {
@@ -156,15 +122,61 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
     }
   }, [pageParams, initialized]);
 
+  // Create a new declaration manually (for testing or when needed)
+  const createNewKeKhai = useCallback(async () => {
+    // Prepare organization data based on user's current organization
+    const organizationData: { cong_ty_id?: number; co_quan_bhxh_id?: number } = {};
+    if (user?.currentOrganization) {
+      if (user.currentOrganization.organization_type === 'cong_ty') {
+        organizationData.cong_ty_id = user.currentOrganization.organization_id;
+      } else if (user.currentOrganization.organization_type === 'co_quan_bhxh') {
+        organizationData.co_quan_bhxh_id = user.currentOrganization.organization_id;
+      }
+    }
+
+    const defaultKeKhaiData = {
+      ten_ke_khai: 'Kê khai 603 test',
+      loai_ke_khai: '603',
+      doi_tuong_tham_gia: 'GD - Hộ gia đình',
+      hinh_thuc_tinh: 'Hỗ trợ dựa trên mức đóng từng người',
+      luong_co_so: 2340000,
+      nguon_dong: 'Tự đóng',
+      created_by: user?.id || 'system',
+      ...organizationData
+    };
+
+    try {
+      setSaving(true);
+      const newKeKhai = await keKhaiService.createKeKhai(defaultKeKhaiData);
+      setKeKhaiInfo(newKeKhai);
+      return {
+        success: true,
+        message: `Đã tạo kê khai 603 ${newKeKhai.ma_ke_khai} thành công!`,
+        data: newKeKhai
+      };
+    } catch (error) {
+      console.error('Error creating new ke khai:', error);
+      return {
+        success: false,
+        message: 'Có lỗi xảy ra khi tạo kê khai 603. Vui lòng thử lại.'
+      };
+    } finally {
+      setSaving(false);
+    }
+  }, [user]);
+
   // Initialize declaration when component mounts or pageParams changes
   useEffect(() => {
-    // Initialize on first mount or when pageParams actually changed
-    if (!initialized || JSON.stringify(lastPageParamsRef.current) !== JSON.stringify(pageParams)) {
-      setInitialized(false);
-      // Automatically initialize
-      initializeKeKhai().catch(error => {
-        console.error('Auto-initialization failed:', error);
-      });
+    // Only initialize if we have valid pageParams with keKhaiId or formData
+    // This prevents unwanted automatic creation of declarations
+    if (pageParams && (pageParams.keKhaiId || pageParams.formData)) {
+      if (!initialized || JSON.stringify(lastPageParamsRef.current) !== JSON.stringify(pageParams)) {
+        setInitialized(false);
+        // Automatically initialize only when we have valid data
+        initializeKeKhai().catch(error => {
+          console.error('Auto-initialization failed:', error);
+        });
+      }
     }
   }, [pageParams, initializeKeKhai, initialized]);
 
@@ -358,6 +370,7 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
     inputMode,
     setInputMode,
     initializeKeKhai,
+    createNewKeKhai,
     submitDeclaration,
     saveAllParticipants
   };

@@ -12,7 +12,7 @@ interface DonViCreateModalProps {
 
 interface FormData {
   ma_co_quan_bhxh: string;
-  ma_so_bhxh: string;
+  ma_don_vi: string;
   ten_don_vi: string;
   is_bhxh_tn: number;
   is_bhyt: number;
@@ -26,7 +26,7 @@ interface FormData {
 const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState<FormData>({
     ma_co_quan_bhxh: '',
-    ma_so_bhxh: '',
+    ma_don_vi: '',
     ten_don_vi: '',
     is_bhxh_tn: 0,
     is_bhyt: 0,
@@ -126,8 +126,8 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
       errors.ten_don_vi = 'Tên đơn vị là bắt buộc';
     }
 
-    if (!formData.ma_so_bhxh.trim()) {
-      errors.ma_so_bhxh = 'Mã số BHXH là bắt buộc';
+    if (!formData.ma_don_vi.trim()) {
+      errors.ma_don_vi = 'Mã đơn vị là bắt buộc';
     }
 
     if (!formData.ma_co_quan_bhxh.trim()) {
@@ -150,10 +150,10 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
     setError(null);
 
     try {
-      // Check if ma_so_bhxh already exists
-      const exists = await donViService.checkMaSoBHXHExists(formData.ma_so_bhxh);
+      // Check if ma_don_vi already exists
+      const exists = await donViService.checkMaDonViExists(formData.ma_don_vi);
       if (exists) {
-        setValidationErrors({ ma_so_bhxh: 'Mã số BHXH đã tồn tại' });
+        setValidationErrors({ ma_don_vi: 'Mã đơn vị đã tồn tại' });
         setSaving(false);
         return;
       }
@@ -161,7 +161,7 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
       // Create the new unit
       const createData = {
         ma_co_quan_bhxh: formData.ma_co_quan_bhxh,
-        ma_so_bhxh: formData.ma_so_bhxh,
+        ma_don_vi: formData.ma_don_vi,
         ten_don_vi: formData.ten_don_vi,
         is_bhxh_tn: formData.is_bhxh_tn,
         is_bhyt: formData.is_bhyt,
@@ -254,22 +254,22 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
                 )}
               </div>
 
-              {/* Mã số BHXH */}
+              {/* Mã đơn vị */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Mã số BHXH <span className="text-red-500">*</span>
+                  Mã đơn vị <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.ma_so_bhxh}
-                  onChange={(e) => handleInputChange('ma_so_bhxh', e.target.value)}
+                  value={formData.ma_don_vi}
+                  onChange={(e) => handleInputChange('ma_don_vi', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
-                    validationErrors.ma_so_bhxh ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+                    validationErrors.ma_don_vi ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
                   }`}
-                  placeholder="Nhập mã số BHXH"
+                  placeholder="Nhập mã đơn vị"
                 />
-                {validationErrors.ma_so_bhxh && (
-                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">{validationErrors.ma_so_bhxh}</p>
+                {validationErrors.ma_don_vi && (
+                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">{validationErrors.ma_don_vi}</p>
                 )}
               </div>
             </div>

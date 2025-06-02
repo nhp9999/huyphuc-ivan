@@ -41,7 +41,7 @@ class DonViService {
       // Tìm kiếm theo từ khóa
       if (params.searchTerm && params.searchTerm.trim()) {
         const searchTerm = params.searchTerm.trim();
-        query = query.or(`ten_don_vi.ilike.%${searchTerm}%,ma_so_bhxh.ilike.%${searchTerm}%,ma_co_quan_bhxh.ilike.%${searchTerm}%`);
+        query = query.or(`ten_don_vi.ilike.%${searchTerm}%,ma_don_vi.ilike.%${searchTerm}%,ma_co_quan_bhxh.ilike.%${searchTerm}%`);
       }
 
       // Lọc theo mã cơ quan BHXH
@@ -103,24 +103,24 @@ class DonViService {
     }
   }
 
-  // Lấy đơn vị theo mã số BHXH
-  async getDonViByMaSoBHXH(maSoBHXH: string): Promise<VDonViChiTiet | null> {
+  // Lấy đơn vị theo mã đơn vị
+  async getDonViByMaDonVi(maDonVi: string): Promise<VDonViChiTiet | null> {
     try {
       const { data, error } = await supabase
         .from('v_don_vi_chitiet')
         .select('*')
-        .eq('ma_so_bhxh', maSoBHXH)
+        .eq('ma_don_vi', maDonVi)
         .eq('trang_thai', 'active')
         .single();
 
       if (error) {
-        console.error('Error fetching don vi by ma so bhxh:', error);
+        console.error('Error fetching don vi by ma don vi:', error);
         throw error;
       }
 
       return data;
     } catch (error) {
-      console.error('Error in getDonViByMaSoBHXH:', error);
+      console.error('Error in getDonViByMaDonVi:', error);
       throw error;
     }
   }
@@ -345,13 +345,13 @@ class DonViService {
     }
   }
 
-  // Kiểm tra mã số BHXH có tồn tại không
-  async checkMaSoBHXHExists(maSoBHXH: string, excludeId?: number): Promise<boolean> {
+  // Kiểm tra mã đơn vị có tồn tại không
+  async checkMaDonViExists(maDonVi: string, excludeId?: number): Promise<boolean> {
     try {
       let query = supabase
         .from('dm_don_vi')
         .select('id')
-        .eq('ma_so_bhxh', maSoBHXH)
+        .eq('ma_don_vi', maDonVi)
         .eq('trang_thai', 'active');
 
       if (excludeId) {
@@ -361,13 +361,13 @@ class DonViService {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error checking ma so bhxh:', error);
+        console.error('Error checking ma don vi:', error);
         throw error;
       }
 
       return (data?.length || 0) > 0;
     } catch (error) {
-      console.error('Error in checkMaSoBHXHExists:', error);
+      console.error('Error in checkMaDonViExists:', error);
       throw error;
     }
   }

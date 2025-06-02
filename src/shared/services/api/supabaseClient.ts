@@ -113,7 +113,7 @@ export interface DmLuongCoSo {
 export interface DmDonVi {
   id: number;
   ma_co_quan_bhxh?: string;
-  ma_so_bhxh?: string;
+  ma_don_vi?: string;
   ten_don_vi: string;
   is_bhxh_tn: number;
   is_bhyt: number;
@@ -140,7 +140,7 @@ export interface DmKhoiKcb {
 export interface VDonViChiTiet {
   id: number;
   ma_co_quan_bhxh?: string;
-  ma_so_bhxh?: string;
+  ma_don_vi?: string;
   ten_don_vi: string;
   is_bhxh_tn: number;
   is_bhyt: number;
@@ -215,7 +215,7 @@ export interface DaiLyDonVi {
 export interface VDonViDaiLy {
   don_vi_id: number;
   ma_co_quan_bhxh?: string;
-  ma_so_bhxh?: string;
+  ma_don_vi?: string;
   ten_don_vi: string;
   is_bhxh_tn: number;
   is_bhyt: number;
@@ -258,7 +258,7 @@ export interface VDaiLyDonVi {
   ten_cap: string;
   // Thông tin đơn vị (có thể null nếu chưa liên kết)
   don_vi_id?: number;
-  ma_so_bhxh?: string;
+  ma_don_vi?: string;
   ten_don_vi?: string;
   loai_dich_vu?: string;
   loai_don_vi?: string;
@@ -322,6 +322,8 @@ export interface ThanhToan {
   payment_gateway?: string; // 'vietqr', 'vnpay', 'momo', etc.
   payment_reference?: string;
   payment_description?: string;
+  proof_image_url?: string;
+  confirmation_note?: string;
   expired_at?: string;
   paid_at?: string;
   created_at?: string;
@@ -499,6 +501,7 @@ export interface DmNguoiDung {
   avatar_url?: string;
   last_login?: string;
   trang_thai: string;
+  ma_nhan_vien?: string;
   created_at: string;
   updated_at: string;
   created_by?: string;

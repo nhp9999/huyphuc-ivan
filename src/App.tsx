@@ -30,8 +30,10 @@ import {
   DeclarationCategories,
   DeclarationHistory,
   KeKhaiManagement,
-  MyPayments
+  MyPayments,
+  PaymentManagement
 } from './modules/ke-khai';
+import TestPaymentDisplay from './test-payment-display';
 
 
 // Protected Route component
@@ -160,6 +162,18 @@ const AppContent: React.FC = () => {
       <Route path="/my-payments" element={
         <ProtectedRoute>
           <MyPayments />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/payment-management" element={
+        <ProtectedRoute>
+          <PaymentManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/test-payment-display" element={
+        <ProtectedRoute>
+          <TestPaymentDisplay />
         </ProtectedRoute>
       } />
 

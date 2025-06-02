@@ -27,6 +27,7 @@ const KeKhai603Form: React.FC = () => {
     inputMode,
     setInputMode,
     initializeKeKhai,
+    createNewKeKhai,
     submitDeclaration,
     saveAllParticipants
   } = useKeKhai603(pageParams);
@@ -140,19 +141,8 @@ const KeKhai603Form: React.FC = () => {
   const handleSaveAll = async () => {
     // Check if keKhaiInfo is available
     if (!keKhaiInfo) {
-      showToast('Đang khởi tạo kê khai, vui lòng đợi...', 'warning');
-      try {
-        // Try to initialize if not already done
-        const result = await initializeKeKhai();
-        if (!result.success) {
-          showToast(result.message, 'error');
-          return;
-        }
-      } catch (error) {
-        console.error('Initialization error:', error);
-        showToast('Không thể khởi tạo kê khai. Vui lòng thử lại.', 'error');
-        return;
-      }
+      showToast('Chưa có thông tin kê khai để lưu. Vui lòng tạo kê khai mới từ trang chính.', 'error');
+      return;
     }
 
     try {
@@ -173,19 +163,8 @@ const KeKhai603Form: React.FC = () => {
   const handleSubmit = async () => {
     // Check if keKhaiInfo is available
     if (!keKhaiInfo) {
-      showToast('Đang khởi tạo kê khai, vui lòng đợi...', 'warning');
-      try {
-        // Try to initialize if not already done
-        const result = await initializeKeKhai();
-        if (!result.success) {
-          showToast(result.message, 'error');
-          return;
-        }
-      } catch (error) {
-        console.error('Initialization error:', error);
-        showToast('Không thể khởi tạo kê khai. Vui lòng thử lại.', 'error');
-        return;
-      }
+      showToast('Chưa có thông tin kê khai để nộp. Vui lòng tạo kê khai mới từ trang chính.', 'error');
+      return;
     }
 
     try {
@@ -205,19 +184,8 @@ const KeKhai603Form: React.FC = () => {
   const handleAddParticipant = async () => {
     // Check if keKhaiInfo is available
     if (!keKhaiInfo) {
-      showToast('Đang khởi tạo kê khai, vui lòng đợi...', 'warning');
-      try {
-        // Try to initialize if not already done
-        const result = await initializeKeKhai();
-        if (!result.success) {
-          showToast(result.message, 'error');
-          return;
-        }
-      } catch (error) {
-        console.error('Initialization error:', error);
-        showToast('Không thể khởi tạo kê khai. Vui lòng thử lại.', 'error');
-        return;
-      }
+      showToast('Chưa có thông tin kê khai. Vui lòng tạo kê khai mới từ trang chính.', 'error');
+      return;
     }
 
     try {
@@ -240,6 +208,21 @@ const KeKhai603Form: React.FC = () => {
     }
   };
 
+  // Handle create new declaration
+  const handleCreateNewKeKhai = async () => {
+    try {
+      const result = await createNewKeKhai();
+      if (result.success) {
+        showToast(result.message, 'success');
+      } else {
+        showToast(result.message, 'error');
+      }
+    } catch (error) {
+      console.error('Create new ke khai error:', error);
+      showToast('Có lỗi xảy ra khi tạo kê khai mới. Vui lòng thử lại.', 'error');
+    }
+  };
+
   return (
     <div className="space-y-6">
         {/* Header */}
@@ -252,87 +235,117 @@ const KeKhai603Form: React.FC = () => {
 
         {/* Main Content */}
         <div className="space-y-6">
-          {inputMode === 'form' ? (
-            <>
-              {/* Personal Information Form */}
-              <KeKhai603PersonalInfoForm
-                formData={formData}
-                handleInputChange={handleInputChange}
-                handleSearch={handleSearch}
-                handleKeyPress={handleKeyPress}
-                searchLoading={searchLoading}
-              />
-
-              {/* Card Information Form */}
-              <KeKhai603CardInfoForm
-                formData={formData}
-                handleInputChange={handleInputChange}
-              />
-
-              {/* Payment Information Form */}
-              <KeKhai603PaymentInfoForm
-                formData={formData}
-                handleInputChange={handleInputChange}
-              />
-            </>
+          {!keKhaiInfo ? (
+            /* No Declaration Info - Show Create Button */
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 text-center">
+              <div className="mb-4">
+                <h3 className="text-lg font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+                  Chưa có thông tin kê khai
+                </h3>
+                <p className="text-yellow-700 dark:text-yellow-300">
+                  Để sử dụng chức năng này, bạn cần tạo kê khai mới hoặc truy cập từ danh sách kê khai có sẵn.
+                </p>
+              </div>
+              <button
+                onClick={handleCreateNewKeKhai}
+                disabled={saving}
+                className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Đang tạo...</span>
+                  </>
+                ) : (
+                  <span>Tạo kê khai mới (Test)</span>
+                )}
+              </button>
+            </div>
           ) : (
-            /* List Mode Table */
-            <KeKhai603ListModeTable
-              participants={participants}
-              handleParticipantChange={handleParticipantChange}
-              handleParticipantKeyPress={handleParticipantKeyPress}
-              handleAddParticipant={handleAddParticipant}
-              handleRemoveParticipant={handleRemoveParticipant}
-              searchLoading={searchLoading}
-              savingData={savingData}
-            />
-          )}
-
-          {/* Participant Table (always shown in form mode) */}
-          {inputMode === 'form' && (
-            <KeKhai603ParticipantTable
-              participants={participants}
-              handleParticipantChange={handleParticipantChange}
-              handleParticipantKeyPress={handleParticipantKeyPress}
-              handleAddParticipant={handleAddParticipant}
-              handleRemoveParticipant={handleRemoveParticipant}
-              searchLoading={searchLoading}
-              savingData={savingData}
-            />
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <button
-              onClick={handleSaveAll}
-              disabled={saving || savingData}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              {saving || savingData ? (
+            <>
+              {inputMode === 'form' ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Đang lưu...</span>
+                  {/* Personal Information Form */}
+                  <KeKhai603PersonalInfoForm
+                    formData={formData}
+                    handleInputChange={handleInputChange}
+                    handleSearch={handleSearch}
+                    handleKeyPress={handleKeyPress}
+                    searchLoading={searchLoading}
+                  />
+
+                  {/* Card Information Form */}
+                  <KeKhai603CardInfoForm
+                    formData={formData}
+                    handleInputChange={handleInputChange}
+                  />
+
+                  {/* Payment Information Form */}
+                  <KeKhai603PaymentInfoForm
+                    formData={formData}
+                    handleInputChange={handleInputChange}
+                  />
                 </>
               ) : (
-                <span>Ghi dữ liệu</span>
+                /* List Mode Table */
+                <KeKhai603ListModeTable
+                  participants={participants}
+                  handleParticipantChange={handleParticipantChange}
+                  handleParticipantKeyPress={handleParticipantKeyPress}
+                  handleAddParticipant={handleAddParticipant}
+                  handleRemoveParticipant={handleRemoveParticipant}
+                  searchLoading={searchLoading}
+                  savingData={savingData}
+                />
               )}
-            </button>
 
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || saving || savingData}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Đang nộp...</span>
-                </>
-              ) : (
-                <span>Nộp kê khai</span>
+              {/* Participant Table (always shown in form mode) */}
+              {inputMode === 'form' && (
+                <KeKhai603ParticipantTable
+                  participants={participants}
+                  handleParticipantChange={handleParticipantChange}
+                  handleParticipantKeyPress={handleParticipantKeyPress}
+                  handleAddParticipant={handleAddParticipant}
+                  handleRemoveParticipant={handleRemoveParticipant}
+                  searchLoading={searchLoading}
+                  savingData={savingData}
+                />
               )}
-            </button>
-          </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={handleSaveAll}
+                  disabled={saving || savingData}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {saving || savingData ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Đang lưu...</span>
+                    </>
+                  ) : (
+                    <span>Ghi dữ liệu</span>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting || saving || savingData}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Đang nộp...</span>
+                    </>
+                  ) : (
+                    <span>Nộp kê khai</span>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
       {/* Toast Notification */}

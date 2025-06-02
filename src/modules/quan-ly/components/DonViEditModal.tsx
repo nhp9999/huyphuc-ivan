@@ -13,7 +13,7 @@ interface DonViEditModalProps {
 
 interface FormData {
   ma_co_quan_bhxh: string;
-  ma_so_bhxh: string;
+  ma_don_vi: string;
   ten_don_vi: string;
   is_bhxh_tn: number;
   is_bhyt: number;

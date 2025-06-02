@@ -93,6 +93,16 @@ class PaymentService {
 
 
 
+  // Tạo nội dung chuyển khoản theo cú pháp BHXH
+  private generatePaymentDescription(maDonVi?: string, maCoQuanBhxh?: string, maNhanVienThu?: string): string {
+    // Cú pháp: BHXH 103 00 <ma_don_vi> <ma_co_quan_bhxh> DONG BHXH CTY HUY PHUC <ma_nhan_vien_thu>
+    const maDonViStr = maDonVi || '000';
+    const maCoQuanStr = maCoQuanBhxh || '000';
+    const maNhanVienStr = maNhanVienThu || '000';
+
+    return `BHXH 103 00 ${maDonViStr} ${maCoQuanStr} DONG BHXH CTY HUY PHUC ${maNhanVienStr}`;
+  }
+
   // Tạo yêu cầu thanh toán mới
   async createPayment(data: CreatePaymentRequest): Promise<ThanhToan> {
     try {
@@ -103,13 +113,53 @@ class PaymentService {
 
       const ma_thanh_toan = await this.generateMaThanhToan();
 
+      // Lấy thông tin kê khai để tạo nội dung chuyển khoản
+      const { data: keKhaiData, error: keKhaiError } = await supabase
+        .from('danh_sach_ke_khai')
+        .select('*')
+        .eq('id', data.ke_khai_id)
+        .single();
+
+      if (keKhaiError) {
+        console.error('Error fetching ke khai data:', keKhaiError);
+      }
+
+      // Lấy thông tin đơn vị nếu có
+      let donViInfo = null;
+      if (keKhaiData?.don_vi_id) {
+        const { data: donViData } = await supabase
+          .from('dm_don_vi')
+          .select('ma_don_vi, ma_co_quan_bhxh')
+          .eq('id', keKhaiData.don_vi_id)
+          .single();
+        donViInfo = donViData;
+      }
+
+      // Lấy thông tin nhân viên tạo kê khai
+      let nhanVienInfo = null;
+      if (keKhaiData?.created_by) {
+        const { data: nhanVienData } = await supabase
+          .from('dm_nguoi_dung')
+          .select('ma_nhan_vien')
+          .eq('id', keKhaiData.created_by)
+          .single();
+        nhanVienInfo = nhanVienData;
+      }
+
+      // Tạo nội dung chuyển khoản theo cú pháp BHXH
+      const paymentDescription = this.generatePaymentDescription(
+        donViInfo?.ma_don_vi,
+        donViInfo?.ma_co_quan_bhxh,
+        nhanVienInfo?.ma_nhan_vien
+      );
+
       // Tạo QR code data
       const qrData: QRCodeData = {
         bankCode: 'AGRIBANK', // Agribank
         accountNumber: '6706202903085', // Số tài khoản nhận
         accountName: 'BAO HIEM XA HOI THI XA TINH BIEN',
         amount: data.so_tien,
-        description: data.payment_description || `Thanh toan ke khai ${ma_thanh_toan}`
+        description: paymentDescription
       };
 
       const qrCodeUrl = await this.generateVietQR(qrData);
@@ -127,6 +177,7 @@ class PaymentService {
           qr_code_data: JSON.stringify(qrData),
           qr_code_url: qrCodeUrl,
           payment_gateway: 'vietqr',
+          payment_description: paymentDescription,
           expired_at: expiredAt.toISOString(),
           created_at: new Date().toISOString()
         })
@@ -170,10 +221,12 @@ class PaymentService {
 
   // Cập nhật trạng thái thanh toán
   async updatePaymentStatus(
-    paymentId: number, 
-    status: string, 
+    paymentId: number,
+    status: string,
     transactionId?: string,
-    updatedBy?: string
+    updatedBy?: string,
+    proofImageUrl?: string,
+    confirmationNote?: string
   ): Promise<ThanhToan> {
     try {
       const updateData: any = {
@@ -188,6 +241,14 @@ class PaymentService {
 
       if (transactionId) {
         updateData.transaction_id = transactionId;
+      }
+
+      if (proofImageUrl) {
+        updateData.proof_image_url = proofImageUrl;
+      }
+
+      if (confirmationNote) {
+        updateData.confirmation_note = confirmationNote;
       }
 
       const { data: result, error } = await supabase

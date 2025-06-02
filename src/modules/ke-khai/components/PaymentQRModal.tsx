@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, RefreshCw, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { X, Copy, RefreshCw, CheckCircle, Clock, AlertCircle, Image } from 'lucide-react';
 import { ThanhToan } from '../../../shared/services/api/supabaseClient';
 import paymentService from '../services/paymentService';
 import { useToast } from '../../../shared/hooks/useToast';
@@ -71,7 +71,8 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
   // Copy QR data to clipboard
   const copyQRData = async () => {
     try {
-      const copyText = `Ngân hàng: AGRIBANK\nSố tài khoản: 6706202903085\nTên tài khoản: BAO HIEM XA HOI THI XA TINH BIEN\nSố tiền: ${paymentService.formatCurrency(currentPayment.so_tien)}\nMã thanh toán: ${currentPayment.ma_thanh_toan}\nNội dung: Thanh toán kê khai ${currentPayment.ma_thanh_toan}`;
+      const noiDung = currentPayment.payment_description || `BHXH 103 00 ${currentPayment.ma_thanh_toan}`;
+      const copyText = `Ngân hàng: AGRIBANK\nSố tài khoản: 6706202903085\nTên tài khoản: BAO HIEM XA HOI THI XA TINH BIEN\nSố tiền: ${paymentService.formatCurrency(currentPayment.so_tien)}\nMã thanh toán: ${currentPayment.ma_thanh_toan}\nNội dung: ${noiDung}`;
       await navigator.clipboard.writeText(copyText);
       showToast('Đã sao chép thông tin thanh toán', 'success');
     } catch (error) {
@@ -227,10 +228,60 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Nội dung:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {qrData.description}
+                  <span className="font-medium text-gray-900 dark:text-white text-sm break-all">
+                    {currentPayment.payment_description || `BHXH 103 00 ${currentPayment.ma_thanh_toan}`}
                   </span>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Completed Info */}
+          {currentPayment.trang_thai === 'completed' && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
+              <div className="flex items-center mb-3">
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
+                <h3 className="font-medium text-green-800 dark:text-green-200">
+                  Thanh toán đã hoàn thành
+                </h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                {currentPayment.paid_at && (
+                  <div className="flex justify-between">
+                    <span className="text-green-700 dark:text-green-300">Thời gian thanh toán:</span>
+                    <span className="font-medium text-green-800 dark:text-green-200">
+                      {new Date(currentPayment.paid_at).toLocaleString('vi-VN')}
+                    </span>
+                  </div>
+                )}
+                {currentPayment.transaction_id && (
+                  <div className="flex justify-between">
+                    <span className="text-green-700 dark:text-green-300">Mã giao dịch:</span>
+                    <span className="font-medium text-green-800 dark:text-green-200">
+                      {currentPayment.transaction_id}
+                    </span>
+                  </div>
+                )}
+                {currentPayment.confirmation_note && (
+                  <div className="mt-3">
+                    <span className="text-green-700 dark:text-green-300 text-sm">Ghi chú xác nhận:</span>
+                    <p className="text-green-800 dark:text-green-200 text-sm mt-1 bg-green-100 dark:bg-green-800/30 p-2 rounded">
+                      {currentPayment.confirmation_note}
+                    </p>
+                  </div>
+                )}
+                {currentPayment.proof_image_url && (
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-green-700 dark:text-green-300 text-sm">Ảnh chứng minh:</span>
+                    <button
+                      onClick={() => window.open(currentPayment.proof_image_url, '_blank')}
+                      className="flex items-center space-x-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+                    >
+                      <Image className="w-4 h-4" />
+                      <span className="text-sm">Xem ảnh</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

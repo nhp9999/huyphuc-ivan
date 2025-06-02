@@ -442,10 +442,24 @@ class KeKhaiService {
   }
 
   // Xác nhận thanh toán và hoàn thành kê khai
-  async confirmPayment(keKhaiId: number, paymentId: number, transactionId?: string, confirmedBy?: string): Promise<DanhSachKeKhai> {
+  async confirmPayment(
+    keKhaiId: number,
+    paymentId: number,
+    transactionId?: string,
+    confirmedBy?: string,
+    proofImageUrl?: string,
+    confirmationNote?: string
+  ): Promise<DanhSachKeKhai> {
     try {
       // Cập nhật trạng thái thanh toán
-      await paymentService.updatePaymentStatus(paymentId, 'completed', transactionId, confirmedBy);
+      await paymentService.updatePaymentStatus(
+        paymentId,
+        'completed',
+        transactionId,
+        confirmedBy,
+        proofImageUrl,
+        confirmationNote
+      );
 
       // Cập nhật trạng thái kê khai thành paid
       const { data: result, error } = await supabase
