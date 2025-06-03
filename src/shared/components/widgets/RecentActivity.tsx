@@ -1,12 +1,15 @@
 import React from 'react';
-import { Calendar, Users, FileText, Tag, Search, CheckCircle, Database, CreditCard } from 'lucide-react';
+import {
+  Calendar, Users, FileText, Tag, Search, CheckCircle, Database, CreditCard,
+  Edit, FileCheck, XCircle, AlertTriangle, UserPlus, Server, TrendingUp
+} from 'lucide-react';
 
 interface ActivityItem {
   id: number;
   title: string;
   description: string;
   time: string;
-  icon: 'calendar' | 'users' | 'file' | 'tag' | 'file-text' | 'search' | 'check-circle' | 'database' | 'credit-card';
+  icon: 'calendar' | 'users' | 'file' | 'tag' | 'file-text' | 'search' | 'check-circle' | 'database' | 'credit-card' | 'edit' | 'file-check' | 'x-circle' | 'alert-triangle' | 'user-plus' | 'server' | 'trending-up';
 }
 
 const iconMap = {
@@ -18,7 +21,14 @@ const iconMap = {
   'search': { icon: Search, color: 'text-green-500 bg-green-100 dark:bg-green-900/30' },
   'check-circle': { icon: CheckCircle, color: 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' },
   'database': { icon: Database, color: 'text-indigo-500 bg-indigo-100 dark:bg-indigo-900/30' },
-  'credit-card': { icon: CreditCard, color: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30' }
+  'credit-card': { icon: CreditCard, color: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30' },
+  'edit': { icon: Edit, color: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
+  'file-check': { icon: FileCheck, color: 'text-green-500 bg-green-100 dark:bg-green-900/30' },
+  'x-circle': { icon: XCircle, color: 'text-red-500 bg-red-100 dark:bg-red-900/30' },
+  'alert-triangle': { icon: AlertTriangle, color: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30' },
+  'user-plus': { icon: UserPlus, color: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
+  'server': { icon: Server, color: 'text-gray-500 bg-gray-100 dark:bg-gray-900/30' },
+  'trending-up': { icon: TrendingUp, color: 'text-green-500 bg-green-100 dark:bg-green-900/30' }
 };
 
 interface RecentActivityProps {
@@ -32,7 +42,15 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ activities }) => {
 
       <div className="space-y-4">
         {activities.map((activity) => {
-          const { icon: Icon, color } = iconMap[activity.icon];
+          const iconData = iconMap[activity.icon];
+
+          // Fallback nếu icon không tồn tại
+          if (!iconData) {
+            console.warn(`Icon "${activity.icon}" not found in iconMap`);
+            return null;
+          }
+
+          const { icon: Icon, color } = iconData;
 
           return (
             <div key={activity.id} className="flex">

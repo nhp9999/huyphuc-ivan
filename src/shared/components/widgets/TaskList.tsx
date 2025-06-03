@@ -5,8 +5,9 @@ interface Task {
   id: number;
   title: string;
   dueDate: string;
-  status: 'completed' | 'in-progress' | 'pending' | 'overdue';
+  status?: 'completed' | 'in-progress' | 'pending' | 'overdue';
   priority: 'low' | 'medium' | 'high';
+  completed?: boolean;
 }
 
 interface TaskListProps {
@@ -43,33 +44,38 @@ const TaskList: React.FC<TaskListProps> = ({ tasks }) => {
       </div>
 
       <div className="space-y-3">
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-3">
-                <div className="mt-0.5">
-                  {statusIcons[task.status]}
+        {tasks.map((task) => {
+          // Xác định status từ completed hoặc status
+          const taskStatus = task.completed ? 'completed' : (task.status || 'pending');
+
+          return (
+            <div
+              key={task.id}
+              className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-3">
+                  <div className="mt-0.5">
+                    {statusIcons[taskStatus]}
+                  </div>
+                  <div>
+                    <h4 className={`text-sm font-medium ${task.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                      {task.title}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Hạn: {task.dueDate}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                    {task.title}
-                  </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Hạn: {task.dueDate}
-                  </p>
-                </div>
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${priorityClasses[task.priority]}`}
+                >
+                  {priorityLabels[task.priority]}
+                </span>
               </div>
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${priorityClasses[task.priority]}`}
-              >
-                {priorityLabels[task.priority]}
-              </span>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
