@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // Core imports
 import { ThemeProvider } from './core/contexts/ThemeContext';
 import { NavigationProvider } from './core/contexts/NavigationContext';
+import { RoleProvider } from './core/contexts/RoleContext';
 import Layout from './core/components/Layout';
 
 // Module imports
@@ -235,11 +236,13 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <NavigationProvider>
-            <AppContent />
-          </NavigationProvider>
-        </Router>
+        <RoleProvider>
+          <Router>
+            <NavigationProvider>
+              <AppContent />
+            </NavigationProvider>
+          </Router>
+        </RoleProvider>
       </AuthProvider>
     </ThemeProvider>
   );

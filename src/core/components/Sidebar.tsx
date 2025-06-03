@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigation } from '../contexts/NavigationContext';
-import { useUserRole } from '../hooks/useUserRole';
+import { useInstantRole } from '../hooks/useInstantRole';
 import Tooltip from '../../shared/components/ui/Tooltip';
 import {
   LayoutDashboard,
@@ -27,7 +27,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
   const { currentPage, setCurrentPage } = useNavigation();
-  const { isNhanVienThu, isNhanVienTongHop, isAdmin, isSuperAdmin, loading } = useUserRole();
+  const { isNhanVienThu, isNhanVienTongHop, isAdmin, isSuperAdmin, loading, initialized } = useInstantRole();
 
   // Định nghĩa menu cho nhân viên thu
   const nhanVienThuSections = [
@@ -110,12 +110,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
 
   // Chọn menu sections dựa trên vai trò người dùng
   const getNavSections = () => {
-    if (loading) {
-      return []; // Hiển thị menu rỗng khi đang tải
+    // Nếu chưa initialized, hiển thị skeleton
+    if (!initialized) {
+      return [];
     }
 
     // Nhân viên thu chỉ thấy menu hạn chế
-    if (isNhanVienThu() && !isAdmin() && !isSuperAdmin()) {
+    if (isNhanVienThu && !isAdmin && !isSuperAdmin) {
       return nhanVienThuSections;
     }
 
@@ -124,6 +125,29 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
   };
 
   const navSections = getNavSections();
+
+  // Component skeleton cho loading state
+  const MenuSkeleton = () => (
+    <div className="px-3 space-y-6">
+      {[1, 2, 3].map((section) => (
+        <div key={section}>
+          {isOpen && (
+            <div className="px-3 mb-3 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          )}
+          <ul className="space-y-1">
+            {[1, 2, 3].map((item) => (
+              <li key={item}>
+                <div className={`w-full flex items-center px-3 py-3 rounded-xl ${isOpen ? 'space-x-3' : 'justify-center'}`}>
+                  <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  {isOpen && <div className="flex-1 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <aside
@@ -163,58 +187,62 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
 
       {/* Navigation */}
       <nav className="flex-1 py-6 overflow-y-auto">
-        <div className="px-3 space-y-6">
-          {navSections.map((section, sectionIndex) => (
-            <div key={sectionIndex}>
-              {isOpen && (
-                <h3 className="px-3 mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {section.title}
-                </h3>
-              )}
-              <ul className="space-y-1">
-                {section.items.map((item, itemIndex) => (
-                  <li key={itemIndex}>
-                    <Tooltip content={item.label} disabled={isOpen}>
-                      <button
-                        onClick={() => setCurrentPage(item.page)}
-                        className={`
-                          group w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all duration-200 text-left relative
-                          ${currentPage === item.page
-                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
-                            : 'hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:shadow-md hover:scale-[1.02]'}
-                        `}
-                      >
-                        <div className="flex items-center">
-                          <span className={`flex-shrink-0 ${currentPage === item.page ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>
-                            {item.icon}
-                          </span>
-                          {isOpen && (
-                            <span className="ml-3 whitespace-nowrap font-medium">
-                              {item.label}
+        {!initialized ? (
+          <MenuSkeleton />
+        ) : (
+          <div className="px-3 space-y-6">
+            {navSections.map((section, sectionIndex) => (
+              <div key={sectionIndex}>
+                {isOpen && (
+                  <h3 className="px-3 mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    {section.title}
+                  </h3>
+                )}
+                <ul className="space-y-1">
+                  {section.items.map((item, itemIndex) => (
+                    <li key={itemIndex}>
+                      <Tooltip content={item.label} disabled={isOpen}>
+                        <button
+                          onClick={() => setCurrentPage(item.page)}
+                          className={`
+                            group w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all duration-200 text-left relative
+                            ${currentPage === item.page
+                              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                              : 'hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:shadow-md hover:scale-[1.02]'}
+                          `}
+                        >
+                          <div className="flex items-center">
+                            <span className={`flex-shrink-0 ${currentPage === item.page ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>
+                              {item.icon}
+                            </span>
+                            {isOpen && (
+                              <span className="ml-3 whitespace-nowrap font-medium">
+                                {item.label}
+                              </span>
+                            )}
+                          </div>
+                          {isOpen && item.badge && (
+                            <span className={`
+                              px-2 py-1 text-xs font-semibold rounded-full
+                              ${item.badge === 'New'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}
+                            `}>
+                              {item.badge}
                             </span>
                           )}
-                        </div>
-                        {isOpen && item.badge && (
-                          <span className={`
-                            px-2 py-1 text-xs font-semibold rounded-full
-                            ${item.badge === 'New'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}
-                          `}>
-                            {item.badge}
-                          </span>
-                        )}
-                      </button>
-                    </Tooltip>
-                  </li>
-                ))}
-              </ul>
-              {sectionIndex < navSections.length - 1 && isOpen && (
-                <div className="mt-4 mx-3 border-t border-gray-200 dark:border-gray-700"></div>
-              )}
-            </div>
-          ))}
-        </div>
+                        </button>
+                      </Tooltip>
+                    </li>
+                  ))}
+                </ul>
+                {sectionIndex < navSections.length - 1 && isOpen && (
+                  <div className="mt-4 mx-3 border-t border-gray-200 dark:border-gray-700"></div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </nav>
 
     </aside>

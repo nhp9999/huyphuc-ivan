@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../modules/auth/contexts/AuthContext';
 import phanQuyenService from '../../modules/quan-ly/services/phanQuyenService';
 
@@ -20,12 +20,34 @@ export interface UserPermission {
   dai_ly_id?: number;
 }
 
+// Cache cho roles và permissions
+const roleCache = new Map<string, { roles: UserRole[], permissions: UserPermission[], timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
+
 export const useUserRole = () => {
   const { user } = useAuth();
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [userPermissions, setUserPermissions] = useState<UserPermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Kiểm tra cache
+  const getCachedData = useCallback((userId: string) => {
+    const cached = roleCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached;
+    }
+    return null;
+  }, []);
+
+  // Lưu vào cache
+  const setCachedData = useCallback((userId: string, roles: UserRole[], permissions: UserPermission[]) => {
+    roleCache.set(userId, {
+      roles,
+      permissions,
+      timestamp: Date.now()
+    });
+  }, []);
 
   useEffect(() => {
     if (user?.id) {
@@ -41,17 +63,31 @@ export const useUserRole = () => {
     if (!user?.id) return;
 
     try {
+      // Kiểm tra cache trước
+      const cachedData = getCachedData(user.id);
+      if (cachedData) {
+        setUserRoles(cachedData.roles);
+        setUserPermissions(cachedData.permissions);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
-      // Lấy phân quyền của người dùng
-      const permissions = await phanQuyenService.getPhanQuyenByUserId(parseInt(user.id));
-      setUserPermissions(permissions);
+      // Gọi API song song để tăng tốc
+      const [permissions, allRoles] = await Promise.all([
+        phanQuyenService.getPhanQuyenByUserId(parseInt(user.id)),
+        phanQuyenService.getAllVaiTro()
+      ]);
 
-      // Lấy thông tin vai trò
-      const allRoles = await phanQuyenService.getAllVaiTro();
       const userRoleIds = permissions.map(p => p.vai_tro_id);
       const roles = allRoles.filter(role => userRoleIds.includes(role.id));
+
+      // Lưu vào cache
+      setCachedData(user.id, roles, permissions);
+
+      setUserPermissions(permissions);
       setUserRoles(roles);
 
     } catch (err) {
@@ -62,38 +98,34 @@ export const useUserRole = () => {
     }
   };
 
-  // Kiểm tra xem người dùng có vai trò cụ thể không
-  const hasRole = (roleName: string): boolean => {
-    return userRoles.some(role => 
+  // Memoize các function kiểm tra để tránh re-computation
+  const hasRole = useCallback((roleName: string): boolean => {
+    return userRoles.some(role =>
       role.ten_vai_tro.toLowerCase().includes(roleName.toLowerCase()) ||
       role.ma_vai_tro.toLowerCase().includes(roleName.toLowerCase())
     );
-  };
+  }, [userRoles]);
 
-  // Kiểm tra xem người dùng có cấp độ quyền cụ thể không
-  const hasPermissionLevel = (level: string): boolean => {
+  const hasPermissionLevel = useCallback((level: string): boolean => {
     return userPermissions.some(permission => permission.cap_do_quyen === level);
-  };
+  }, [userPermissions]);
 
-  // Kiểm tra xem có phải nhân viên thu không
-  const isNhanVienThu = (): boolean => {
+  // Memoize các role checks
+  const isNhanVienThu = useMemo((): boolean => {
     return hasRole('nhân viên thu') || hasRole('nhan_vien_thu');
-  };
+  }, [hasRole]);
 
-  // Kiểm tra xem có phải nhân viên tổng hợp không
-  const isNhanVienTongHop = (): boolean => {
+  const isNhanVienTongHop = useMemo((): boolean => {
     return hasRole('nhân viên tổng hợp') || hasRole('nhan_vien_tong_hop');
-  };
+  }, [hasRole]);
 
-  // Kiểm tra xem có phải admin không
-  const isAdmin = (): boolean => {
+  const isAdmin = useMemo((): boolean => {
     return hasPermissionLevel('admin') || hasPermissionLevel('super_admin');
-  };
+  }, [hasPermissionLevel]);
 
-  // Kiểm tra xem có phải super admin không
-  const isSuperAdmin = (): boolean => {
+  const isSuperAdmin = useMemo((): boolean => {
     return hasPermissionLevel('super_admin');
-  };
+  }, [hasPermissionLevel]);
 
   // Lấy vai trò chính (vai trò có cấp độ cao nhất)
   const getPrimaryRole = (): UserRole | null => {
