@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, Image, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Upload } from 'lucide-react';
 import { useToast } from '../../../shared/hooks/useToast';
 
 interface PaymentConfirmModalProps {
@@ -81,9 +81,7 @@ const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
     }
   };
 
-  const handleSkip = () => {
-    onConfirm(); // Xác nhận không có ảnh
-  };
+
 
   const removeImage = () => {
     setProofImage(null);
@@ -99,42 +97,32 @@ const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-500" />
-            <h2 className="text-lg font-medium">Xác nhận thanh toán</h2>
-          </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <h2 className="text-lg font-semibold">Xác nhận thanh toán</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-6 space-y-4">
           {/* Payment Info */}
-          <div className="bg-blue-50 rounded-lg p-3">
-            <div className="text-center">
-              <p className="text-sm text-blue-600 mb-1">Số tiền đã thanh toán</p>
-              <p className="text-xl font-bold text-blue-800">{formatCurrency(paymentAmount)}</p>
-              <p className="text-xs text-blue-500 mt-1">Mã: {paymentCode}</p>
-            </div>
+          <div className="text-center space-y-2">
+            <p className="text-sm text-gray-600">Số tiền</p>
+            <p className="text-xl font-bold text-green-600">{formatCurrency(paymentAmount)}</p>
+            <p className="text-sm text-gray-500">Mã: {paymentCode}</p>
           </div>
 
           {/* Confirmation Message */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <div className="flex items-start gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-green-800">
-                  Bạn đã thanh toán thành công?
-                </p>
-                <p className="text-xs text-green-600 mt-1">
-                  Vui lòng upload ảnh chứng từ để xác nhận (không bắt buộc)
-                </p>
-              </div>
-            </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-700 mb-3">
+              Bạn đã thanh toán thành công?
+            </p>
+            <p className="text-xs text-gray-500">
+              Upload ảnh chứng từ (không bắt buộc)
+            </p>
           </div>
 
           {/* File Upload */}
@@ -146,14 +134,10 @@ const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
                 onChange={handleImageUpload}
                 className="hidden"
               />
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">
-                  Nhấn để chọn ảnh chứng từ
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  JPG, PNG, GIF (tối đa 5MB)
-                </p>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">Chọn ảnh chứng từ</p>
+                <p className="text-xs text-gray-500 mt-1">Tối đa 5MB</p>
               </div>
             </label>
 
@@ -163,7 +147,7 @@ const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
                 <img
                   src={proofImagePreview}
                   alt="Preview chứng từ"
-                  className="w-full max-h-48 object-contain rounded-lg border"
+                  className="w-full max-h-32 object-contain rounded-lg border"
                 />
                 <button
                   onClick={removeImage}
@@ -174,55 +158,29 @@ const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
               </div>
             )}
           </div>
-
-          {/* Warning */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-              <p className="text-xs text-amber-700">
-                Chỉ xác nhận khi bạn đã thực sự thanh toán thành công. 
-                Việc xác nhận sai có thể ảnh hưởng đến quá trình xử lý.
-              </p>
-            </div>
-          </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-2 p-4 border-t bg-gray-50">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-          >
-            Hủy
-          </button>
-          <button
-            onClick={handleSkip}
-            disabled={isLoading || isUploading}
-            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-          >
-            Bỏ qua ảnh
-          </button>
+        {/* Actions */}
+        <div className="p-6 pt-0 space-y-3">
           <button
             onClick={handleConfirm}
             disabled={isLoading || isUploading}
-            className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-medium"
           >
             {isUploading ? (
-              <>
-                <Upload className="w-4 h-4 animate-pulse" />
-                <span>Đang xử lý...</span>
-              </>
+              <span>Đang xử lý...</span>
             ) : isLoading ? (
-              <>
-                <CheckCircle className="w-4 h-4 animate-pulse" />
-                <span>Đang xác nhận...</span>
-              </>
+              <span>Đang xác nhận...</span>
             ) : (
-              <>
-                <CheckCircle className="w-4 h-4" />
-                <span>Xác nhận</span>
-              </>
+              <span>Xác nhận thanh toán</span>
             )}
+          </button>
+
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+          >
+            Hủy
           </button>
         </div>
       </div>

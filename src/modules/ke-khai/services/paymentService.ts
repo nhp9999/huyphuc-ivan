@@ -138,13 +138,24 @@ class PaymentService {
       // Lấy thông tin nhân viên tạo kê khai
       let nhanVienInfo = null;
       if (keKhaiData?.created_by) {
-        const { data: nhanVienData } = await supabase
+        const { data: nhanVienData, error: nhanVienError } = await supabase
           .from('dm_nguoi_dung')
-          .select('ma_nhan_vien')
+          .select('ma_nhan_vien, id')
           .eq('id', keKhaiData.created_by)
           .single();
-        nhanVienInfo = nhanVienData;
+
+        if (nhanVienError) {
+          console.error('Error fetching employee data:', nhanVienError);
+        } else {
+          nhanVienInfo = nhanVienData;
+          // Nếu chưa có mã nhân viên, sử dụng ID làm mã tạm thời
+          if (!nhanVienInfo.ma_nhan_vien) {
+            nhanVienInfo.ma_nhan_vien = `NV${nhanVienInfo.id.toString().padStart(3, '0')}`;
+          }
+        }
       }
+
+
 
       // Tạo nội dung chuyển khoản theo cú pháp BHXH
       const paymentDescription = this.generatePaymentDescription(

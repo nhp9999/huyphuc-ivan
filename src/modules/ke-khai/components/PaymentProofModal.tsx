@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Download, Calendar, User, FileText, ExternalLink } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { X, Download, ZoomIn, ZoomOut, RotateCw, ExternalLink } from 'lucide-react';
 import { ThanhToan } from '../../../shared/services/api/supabaseClient';
 
 interface PaymentProofModalProps {
@@ -8,30 +8,74 @@ interface PaymentProofModalProps {
 }
 
 const PaymentProofModal: React.FC<PaymentProofModalProps> = ({ payment, onClose }) => {
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
   // Check if URL is base64
   const isBase64Image = (url: string) => {
     return url.startsWith('data:image/');
   };
 
-  // Get image type and size info
-  const getImageInfo = (url: string) => {
-    if (isBase64Image(url)) {
-      const sizeInBytes = Math.round((url.length * 3) / 4);
-      const sizeInKB = Math.round(sizeInBytes / 1024);
-      const mimeType = url.split(';')[0].split(':')[1];
-      return {
-        type: 'Base64',
-        size: sizeInKB > 1024 ? `${Math.round(sizeInKB / 1024 * 10) / 10} MB` : `${sizeInKB} KB`,
-        format: mimeType.split('/')[1].toUpperCase()
-      };
-    } else {
-      return {
-        type: 'URL',
-        size: 'N/A',
-        format: 'N/A'
-      };
+  // Image controls
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.25, 3));
+  const handleZoomOut = () => {
+    const newZoom = Math.max(zoom - 0.25, 0.5);
+    setZoom(newZoom);
+    if (newZoom <= 1) {
+      setPosition({ x: 0, y: 0 });
     }
   };
+  const handleRotate = () => setRotation(prev => (prev + 90) % 360);
+  const handleResetView = () => {
+    setZoom(1);
+    setRotation(0);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  // Mouse wheel zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    const newZoom = Math.max(0.5, Math.min(3, zoom + delta));
+    setZoom(newZoom);
+
+    // Reset position when zooming out to 1x or less
+    if (newZoom <= 1) {
+      setPosition({ x: 0, y: 0 });
+    }
+  };
+
+  // Mouse drag handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (zoom > 1) {
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+    }
+  }, [zoom, position.x, position.y]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isDragging && zoom > 1) {
+      e.preventDefault();
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+
+      setPosition({
+        x: newX,
+        y: newY
+      });
+    }
+  }, [isDragging, zoom, dragStart.x, dragStart.y]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   // Download image
   const handleDownload = () => {
@@ -66,184 +110,231 @@ const PaymentProofModal: React.FC<PaymentProofModalProps> = ({ payment, onClose 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[95vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Ảnh chứng minh thanh toán
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Mã thanh toán: {payment.ma_thanh_toan}
-            </p>
-            {payment.proof_image_url && (
-              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {(() => {
-                  const info = getImageInfo(payment.proof_image_url);
-                  return `${info.type} • ${info.format} • ${info.size}`;
-                })()}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            {payment.proof_image_url && (
-              <>
-                <button
-                  onClick={handleDownload}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  title="Tải xuống"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={handleOpenInNewTab}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  title="Mở trong tab mới"
-                >
-                  <ExternalLink className="w-5 h-5" />
-                </button>
-              </>
-            )}
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Ảnh chứng minh thanh toán
+          </h2>
+
+          {/* Image Controls */}
+          {payment.proof_image_url && (
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={handleZoomOut}
+                disabled={zoom <= 0.5}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Thu nhỏ"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={handleZoomIn}
+                disabled={zoom >= 3}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Phóng to"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={handleRotate}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                title="Xoay ảnh"
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={handleDownload}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                title="Tải xuống"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={handleOpenInNewTab}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                title="Mở trong tab mới"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-md transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="flex-1 overflow-hidden flex">
           {payment.proof_image_url ? (
-            <div className="space-y-4">
-              {/* Image */}
-              <div className="flex justify-center">
-                <img
-                  src={payment.proof_image_url}
-                  alt="Ảnh chứng minh thanh toán"
-                  className="max-w-full max-h-[60vh] object-contain rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/placeholder-image.png'; // Fallback image
-                  }}
-                />
+            <>
+              {/* Image Container */}
+              <div
+                className="flex-1 flex items-center justify-center bg-gray-50 overflow-hidden relative"
+                onWheel={handleWheel}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                style={{
+                  cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                  userSelect: 'none'
+                }}
+              >
+                <div className="relative">
+                  <img
+                    src={payment.proof_image_url}
+                    alt="Ảnh chứng minh thanh toán"
+                    className={`max-w-none max-h-[70vh] object-contain rounded-lg shadow-xl select-none ${
+                      isDragging ? '' : 'transition-transform duration-200 ease-in-out'
+                    }`}
+                    style={{
+                      transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                      transformOrigin: 'center'
+                    }}
+                    onMouseDown={handleMouseDown}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/placeholder-image.png';
+                    }}
+                    draggable={false}
+                  />
+                </div>
+
+                {/* Zoom indicator */}
+                {zoom !== 1 && (
+                  <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-medium">
+                    {Math.round(zoom * 100)}%
+                  </div>
+                )}
+
+                {/* Instructions */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm">
+                  {zoom > 1 ? 'Kéo để di chuyển • Lăn chuột để zoom' : 'Lăn chuột để zoom • Click để kéo'}
+                </div>
               </div>
 
-              {/* Payment Info */}
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <h3 className="font-medium text-gray-900 dark:text-white mb-3">
-                  Thông tin thanh toán
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600 dark:text-gray-400">Mã thanh toán:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {payment.ma_thanh_toan}
-                    </span>
-                  </div>
+              {/* Payment Info Sidebar */}
+              <div className="w-80 bg-white border-l flex flex-col">
+                <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+                  <h3 className="font-semibold text-gray-900 text-lg">Thông tin thanh toán</h3>
 
-                  {payment.transaction_id && (
-                    <div className="flex items-center space-x-2">
-                      <FileText className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-600 dark:text-gray-400">Mã giao dịch:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {payment.transaction_id}
-                      </span>
+                  {/* Main Payment Info */}
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-sm text-gray-500">Mã thanh toán</span>
+                      <p className="font-medium text-gray-900">{payment.ma_thanh_toan}</p>
                     </div>
-                  )}
-
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600 dark:text-gray-400">Ngày thanh toán:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {payment.paid_at 
-                        ? new Date(payment.paid_at).toLocaleString('vi-VN')
-                        : 'Chưa thanh toán'
-                      }
-                    </span>
-                  </div>
-
-                  {payment.updated_by && (
-                    <div className="flex items-center space-x-2">
-                      <User className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-600 dark:text-gray-400">Xác nhận bởi:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {payment.updated_by}
-                      </span>
+                    <div>
+                      <span className="text-sm text-gray-500">Số tiền</span>
+                      <p className="text-xl font-bold text-green-600">
+                        {new Intl.NumberFormat('vi-VN', {
+                          style: 'currency',
+                          currency: 'VND'
+                        }).format(payment.so_tien)}
+                      </p>
                     </div>
-                  )}
+                    <div>
+                      <span className="text-sm text-gray-500">Trạng thái</span>
+                      <div className="mt-1">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          payment.trang_thai === 'completed'
+                            ? 'bg-green-100 text-green-800'
+                            : payment.trang_thai === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {payment.trang_thai === 'completed' ? 'Đã thanh toán' :
+                           payment.trang_thai === 'pending' ? 'Chờ thanh toán' : 'Khác'}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-600 dark:text-gray-400">Số tiền:</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">
-                      {new Intl.NumberFormat('vi-VN', {
-                        style: 'currency',
-                        currency: 'VND'
-                      }).format(payment.so_tien)}
-                    </span>
-                  </div>
+                    <div className="border-t pt-4">
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-sm text-gray-500">Ngày tạo</span>
+                          <p className="font-medium text-gray-900">
+                            {new Date(payment.created_at).toLocaleString('vi-VN')}
+                          </p>
+                        </div>
+                        {payment.paid_at && (
+                          <div>
+                            <span className="text-sm text-gray-500">Ngày thanh toán</span>
+                            <p className="font-medium text-gray-900">
+                              {new Date(payment.paid_at).toLocaleString('vi-VN')}
+                            </p>
+                          </div>
+                        )}
+                        {payment.transaction_id && (
+                          <div>
+                            <span className="text-sm text-gray-500">Mã giao dịch</span>
+                            <p className="font-medium text-gray-900">{payment.transaction_id}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      payment.trang_thai === 'completed' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-                    }`}>
-                      {payment.trang_thai === 'completed' ? 'Đã thanh toán' : 'Chờ thanh toán'}
-                    </span>
+                    {/* Payment Description */}
+                    {payment.payment_description && (
+                      <div className="border-t pt-4">
+                        <span className="text-sm text-gray-500">Nội dung chuyển khoản</span>
+                        <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+                          <p className="text-sm font-mono text-gray-800 break-all">
+                            {payment.payment_description}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Confirmation Note */}
+                    {payment.confirmation_note && (
+                      <div className="border-t pt-4">
+                        <span className="text-sm text-gray-500">Ghi chú xác nhận</span>
+                        <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <p className="text-sm text-blue-800">{payment.confirmation_note}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Confirmation Note */}
-                {payment.confirmation_note && (
-                  <div className="mt-4">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                      Ghi chú xác nhận:
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-600 p-3 rounded border">
-                      {payment.confirmation_note}
-                    </p>
-                  </div>
-                )}
-
-                {/* Payment Description */}
-                {payment.payment_description && (
-                  <div className="mt-4">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                      Nội dung chuyển khoản:
-                    </h4>
-                    <p className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-600 p-3 rounded border break-all">
-                      {payment.payment_description}
-                    </p>
+                {/* Reset View Button */}
+                {(zoom !== 1 || rotation !== 0 || position.x !== 0 || position.y !== 0) && (
+                  <div className="p-4 border-t">
+                    <button
+                      onClick={handleResetView}
+                      className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                    >
+                      Đặt lại view
+                    </button>
                   </div>
                 )}
               </div>
-            </div>
+            </>
           ) : (
-            <div className="text-center py-12">
-              <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-                Không có ảnh chứng minh
-              </h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Thanh toán này chưa có ảnh chứng minh được tải lên
-              </p>
+            <div className="flex items-center justify-center h-96 bg-gray-50">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <X className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Không có ảnh chứng minh
+                </h3>
+                <p className="text-gray-500">
+                  Thanh toán này chưa có ảnh chứng minh được tải lên
+                </p>
+              </div>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end p-4 border-t border-gray-200 dark:border-gray-700">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-          >
-            Đóng
-          </button>
         </div>
       </div>
     </div>
