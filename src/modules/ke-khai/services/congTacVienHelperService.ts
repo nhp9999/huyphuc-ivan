@@ -64,9 +64,11 @@ class CongTacVienHelperService {
           .single();
 
         if (congTacVienData?.dm_nguoi_dung) {
+          const maNhanVien = congTacVienData.dm_nguoi_dung.ma_nhan_vien || `NV${congTacVienData.dm_nguoi_dung.id.toString().padStart(12, '0')}`;
+
           return {
             id: congTacVienData.dm_nguoi_dung.id,
-            ma_nhan_vien: congTacVienData.dm_nguoi_dung.ma_nhan_vien || `NV${congTacVienData.dm_nguoi_dung.id.toString().padStart(3, '0')}`,
+            ma_nhan_vien: maNhanVien,
             ho_ten: congTacVienData.dm_nguoi_dung.ho_ten,
             email: congTacVienData.dm_nguoi_dung.email
           };
@@ -80,9 +82,17 @@ class CongTacVienHelperService {
       }
 
       // Nếu không phải cộng tác viên hoặc không tìm thấy nhân viên thu, trả về thông tin người tạo
+      const maNhanVien = nguoiTaoData.ma_nhan_vien || `NV${nguoiTaoData.id.toString().padStart(12, '0')}`;
+
+      console.log('Generated ma_nhan_vien for payment:', {
+        original: nguoiTaoData.ma_nhan_vien,
+        generated: maNhanVien,
+        userId: nguoiTaoData.id
+      });
+
       return {
         id: nguoiTaoData.id,
-        ma_nhan_vien: nguoiTaoData.ma_nhan_vien || `NV${nguoiTaoData.id.toString().padStart(3, '0')}`,
+        ma_nhan_vien: maNhanVien,
         ho_ten: nguoiTaoData.ho_ten,
         email: nguoiTaoData.email
       };
@@ -136,9 +146,11 @@ class CongTacVienHelperService {
       );
 
       if (nhanVienThu) {
+        const maNhanVien = nhanVienThu.dm_nguoi_dung.ma_nhan_vien || `NV${nhanVienThu.dm_nguoi_dung.id.toString().padStart(12, '0')}`;
+
         return {
           id: nhanVienThu.dm_nguoi_dung.id,
-          ma_nhan_vien: nhanVienThu.dm_nguoi_dung.ma_nhan_vien || `NV${nhanVienThu.dm_nguoi_dung.id.toString().padStart(3, '0')}`,
+          ma_nhan_vien: maNhanVien,
           ho_ten: nhanVienThu.dm_nguoi_dung.ho_ten,
           email: nhanVienThu.dm_nguoi_dung.email
         };
