@@ -7,6 +7,7 @@ import phanQuyenService from '../../modules/quan-ly/services/phanQuyenService';
 interface OptimizedRoleState {
   isNhanVienThu: boolean;
   isNhanVienTongHop: boolean;
+  isCongTacVien: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   loading: boolean;
@@ -121,6 +122,7 @@ export const useOptimizedRole = (): OptimizedRoleState => {
     return {
       isNhanVienThu: hasRole('nhân viên thu') || hasRole('nhan_vien_thu'),
       isNhanVienTongHop: hasRole('nhân viên tổng hợp') || hasRole('nhan_vien_tong_hop'),
+      isCongTacVien: hasRole('cộng tác viên') || hasRole('cong_tac_vien'),
       isAdmin: hasPermissionLevel('admin') || hasPermissionLevel('super_admin'),
       isSuperAdmin: hasPermissionLevel('super_admin')
     };

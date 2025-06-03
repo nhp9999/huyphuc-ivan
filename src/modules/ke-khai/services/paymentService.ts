@@ -1,5 +1,6 @@
 import { supabase } from '../../../shared/services/api/supabaseClient';
 import { ThanhToan } from '../../../shared/services/api/supabaseClient';
+import congTacVienHelperService from './congTacVienHelperService';
 
 export interface CreatePaymentRequest {
   ke_khai_id: number;
@@ -135,23 +136,15 @@ class PaymentService {
         donViInfo = donViData;
       }
 
-      // Lấy thông tin nhân viên tạo kê khai
+      // Lấy thông tin nhân viên thu cho thanh toán (hỗ trợ cộng tác viên)
       let nhanVienInfo = null;
       if (keKhaiData?.created_by) {
-        const { data: nhanVienData, error: nhanVienError } = await supabase
-          .from('dm_nguoi_dung')
-          .select('ma_nhan_vien, id')
-          .eq('id', keKhaiData.created_by)
-          .single();
-
-        if (nhanVienError) {
-          console.error('Error fetching employee data:', nhanVienError);
-        } else {
-          nhanVienInfo = nhanVienData;
-          // Nếu chưa có mã nhân viên, sử dụng ID làm mã tạm thời
-          if (!nhanVienInfo.ma_nhan_vien) {
-            nhanVienInfo.ma_nhan_vien = `NV${nhanVienInfo.id.toString().padStart(3, '0')}`;
-          }
+        const nhanVienThuInfo = await congTacVienHelperService.getNhanVienThuForPayment(keKhaiData.created_by);
+        if (nhanVienThuInfo) {
+          nhanVienInfo = {
+            id: nhanVienThuInfo.id,
+            ma_nhan_vien: nhanVienThuInfo.ma_nhan_vien
+          };
         }
       }
 

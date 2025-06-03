@@ -89,9 +89,9 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
   }, [user?.id, roleState.initialized]);
 
   // Memoized role checks
-  const { isNhanVienThu, isAdmin, isSuperAdmin } = useMemo(() => {
+  const { isNhanVienThu, isCongTacVien, isAdmin, isSuperAdmin } = useMemo(() => {
     const hasRole = (roleName: string): boolean => {
-      return roleState.roles.some(role => 
+      return roleState.roles.some(role =>
         role.ten_vai_tro.toLowerCase().includes(roleName.toLowerCase()) ||
         role.ma_vai_tro.toLowerCase().includes(roleName.toLowerCase())
       );
@@ -103,6 +103,7 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
 
     return {
       isNhanVienThu: hasRole('nhân viên thu') || hasRole('nhan_vien_thu'),
+      isCongTacVien: hasRole('cộng tác viên') || hasRole('cong_tac_vien'),
       isAdmin: hasPermissionLevel('admin') || hasPermissionLevel('super_admin'),
       isSuperAdmin: hasPermissionLevel('super_admin')
     };
@@ -110,6 +111,40 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
 
   // Định nghĩa menu cho nhân viên thu
   const nhanVienThuSections = [
+    {
+      title: 'Kê khai',
+      items: [
+        { icon: <LayoutDashboard size={20} />, label: 'Tổng quan', page: 'dashboard' as const },
+        { icon: <FileText size={20} />, label: 'Danh mục kê khai', page: 'declaration-categories' as const },
+        { icon: <History size={20} />, label: 'Lịch sử kê khai', page: 'declaration-history' as const },
+        { icon: <CreditCard size={20} />, label: 'Thanh toán của tôi', page: 'my-payments' as const }
+      ]
+    },
+    {
+      title: 'Quản lý',
+      items: [
+        { icon: <UserCheck size={20} />, label: 'Cộng tác viên của tôi', page: 'my-cong-tac-vien' as const }
+      ]
+    },
+    {
+      title: 'Tra cứu',
+      items: [
+        { icon: <Hash size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const },
+        { icon: <Hash size={20} />, label: 'Tra cứu BHXH', page: 'bhxh-lookup' as const },
+        { icon: <Hash size={20} />, label: 'Tra cứu mã BHXH', page: 'bhxh-id-lookup' as const },
+        { icon: <Users size={20} />, label: 'Tra cứu hộ gia đình', page: 'family-lookup' as const }
+      ]
+    },
+    {
+      title: 'Cài đặt',
+      items: [
+        { icon: <Settings size={20} />, label: 'Cài đặt', page: 'settings' as const }
+      ]
+    }
+  ];
+
+  // Định nghĩa menu cho cộng tác viên (tương tự nhân viên thu)
+  const congTacVienSections = [
     {
       title: 'Kê khai',
       items: [
@@ -183,6 +218,7 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
         { icon: <Building2 size={20} />, label: 'Quản lý công ty', page: 'cong-ty-management' as const },
         { icon: <Building size={20} />, label: 'Quản lý cơ quan BHXH', page: 'co-quan-bhxh-management' as const },
         { icon: <Users size={20} />, label: 'Quản lý người dùng', page: 'nguoi-dung-management' as const },
+        { icon: <UserCheck size={20} />, label: 'Quản lý cộng tác viên', page: 'cong-tac-vien-management' as const },
         { icon: <Shield size={20} />, label: 'Phân quyền hệ thống', page: 'phan-quyen-management' as const }
       ]
     },
@@ -200,12 +236,17 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
       return []; // Không hiển thị menu khi chưa initialized
     }
 
+    // Cộng tác viên có menu tương tự nhân viên thu
+    if (isCongTacVien && !isAdmin && !isSuperAdmin) {
+      return congTacVienSections;
+    }
+
     if (isNhanVienThu && !isAdmin && !isSuperAdmin) {
       return nhanVienThuSections;
     }
 
     return fullNavSections;
-  }, [roleState.initialized, isNhanVienThu, isAdmin, isSuperAdmin]);
+  }, [roleState.initialized, isNhanVienThu, isCongTacVien, isAdmin, isSuperAdmin]);
 
   // Skeleton loading component
   const MenuSkeleton = () => (

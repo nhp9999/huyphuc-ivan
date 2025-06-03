@@ -19,6 +19,8 @@ import {
 import {
   CongTyManagement,
   CoQuanBhxhManagement,
+  CongTacVienManagement,
+  MyCongTacVienManagement,
   DaiLyManagement,
   DaiLyDonViLinkManagement,
   DonViManagement,
@@ -211,6 +213,18 @@ const AppContent: React.FC = () => {
       <Route path="/nguoi-dung-management" element={
         <ProtectedRoute>
           <NguoiDungManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/cong-tac-vien-management" element={
+        <ProtectedRoute>
+          <CongTacVienManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/my-cong-tac-vien" element={
+        <ProtectedRoute>
+          <MyCongTacVienManagement />
         </ProtectedRoute>
       } />
 

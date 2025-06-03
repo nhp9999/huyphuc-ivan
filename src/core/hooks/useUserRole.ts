@@ -119,6 +119,10 @@ export const useUserRole = () => {
     return hasRole('nhân viên tổng hợp') || hasRole('nhan_vien_tong_hop');
   }, [hasRole]);
 
+  const isCongTacVien = useMemo((): boolean => {
+    return hasRole('cộng tác viên') || hasRole('cong_tac_vien');
+  }, [hasRole]);
+
   const isAdmin = useMemo((): boolean => {
     return hasPermissionLevel('admin') || hasPermissionLevel('super_admin');
   }, [hasPermissionLevel]);
@@ -163,6 +167,7 @@ export const useUserRole = () => {
     hasPermissionLevel,
     isNhanVienThu,
     isNhanVienTongHop,
+    isCongTacVien,
     isAdmin,
     isSuperAdmin,
     getPrimaryRole,

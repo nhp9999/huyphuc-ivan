@@ -7,7 +7,7 @@ import AdminDashboard from './AdminDashboard';
 // Dashboard chính với phân luồng theo role
 
 const Dashboard: React.FC = () => {
-  const { isNhanVienThu, isNhanVienTongHop, isAdmin, isSuperAdmin, loading } = useRoleContext();
+  const { isNhanVienThu, isNhanVienTongHop, isCongTacVien, isAdmin, isSuperAdmin, loading } = useRoleContext();
 
   // Hiển thị loading khi đang tải role
   if (loading) {
@@ -19,6 +19,11 @@ const Dashboard: React.FC = () => {
   }
 
   // Phân luồng dashboard theo role
+  // Cộng tác viên sử dụng dashboard tương tự nhân viên thu
+  if (isCongTacVien && !isAdmin && !isSuperAdmin) {
+    return <NhanVienThuDashboard />;
+  }
+
   if (isNhanVienThu && !isAdmin && !isSuperAdmin) {
     return <NhanVienThuDashboard />;
   }

@@ -11,6 +11,7 @@ interface RoleContextType {
   error: string | null;
   isNhanVienThu: boolean;
   isNhanVienTongHop: boolean;
+  isCongTacVien: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   refreshRoles: () => Promise<void>;
@@ -158,6 +159,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
 
   const isNhanVienThu = hasRole('nhân viên thu') || hasRole('nhan_vien_thu');
   const isNhanVienTongHop = hasRole('nhân viên tổng hợp') || hasRole('nhan_vien_tong_hop');
+  const isCongTacVien = hasRole('cộng tác viên') || hasRole('cong_tac_vien');
   const isAdmin = hasPermissionLevel('admin') || hasPermissionLevel('super_admin');
   const isSuperAdmin = hasPermissionLevel('super_admin');
 
@@ -176,6 +178,7 @@ export const RoleProvider: React.FC<RoleProviderProps> = ({ children }) => {
     error,
     isNhanVienThu,
     isNhanVienTongHop,
+    isCongTacVien,
     isAdmin,
     isSuperAdmin,
     refreshRoles
