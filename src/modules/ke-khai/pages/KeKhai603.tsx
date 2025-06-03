@@ -497,6 +497,22 @@ const KeKhai603: React.FC = () => {
     return keKhai.trang_thai === 'paid' || keKhai.payment_status === 'completed';
   };
 
+  // Format currency for display
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount);
+  };
+
+  // Get total amount for display
+  const getTotalAmountDisplay = (keKhai: DanhSachKeKhai): string => {
+    if (keKhai.total_amount && keKhai.total_amount > 0) {
+      return formatCurrency(keKhai.total_amount);
+    }
+    return 'Chưa tính';
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Header */}
@@ -761,8 +777,9 @@ const KeKhai603: React.FC = () => {
                     <div className="col-span-2">Đối tượng tham gia</div>
                     <div className="col-span-1">Trạng thái</div>
                     <div className="col-span-1">Thanh toán</div>
-                    <div className="col-span-2">Ngày tạo</div>
-                    <div className="col-span-2">Thao tác</div>
+                    <div className="col-span-2">Tổng số tiền</div>
+                    <div className="col-span-1">Ngày tạo</div>
+                    <div className="col-span-1">Thao tác</div>
                   </div>
                 </div>
 
@@ -793,8 +810,13 @@ const KeKhai603: React.FC = () => {
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           {keKhai.doi_tuong_tham_gia || 'Chưa xác định'}
                         </div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500">
-                          {new Date(keKhai.created_at || '').toLocaleDateString('vi-VN')}
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-gray-400 dark:text-gray-500">
+                            {new Date(keKhai.created_at || '').toLocaleDateString('vi-VN')}
+                          </div>
+                          <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                            {getTotalAmountDisplay(keKhai)}
+                          </div>
                         </div>
                         <div className="flex space-x-2">
                           <button
@@ -895,10 +917,13 @@ const KeKhai603: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div className="col-span-2 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="col-span-2 text-sm font-medium text-green-600 dark:text-green-400">
+                          {getTotalAmountDisplay(keKhai)}
+                        </div>
+                        <div className="col-span-1 text-sm text-gray-500 dark:text-gray-400">
                           {new Date(keKhai.created_at || '').toLocaleDateString('vi-VN')}
                         </div>
-                        <div className="col-span-2 flex space-x-2">
+                        <div className="col-span-1 flex space-x-1">
                           <button
                             onClick={() => {
                               setCurrentPage('ke-khai-603-form', {
@@ -908,10 +933,10 @@ const KeKhai603: React.FC = () => {
                                 keKhaiId: keKhai.id
                               });
                             }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-1 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                            title="Xem chi tiết"
                           >
                             <Eye className="w-3 h-3" />
-                            <span>Xem chi tiết</span>
                           </button>
 
                           {/* Payment buttons for desktop */}
@@ -919,7 +944,7 @@ const KeKhai603: React.FC = () => {
                             <button
                               onClick={() => handleCreatePayment(keKhai)}
                               disabled={creatingPayment === keKhai.id}
-                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-2 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-1 py-1 rounded text-sm transition-colors flex items-center justify-center"
                               title="Tạo thanh toán"
                             >
                               {creatingPayment === keKhai.id ? (
@@ -933,7 +958,7 @@ const KeKhai603: React.FC = () => {
                           {isPendingPayment(keKhai) && (
                             <button
                               onClick={() => handleViewPayment(keKhai)}
-                              className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                              className="bg-orange-600 hover:bg-orange-700 text-white px-1 py-1 rounded text-sm transition-colors flex items-center justify-center"
                               title="Xem QR thanh toán"
                             >
                               <QrCode className="w-3 h-3" />
@@ -942,7 +967,7 @@ const KeKhai603: React.FC = () => {
 
                           <button
                             onClick={() => openDeleteModal(keKhai)}
-                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                            className="bg-red-600 hover:bg-red-700 text-white px-1 py-1 rounded text-sm transition-colors flex items-center justify-center"
                             title="Xóa kê khai"
                           >
                             <Trash2 className="w-3 h-3" />

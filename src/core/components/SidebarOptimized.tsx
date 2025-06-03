@@ -20,7 +20,9 @@ import {
   UserCheck,
   Building,
   CheckCircle,
-  DollarSign
+  DollarSign,
+  FileX,
+  FileCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -121,6 +123,13 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
       ]
     },
     {
+      title: 'Xử lý hồ sơ',
+      items: [
+        { icon: <FileX size={20} />, label: 'Hồ sơ chưa xử lý', page: 'ho-so-chua-xu-ly' as const },
+        { icon: <FileCheck size={20} />, label: 'Hồ sơ đã xử lý', page: 'ho-so-da-xu-ly' as const }
+      ]
+    },
+    {
       title: 'Quản lý',
       items: [
         { icon: <UserCheck size={20} />, label: 'Cộng tác viên của tôi', page: 'my-cong-tac-vien' as const }
@@ -152,6 +161,13 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
         { icon: <FileText size={20} />, label: 'Danh mục kê khai', page: 'declaration-categories' as const },
         { icon: <History size={20} />, label: 'Lịch sử kê khai', page: 'declaration-history' as const },
         { icon: <CreditCard size={20} />, label: 'Thanh toán của tôi', page: 'my-payments' as const }
+      ]
+    },
+    {
+      title: 'Xử lý hồ sơ',
+      items: [
+        { icon: <FileX size={20} />, label: 'Hồ sơ chưa xử lý', page: 'ho-so-chua-xu-ly' as const },
+        { icon: <FileCheck size={20} />, label: 'Hồ sơ đã xử lý', page: 'ho-so-da-xu-ly' as const }
       ]
     },
     {
@@ -195,6 +211,13 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
         { icon: <CheckCircle size={20} />, label: 'Kê khai 603', page: 'ke-khai-603' as const },
         { icon: <History size={20} />, label: 'Lịch sử kê khai', page: 'declaration-history' as const },
         { icon: <FileText size={20} />, label: 'Quản lý kê khai', page: 'ke-khai-management' as const }
+      ]
+    },
+    {
+      title: 'Xử lý hồ sơ',
+      items: [
+        { icon: <FileX size={20} />, label: 'Hồ sơ chưa xử lý', page: 'ho-so-chua-xu-ly' as const },
+        { icon: <FileCheck size={20} />, label: 'Hồ sơ đã xử lý', page: 'ho-so-da-xu-ly' as const }
       ]
     },
     {

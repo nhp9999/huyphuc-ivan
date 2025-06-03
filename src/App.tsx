@@ -34,7 +34,9 @@ import {
   DeclarationHistory,
   KeKhaiManagement,
   MyPayments,
-  PaymentManagement
+  PaymentManagement,
+  HoSoChuaXuLy,
+  HoSoDaXuLy
 } from './modules/ke-khai';
 import TestPaymentDisplay from './test-payment-display';
 
@@ -171,6 +173,18 @@ const AppContent: React.FC = () => {
       <Route path="/payment-management" element={
         <ProtectedRoute>
           <PaymentManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/ho-so-chua-xu-ly" element={
+        <ProtectedRoute>
+          <HoSoChuaXuLy />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/ho-so-da-xu-ly" element={
+        <ProtectedRoute>
+          <HoSoDaXuLy />
         </ProtectedRoute>
       } />
 
