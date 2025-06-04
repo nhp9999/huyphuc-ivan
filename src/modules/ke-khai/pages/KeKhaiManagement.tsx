@@ -19,6 +19,7 @@ import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import KeKhaiApprovalModal from '../components/KeKhaiApprovalModal';
 import PaymentQRModal from '../components/PaymentQRModal';
 import paymentService from '../services/paymentService';
+import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 
 const KeKhaiManagement: React.FC = () => {
   const { user } = useAuth();
@@ -35,6 +36,9 @@ const KeKhaiManagement: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  // Loading states for specific actions
+  const [completingKeKhaiId, setCompletingKeKhaiId] = useState<number | null>(null);
   
   // Modal states
   const [selectedKeKhai, setSelectedKeKhai] = useState<DanhSachKeKhai | null>(null);
@@ -103,6 +107,39 @@ const KeKhaiManagement: React.FC = () => {
     loadKeKhaiData();
   }, [searchTerm, filterStatus, filterType, dateFrom, dateTo]);
 
+  // Listen for payment confirmation events to auto-reload data
+  useEffect(() => {
+    const handlePaymentConfirmed = (data: any) => {
+      console.log('KeKhaiManagement: Payment confirmed event received', data);
+      loadKeKhaiData();
+      showToast('Kê khai đã được cập nhật trạng thái sau thanh toán', 'success');
+    };
+
+    const handleKeKhaiStatusChanged = (data: any) => {
+      console.log('KeKhaiManagement: Ke khai status changed event received', data);
+      loadKeKhaiData();
+    };
+
+    const handleRefreshAllPages = (data: any) => {
+      console.log('KeKhaiManagement: Refresh all pages event received', data);
+      loadKeKhaiData();
+    };
+
+    // Subscribe to events
+    eventEmitter.on(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+    eventEmitter.on(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+    eventEmitter.on(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+    eventEmitter.on(EVENTS.REFRESH_KE_KHAI_MANAGEMENT, loadKeKhaiData);
+
+    // Cleanup on unmount
+    return () => {
+      eventEmitter.off(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+      eventEmitter.off(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+      eventEmitter.off(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+      eventEmitter.off(EVENTS.REFRESH_KE_KHAI_MANAGEMENT, loadKeKhaiData);
+    };
+  }, []);
+
   // Get status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -139,6 +176,13 @@ const KeKhaiManagement: React.FC = () => {
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
             <CheckCircle className="w-3 h-3 mr-1" />
             Đã duyệt
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Hoàn thành
           </span>
         );
       case 'rejected':
@@ -179,6 +223,63 @@ const KeKhaiManagement: React.FC = () => {
       approvalAction === 'approve' ? 'Đã duyệt kê khai thành công' : 'Đã từ chối kê khai thành công',
       'success'
     );
+  };
+
+  // Handle complete ke khai (chuyển từ processing sang completed)
+  const handleCompleteKeKhai = async (keKhai: DanhSachKeKhai) => {
+    // Prevent multiple clicks
+    if (completingKeKhaiId === keKhai.id) return;
+
+    setCompletingKeKhaiId(keKhai.id);
+
+    try {
+      console.log('Starting to complete ke khai:', keKhai.id);
+
+      // Cập nhật trạng thái kê khai thành completed
+      const result = await keKhaiService.updateKeKhaiStatus(
+        keKhai.id,
+        'completed',
+        user?.id?.toString(),
+        'Hoàn thành xử lý kê khai'
+      );
+
+      console.log('Successfully updated ke khai status:', result);
+
+      // Emit events để đồng bộ dữ liệu
+      eventEmitter.emit(EVENTS.KE_KHAI_STATUS_CHANGED, {
+        keKhaiId: keKhai.id,
+        oldStatus: 'processing',
+        newStatus: 'completed',
+        keKhaiData: result,
+        timestamp: new Date().toISOString()
+      });
+
+      eventEmitter.emit(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, {
+        reason: 'ke_khai_completed',
+        keKhaiId: keKhai.id,
+        keKhaiData: result
+      });
+
+      // Reload data và hiển thị thông báo
+      await loadKeKhaiData();
+      showToast(`Đã hoàn thành kê khai ${keKhai.ma_ke_khai} thành công`, 'success');
+
+    } catch (error: any) {
+      console.error('Error completing ke khai:', error);
+
+      // Hiển thị lỗi cụ thể
+      const errorMessage = error?.message || 'Không thể hoàn thành kê khai';
+      showToast(`Lỗi: ${errorMessage}`, 'error');
+
+      // Log chi tiết để debug
+      console.error('Detailed error:', {
+        keKhaiId: keKhai.id,
+        userId: user?.id,
+        error: error
+      });
+    } finally {
+      setCompletingKeKhaiId(null);
+    }
   };
 
   // Handle view payment
@@ -248,6 +349,7 @@ const KeKhaiManagement: React.FC = () => {
             <option value="submitted">Chờ duyệt</option>
             <option value="processing">Đang xử lý</option>
             <option value="approved">Đã duyệt</option>
+            <option value="completed">Hoàn thành</option>
             <option value="rejected">Từ chối</option>
           </select>
 
@@ -384,7 +486,7 @@ const KeKhaiManagement: React.FC = () => {
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          {(keKhai.trang_thai === 'submitted' || keKhai.trang_thai === 'processing') && (
+                          {keKhai.trang_thai === 'submitted' && (
                             <>
                               <button
                                 onClick={() => handleApprovalAction(keKhai, 'approve')}
@@ -396,6 +498,39 @@ const KeKhaiManagement: React.FC = () => {
                               <button
                                 onClick={() => handleApprovalAction(keKhai, 'reject')}
                                 className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                title="Từ chối"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+
+                          {keKhai.trang_thai === 'processing' && (
+                            <>
+                              <button
+                                onClick={() => handleCompleteKeKhai(keKhai)}
+                                disabled={completingKeKhaiId === keKhai.id}
+                                className={`${
+                                  completingKeKhaiId === keKhai.id
+                                    ? 'text-gray-400 cursor-not-allowed'
+                                    : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
+                                }`}
+                                title={completingKeKhaiId === keKhai.id ? 'Đang xử lý...' : 'Hoàn thành kê khai'}
+                              >
+                                {completingKeKhaiId === keKhai.id ? (
+                                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-4 h-4" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleApprovalAction(keKhai, 'reject')}
+                                disabled={completingKeKhaiId === keKhai.id}
+                                className={`${
+                                  completingKeKhaiId === keKhai.id
+                                    ? 'text-gray-400 cursor-not-allowed'
+                                    : 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'
+                                }`}
                                 title="Từ chối"
                               >
                                 <XCircle className="w-4 h-4" />

@@ -20,6 +20,7 @@ import { useToast } from '../../../shared/hooks/useToast';
 import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import KeKhaiApprovalModal from '../components/KeKhaiApprovalModal';
 import PaymentQRModal from '../components/PaymentQRModal';
+import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 import paymentService from '../services/paymentService';
 
 const HoSoChuaXuLy: React.FC = () => {
@@ -69,6 +70,39 @@ const HoSoChuaXuLy: React.FC = () => {
   useEffect(() => {
     loadKeKhaiData();
   }, [searchTerm, filterStatus]);
+
+  // Listen for payment confirmation events to auto-reload data
+  useEffect(() => {
+    const handlePaymentConfirmed = (data: any) => {
+      console.log('HoSoChuaXuLy: Payment confirmed event received', data);
+      loadKeKhaiData();
+      showToast('Kê khai đã được chuyển sang xử lý sau thanh toán', 'success');
+    };
+
+    const handleKeKhaiStatusChanged = (data: any) => {
+      console.log('HoSoChuaXuLy: Ke khai status changed event received', data);
+      loadKeKhaiData();
+    };
+
+    const handleRefreshAllPages = (data: any) => {
+      console.log('HoSoChuaXuLy: Refresh all pages event received', data);
+      loadKeKhaiData();
+    };
+
+    // Subscribe to events
+    eventEmitter.on(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+    eventEmitter.on(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+    eventEmitter.on(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+    eventEmitter.on(EVENTS.REFRESH_HO_SO_CHUA_XU_LY, loadKeKhaiData);
+
+    // Cleanup on unmount
+    return () => {
+      eventEmitter.off(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+      eventEmitter.off(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+      eventEmitter.off(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+      eventEmitter.off(EVENTS.REFRESH_HO_SO_CHUA_XU_LY, loadKeKhaiData);
+    };
+  }, []);
 
   // Get status badge
   const getStatusBadge = (status: string) => {

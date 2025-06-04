@@ -490,23 +490,7 @@ const DeclarationCategories: React.FC = () => {
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 md:p-6">
-        <h3 className="text-base md:text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
-          Hướng dẫn sử dụng
-        </h3>
-        <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
-          <li>• <strong>Tìm kiếm:</strong> Nhập mã hoặc tên thủ tục để tìm kiếm nhanh</li>
-          <li>• <strong>Lĩnh vực:</strong> Lọc theo loại thủ tục (Đăng ký, Cấp lại/Đổi thẻ, Giải quyết chế độ, v.v.)</li>
-          <li>• <strong>Ký hiệu:</strong> Mã định danh duy nhất của từng thủ tục</li>
-          <li>• <strong>Hiển thị thủ tục:</strong> Mặc định chỉ hiện thủ tục sẵn sàng, click "Hiện tất cả" để xem thêm</li>
-          <li>• <strong>Badge "Sẵn sàng":</strong> Thủ tục đã được phát triển và có thể sử dụng</li>
-          <li>• <strong>Badge "Chưa phát triển":</strong> Thủ tục sẽ được hỗ trợ trong phiên bản tiếp theo (chỉ hiện khi bật "Hiện tất cả")</li>
-          <li>• <strong>Kê khai 603:</strong> Click vào thủ tục có ký hiệu "603" để bắt đầu kê khai BHYT</li>
-          <li>• <strong>Làm mới:</strong> Tải lại dữ liệu mới nhất từ hệ thống</li>
-          <li>• Danh mục được đồng bộ từ cơ sở dữ liệu và cập nhật theo quy định mới nhất</li>
-        </ul>
-      </div>
+
 
       {/* Toast Notification */}
       <Toast

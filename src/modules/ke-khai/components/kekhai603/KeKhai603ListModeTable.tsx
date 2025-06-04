@@ -138,10 +138,10 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
                   Nơi KCB <span className="text-red-500">*</span>
                 </th>
                 <th className="text-left py-3 px-3 text-sm font-medium text-gray-700 dark:text-gray-300 w-32">
-                  STT hộ
+                  STT hộ <span className="text-red-500">*</span>
                 </th>
                 <th className="text-left py-3 px-3 text-sm font-medium text-gray-700 dark:text-gray-300 w-32">
-                  Số tháng
+                  Số tháng <span className="text-red-500">*</span>
                 </th>
                 <th className="text-left py-3 px-3 text-sm font-medium text-gray-700 dark:text-gray-300 w-36">
                   Số tiền
@@ -183,11 +183,14 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
                         }}
                         maxLength={10}
                         className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors font-mono ${
-                          participant.maSoBHXH && participant.maSoBHXH.length !== 10
+                          !participant.maSoBHXH
+                            ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                            : participant.maSoBHXH.length !== 10
                             ? 'border-orange-300 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/20'
                             : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                         }`}
                         placeholder="1234567890"
+                        required
                       />
                       {searchLoading && (
                         <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
@@ -198,12 +201,14 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
                           ? 'text-green-600 dark:text-green-400'
                           : participant.maSoBHXH.length > 0
                             ? 'text-orange-600 dark:text-orange-400'
-                            : 'text-gray-400'
+                            : 'text-red-600 dark:text-red-400'
                       }`}>
                         {participant.maSoBHXH.length}/10
-                        {participant.maSoBHXH.length === 10 && (
+                        {participant.maSoBHXH.length === 10 ? (
                           <span className="ml-1">✓</span>
-                        )}
+                        ) : participant.maSoBHXH.length === 0 ? (
+                          <span className="ml-1">*</span>
+                        ) : null}
                       </div>
                     </div>
                   </td>
@@ -214,8 +219,13 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
                       type="text"
                       value={participant.hoTen}
                       onChange={(e) => handleParticipantChange(index, 'hoTen', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors hover:border-gray-400 dark:hover:border-gray-500"
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${
+                        !participant.hoTen?.trim()
+                          ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
                       placeholder="Nhập họ và tên"
+                      required
                     />
                   </td>
 
@@ -236,6 +246,7 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
                         maTinh={participant.tinhKCB}
                         placeholder="Trung tâm Y tế thị xã Tịnh Biên (mặc định)"
                         className="w-full"
+                        required
                       />
                     </div>
                   </td>
@@ -245,7 +256,12 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
                     <select
                       value={participant.sttHo}
                       onChange={(e) => handleParticipantChange(index, 'sttHo', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors hover:border-gray-400 dark:hover:border-gray-500"
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${
+                        !participant.sttHo
+                          ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                      required
                     >
                       <option value="">Chọn STT</option>
                       <option value="1">1 (100%)</option>
@@ -261,7 +277,12 @@ export const KeKhai603ListModeTable: React.FC<KeKhai603ListModeTableProps> = ({
                     <select
                       value={participant.soThangDong}
                       onChange={(e) => handleParticipantChange(index, 'soThangDong', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors hover:border-gray-400 dark:hover:border-gray-500"
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors ${
+                        !participant.soThangDong
+                          ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                      required
                     >
                       <option value="">Chọn tháng</option>
                       <option value="3">3 tháng</option>

@@ -66,12 +66,17 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
           {/* STT hộ */}
           <div className="md:col-span-1 lg:col-span-2 xl:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              STT hộ
+              STT hộ <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.sttHo}
               onChange={(e) => handleInputChange('sttHo', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                !formData.sttHo
+                  ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
+              required
             >
               <option value="">Chọn STT hộ</option>
               <option value="1">Người thứ 1</option>
@@ -85,12 +90,17 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
           {/* Số tháng đóng */}
           <div className="md:col-span-2 lg:col-span-2 xl:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Số tháng đóng
+              Số tháng đóng <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.soThangDong}
               onChange={(e) => handleInputChange('soThangDong', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                !formData.soThangDong
+                  ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
+              required
             >
               <option value="">Chọn số tháng</option>
               <option value="3">3 tháng</option>

@@ -18,6 +18,7 @@ import { useAuth } from '../../auth';
 import { useToast } from '../../../shared/hooks/useToast';
 import PaymentQRModal from '../components/PaymentQRModal';
 import PaymentProofModal from '../components/PaymentProofModal';
+import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 
 const MyPayments: React.FC = () => {
   const { user } = useAuth();
@@ -33,6 +34,33 @@ const MyPayments: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showProofModal, setShowProofModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
+
+  // Get latest payment from a ke khai (sorted by created_at)
+  const getLatestPayment = (keKhai: any) => {
+    if (!keKhai.thanh_toan || keKhai.thanh_toan.length === 0) return null;
+
+    // Sắp xếp theo created_at để lấy payment mới nhất
+    return keKhai.thanh_toan.sort((a: any, b: any) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+  };
+
+  // Check if payment is completed (check both payment and ke khai status)
+  const isPaymentCompleted = (keKhai: any) => {
+    const latestPayment = getLatestPayment(keKhai);
+    return latestPayment?.trang_thai === 'completed' ||
+           keKhai.payment_status === 'completed' ||
+           keKhai.trang_thai === 'paid' ||
+           keKhai.trang_thai === 'processing';
+  };
+
+  // Check if payment is pending
+  const isPaymentPending = (keKhai: any) => {
+    const latestPayment = getLatestPayment(keKhai);
+    return latestPayment?.trang_thai === 'pending' ||
+           keKhai.payment_status === 'pending' ||
+           keKhai.trang_thai === 'pending_payment';
+  };
 
   // Load data
   const loadMyPayments = async () => {
@@ -53,7 +81,9 @@ const MyPayments: React.FC = () => {
             qr_code_url,
             created_at,
             paid_at,
-            proof_image_url
+            proof_image_url,
+            transaction_id,
+            confirmation_note
           )
         `)
         .eq('created_by', user.id)
@@ -73,11 +103,10 @@ const MyPayments: React.FC = () => {
       const filteredData = filterStatus === 'all'
         ? paymentRelatedKeKhai
         : paymentRelatedKeKhai.filter((kk: any) => {
-            const latestPayment = kk.thanh_toan[0]; // Lấy thanh toán mới nhất
             if (filterStatus === 'pending_payment') {
-              return latestPayment.trang_thai === 'pending';
+              return isPaymentPending(kk);
             } else if (filterStatus === 'paid') {
-              return latestPayment.trang_thai === 'completed';
+              return isPaymentCompleted(kk);
             }
             return true;
           });
@@ -94,6 +123,39 @@ const MyPayments: React.FC = () => {
   useEffect(() => {
     loadMyPayments();
   }, [user?.id, filterStatus]);
+
+  // Listen for payment confirmation events to auto-reload data
+  useEffect(() => {
+    const handlePaymentConfirmed = (data: any) => {
+      console.log('MyPayments: Payment confirmed event received', data);
+      loadMyPayments();
+      showToast('Thanh toán đã được xác nhận thành công', 'success');
+    };
+
+    const handleKeKhaiStatusChanged = (data: any) => {
+      console.log('MyPayments: Ke khai status changed event received', data);
+      loadMyPayments();
+    };
+
+    const handleRefreshAllPages = (data: any) => {
+      console.log('MyPayments: Refresh all pages event received', data);
+      loadMyPayments();
+    };
+
+    // Subscribe to events
+    eventEmitter.on(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+    eventEmitter.on(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+    eventEmitter.on(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+    eventEmitter.on(EVENTS.REFRESH_MY_PAYMENTS, loadMyPayments);
+
+    // Cleanup on unmount
+    return () => {
+      eventEmitter.off(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+      eventEmitter.off(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+      eventEmitter.off(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+      eventEmitter.off(EVENTS.REFRESH_MY_PAYMENTS, loadMyPayments);
+    };
+  }, []);
 
   // Filter data based on search term
   const filteredKeKhai = keKhaiList.filter(keKhai =>
@@ -139,51 +201,77 @@ const MyPayments: React.FC = () => {
 
   // Get status badge based on payment status
   const getPaymentStatusBadge = (keKhai: any) => {
-    const latestPayment = keKhai.thanh_toan?.[0];
-    if (!latestPayment) {
+    const latestPayment = getLatestPayment(keKhai);
+
+    // Kiểm tra trạng thái đang xử lý
+    if (keKhai.trang_thai === 'processing') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
-          <AlertCircle className="w-3 h-3 mr-1" />
-          Chưa có thanh toán
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+          <Clock className="w-3 h-3 mr-1" />
+          Đang xử lý
         </span>
       );
     }
 
-    switch (latestPayment.trang_thai) {
-      case 'pending':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
-            <Clock className="w-3 h-3 mr-1" />
-            Chờ thanh toán
-          </span>
-        );
-      case 'completed':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Đã thanh toán
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Thất bại
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            {latestPayment.trang_thai}
-          </span>
-        );
+    // Kiểm tra trạng thái đã thanh toán
+    if (isPaymentCompleted(keKhai)) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Đã thanh toán
+        </span>
+      );
     }
+
+    // Kiểm tra trạng thái chờ thanh toán
+    if (isPaymentPending(keKhai)) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+          <Clock className="w-3 h-3 mr-1" />
+          Chờ thanh toán
+        </span>
+      );
+    }
+
+    // Kiểm tra các trạng thái khác
+    if (latestPayment) {
+      switch (latestPayment.trang_thai) {
+        case 'failed':
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              Thất bại
+            </span>
+          );
+        case 'cancelled':
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              Đã hủy
+            </span>
+          );
+        default:
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              {latestPayment.trang_thai}
+            </span>
+          );
+      }
+    }
+
+    // Không có thanh toán
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+        <AlertCircle className="w-3 h-3 mr-1" />
+        Chưa có thanh toán
+      </span>
+    );
   };
 
   // Handle view payment
   const handleViewPayment = (keKhai: any) => {
-    const latestPayment = keKhai.thanh_toan?.[0];
+    const latestPayment = getLatestPayment(keKhai);
     if (latestPayment) {
       setSelectedPayment(latestPayment);
       setShowPaymentModal(true);
@@ -194,7 +282,7 @@ const MyPayments: React.FC = () => {
 
   // Handle view proof image
   const handleViewProof = (keKhai: any) => {
-    const latestPayment = keKhai.thanh_toan?.[0];
+    const latestPayment = getLatestPayment(keKhai);
     if (latestPayment && latestPayment.proof_image_url) {
       setSelectedPayment(latestPayment);
       setShowProofModal(true);
@@ -331,7 +419,7 @@ const MyPayments: React.FC = () => {
                           <DollarSign className="w-4 h-4 text-green-500 mr-1" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
                             {(() => {
-                              const latestPayment = (keKhai as any).thanh_toan?.[0];
+                              const latestPayment = getLatestPayment(keKhai);
                               return latestPayment?.so_tien
                                 ? paymentService.formatCurrency(latestPayment.so_tien)
                                 : 'Chưa tính';
@@ -355,10 +443,10 @@ const MyPayments: React.FC = () => {
                         <div className="flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
                           {(() => {
-                            const latestPayment = (keKhai as any).thanh_toan?.[0];
+                            const latestPayment = getLatestPayment(keKhai);
                             if (latestPayment?.paid_at) {
                               return new Date(latestPayment.paid_at).toLocaleString('vi-VN');
-                            } else if (latestPayment?.trang_thai === 'pending') {
+                            } else if (isPaymentPending(keKhai)) {
                               return (
                                 <span className="text-orange-500 italic">Chờ thanh toán</span>
                               );
@@ -370,10 +458,10 @@ const MyPayments: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
                           {(() => {
-                            const latestPayment = (keKhai as any).thanh_toan?.[0];
+                            const latestPayment = getLatestPayment(keKhai);
                             if (!latestPayment) return null;
 
-                            if (latestPayment.trang_thai === 'pending') {
+                            if (isPaymentPending(keKhai)) {
                               return (
                                 <button
                                   onClick={() => handleViewPayment(keKhai)}
@@ -383,7 +471,7 @@ const MyPayments: React.FC = () => {
                                   <QrCode className="w-4 h-4" />
                                 </button>
                               );
-                            } else if (latestPayment.trang_thai === 'completed') {
+                            } else if (isPaymentCompleted(keKhai)) {
                               return (
                                 <>
                                   <button

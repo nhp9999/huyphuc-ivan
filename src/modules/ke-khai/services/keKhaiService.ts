@@ -1,6 +1,7 @@
 import { supabase } from '../../../shared/services/api/supabaseClient';
 import { DanhSachKeKhai, DanhSachNguoiThamGia, ThanhToan } from '../../../shared/services/api/supabaseClient';
 import phanQuyenService from '../../quan-ly/services/phanQuyenService';
+import { emitPaymentConfirmed, emitKeKhaiStatusChanged } from '../../../shared/utils/eventEmitter';
 import paymentService from './paymentService';
 
 export interface CreateKeKhaiRequest {
@@ -441,7 +442,7 @@ class KeKhaiService {
     }
   }
 
-  // Xác nhận thanh toán và hoàn thành kê khai
+  // Xác nhận thanh toán và chuyển kê khai sang trạng thái đang xử lý
   async confirmPayment(
     keKhaiId: number,
     paymentId: number,
@@ -461,15 +462,16 @@ class KeKhaiService {
         confirmationNote
       );
 
-      // Cập nhật trạng thái kê khai thành paid
+      // Cập nhật trạng thái kê khai thành processing (đang xử lý) sau khi thanh toán
       const { data: result, error } = await supabase
         .from('danh_sach_ke_khai')
         .update({
-          trang_thai: 'paid',
+          trang_thai: 'processing',
           payment_status: 'completed',
           payment_completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          updated_by: confirmedBy
+          updated_by: confirmedBy,
+          processing_notes: 'Đã thanh toán thành công, chuyển sang xử lý'
         })
         .eq('id', keKhaiId)
         .select()
@@ -479,6 +481,10 @@ class KeKhaiService {
         console.error('Error confirming payment:', error);
         throw new Error('Không thể xác nhận thanh toán');
       }
+
+      // Emit events để thông báo cho các component khác
+      emitKeKhaiStatusChanged(keKhaiId, 'pending_payment', 'processing', result);
+      emitPaymentConfirmed(keKhaiId, paymentId, result);
 
       return result;
     } catch (error) {
@@ -521,6 +527,75 @@ class KeKhaiService {
     } catch (error) {
       console.error('Error in setKeKhaiProcessing:', error);
       throw error;
+    }
+  }
+
+  // Cập nhật trạng thái kê khai (generic function)
+  async updateKeKhaiStatus(
+    id: number,
+    status: string,
+    userId?: string,
+    notes?: string
+  ): Promise<DanhSachKeKhai> {
+    try {
+      console.log('updateKeKhaiStatus called with:', { id, status, userId, notes });
+
+      const updateData: any = {
+        trang_thai: status,
+        updated_at: new Date().toISOString()
+      };
+
+      if (userId) {
+        updateData.updated_by = userId;
+      }
+
+      if (notes) {
+        updateData.processing_notes = notes;
+      }
+
+      // Thêm timestamp cho các trạng thái đặc biệt (chỉ cho các trường tồn tại trong DB)
+      if (status === 'approved') {
+        updateData.approved_at = new Date().toISOString();
+      } else if (status === 'rejected') {
+        updateData.rejected_at = new Date().toISOString();
+      }
+      // Note: completed_at không tồn tại trong schema, chỉ dùng trang_thai = 'completed'
+
+      console.log('Update data to be sent:', updateData);
+
+      const { data: result, error } = await supabase
+        .from('danh_sach_ke_khai')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error updating ke khai status:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw new Error(`Lỗi cập nhật database: ${error.message}`);
+      }
+
+      if (!result) {
+        throw new Error('Không tìm thấy kê khai để cập nhật');
+      }
+
+      console.log('Successfully updated ke khai:', result);
+      return result;
+    } catch (error: any) {
+      console.error('Error in updateKeKhaiStatus:', error);
+
+      // Re-throw với thông tin chi tiết hơn
+      if (error.message?.includes('Lỗi cập nhật database')) {
+        throw error; // Đã có thông tin chi tiết
+      } else {
+        throw new Error(`Không thể cập nhật trạng thái kê khai: ${error.message || 'Lỗi không xác định'}`);
+      }
     }
   }
 

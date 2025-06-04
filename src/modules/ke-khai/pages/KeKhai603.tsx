@@ -933,10 +933,10 @@ const KeKhai603: React.FC = () => {
                                 keKhaiId: keKhai.id
                               });
                             }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-1 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
                             title="Xem chi tiết"
                           >
-                            <Eye className="w-3 h-3" />
+                            <Eye className="w-4 h-4" />
                           </button>
 
                           {/* Payment buttons for desktop */}
@@ -944,13 +944,13 @@ const KeKhai603: React.FC = () => {
                             <button
                               onClick={() => handleCreatePayment(keKhai)}
                               disabled={creatingPayment === keKhai.id}
-                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-1 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
                               title="Tạo thanh toán"
                             >
                               {creatingPayment === keKhai.id ? (
-                                <RefreshCw className="w-3 h-3 animate-spin" />
+                                <RefreshCw className="w-4 h-4 animate-spin" />
                               ) : (
-                                <CreditCard className="w-3 h-3" />
+                                <CreditCard className="w-4 h-4" />
                               )}
                             </button>
                           )}
@@ -958,19 +958,19 @@ const KeKhai603: React.FC = () => {
                           {isPendingPayment(keKhai) && (
                             <button
                               onClick={() => handleViewPayment(keKhai)}
-                              className="bg-orange-600 hover:bg-orange-700 text-white px-1 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                              className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
                               title="Xem QR thanh toán"
                             >
-                              <QrCode className="w-3 h-3" />
+                              <QrCode className="w-4 h-4" />
                             </button>
                           )}
 
                           <button
                             onClick={() => openDeleteModal(keKhai)}
-                            className="bg-red-600 hover:bg-red-700 text-white px-1 py-1 rounded text-sm transition-colors flex items-center justify-center"
+                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
                             title="Xóa kê khai"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>

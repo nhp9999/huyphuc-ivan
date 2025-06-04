@@ -6,6 +6,8 @@ import { useKeKhai603Participants } from '../hooks/useKeKhai603Participants';
 import { useKeKhai603Api } from '../hooks/useKeKhai603Api';
 import { useKeKhai603 } from '../hooks/useKeKhai603';
 import { useToast } from '../../../shared/hooks/useToast';
+import { ThanhToan } from '../../../shared/services/api/supabaseClient';
+import PaymentQRModal from './PaymentQRModal';
 import { KeKhai603Header } from './kekhai603/KeKhai603Header';
 import { KeKhai603PersonalInfoForm } from './kekhai603/KeKhai603PersonalInfoForm';
 import { KeKhai603CardInfoForm } from './kekhai603/KeKhai603CardInfoForm';
@@ -25,6 +27,10 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   // State for tracking save status
   const [lastSavedTime, setLastSavedTime] = React.useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false);
+
+  // State for payment modal
+  const [showPaymentModal, setShowPaymentModal] = React.useState(false);
+  const [selectedPayment, setSelectedPayment] = React.useState<ThanhToan | null>(null);
 
   // Custom hooks
   const { formData, handleInputChange, resetForm } = useKeKhai603FormData();
@@ -193,6 +199,12 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       const result = await submitDeclaration();
       if (result.success) {
         showToast(result.message, 'success');
+
+        // Hiển thị QR modal nếu có payment được tạo
+        if (result.payment) {
+          setSelectedPayment(result.payment);
+          setShowPaymentModal(true);
+        }
       } else {
         showToast(result.message, 'error');
       }
@@ -243,6 +255,19 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       console.error('Create new ke khai error:', error);
       showToast('Có lỗi xảy ra khi tạo kê khai mới. Vui lòng thử lại.', 'error');
     }
+  };
+
+  // Handle payment modal close
+  const handlePaymentModalClose = () => {
+    setShowPaymentModal(false);
+    setSelectedPayment(null);
+  };
+
+  // Handle payment confirmed
+  const handlePaymentConfirmed = () => {
+    setShowPaymentModal(false);
+    setSelectedPayment(null);
+    showToast('Thanh toán đã được xác nhận thành công!', 'success');
   };
 
   return (
@@ -378,6 +403,15 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         type={toast.type}
         onClose={hideToast}
       />
+
+      {/* Payment QR Modal */}
+      {showPaymentModal && selectedPayment && (
+        <PaymentQRModal
+          payment={selectedPayment}
+          onClose={handlePaymentModalClose}
+          onPaymentConfirmed={handlePaymentConfirmed}
+        />
+      )}
     </div>
   );
 };

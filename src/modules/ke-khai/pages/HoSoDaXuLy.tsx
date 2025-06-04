@@ -21,8 +21,11 @@ import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import PaymentQRModal from '../components/PaymentQRModal';
 import PaymentProofModal from '../components/PaymentProofModal';
 import paymentService from '../services/paymentService';
+import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
+import { useAuth } from '../../auth';
 
 const HoSoDaXuLy: React.FC = () => {
+  const { user } = useAuth();
   const { showToast } = useToast();
   
   // State
@@ -40,6 +43,8 @@ const HoSoDaXuLy: React.FC = () => {
 
   // Load data
   const loadKeKhaiData = async () => {
+    if (!user?.id) return;
+
     setLoading(true);
     try {
       const params: KeKhaiSearchParams = {
@@ -47,14 +52,37 @@ const HoSoDaXuLy: React.FC = () => {
         trang_thai: filterStatus !== 'all' ? filterStatus : undefined
       };
 
+      console.log('HoSoDaXuLy: Loading data with params:', params);
+
       // Lấy tất cả kê khai và filter các trạng thái đã xử lý
       let allData: DanhSachKeKhai[];
-      // Tạm thời sử dụng getKeKhaiList cho tất cả user, có thể cải thiện sau
-      allData = await keKhaiService.getKeKhaiList(params);
+
+      // Kiểm tra quyền admin để quyết định function nào sử dụng
+      const isAdmin = await keKhaiService.isUserAdmin(user.id);
+      console.log('HoSoDaXuLy: User is admin:', isAdmin);
+
+      if (isAdmin) {
+        // Admin có thể xem tất cả kê khai
+        allData = await keKhaiService.getKeKhaiListForAdmin(params);
+      } else {
+        // User thường chỉ xem kê khai của mình
+        allData = await keKhaiService.getKeKhaiList({
+          ...params,
+          created_by: user.id
+        });
+      }
+
+      console.log('HoSoDaXuLy: Raw data loaded:', allData.length, 'items');
 
       // Filter chỉ lấy các kê khai đã xử lý
       const processedStatuses = ['approved', 'paid', 'rejected', 'completed'];
       const processedData = allData.filter(item => processedStatuses.includes(item.trang_thai));
+
+      console.log('HoSoDaXuLy: Processed data after filter:', processedData.length, 'items');
+      console.log('HoSoDaXuLy: Status breakdown:', processedData.reduce((acc, item) => {
+        acc[item.trang_thai] = (acc[item.trang_thai] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>));
 
       setKeKhaiList(processedData);
     } catch (error) {
@@ -68,7 +96,40 @@ const HoSoDaXuLy: React.FC = () => {
   // Load data on component mount and when filters change
   useEffect(() => {
     loadKeKhaiData();
-  }, [searchTerm, filterStatus]);
+  }, [user?.id, searchTerm, filterStatus]);
+
+  // Listen for payment confirmation events to auto-reload data
+  useEffect(() => {
+    const handlePaymentConfirmed = (data: any) => {
+      console.log('HoSoDaXuLy: Payment confirmed event received', data);
+      loadKeKhaiData();
+      showToast('Kê khai đã được cập nhật trạng thái', 'success');
+    };
+
+    const handleKeKhaiStatusChanged = (data: any) => {
+      console.log('HoSoDaXuLy: Ke khai status changed event received', data);
+      loadKeKhaiData();
+    };
+
+    const handleRefreshAllPages = (data: any) => {
+      console.log('HoSoDaXuLy: Refresh all pages event received', data);
+      loadKeKhaiData();
+    };
+
+    // Subscribe to events
+    eventEmitter.on(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+    eventEmitter.on(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+    eventEmitter.on(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+    eventEmitter.on(EVENTS.REFRESH_HO_SO_DA_XU_LY, loadKeKhaiData);
+
+    // Cleanup on unmount
+    return () => {
+      eventEmitter.off(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+      eventEmitter.off(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+      eventEmitter.off(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+      eventEmitter.off(EVENTS.REFRESH_HO_SO_DA_XU_LY, loadKeKhaiData);
+    };
+  }, []);
 
   // Get status badge
   const getStatusBadge = (status: string) => {
@@ -81,11 +142,17 @@ const HoSoDaXuLy: React.FC = () => {
           </span>
         );
       case 'paid':
-      case 'completed':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-            <DollarSign className="w-3 h-3 mr-1" />
+            <CreditCard className="w-3 h-3 mr-1" />
             Đã thanh toán
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Hoàn thành
           </span>
         );
       case 'rejected':
