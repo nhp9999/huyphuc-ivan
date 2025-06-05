@@ -26,10 +26,30 @@ const DeclarationHistory: React.FC = () => {
 
   // Load data
   const loadParticipantsData = async () => {
+    if (!user?.id) return;
+
     setLoading(true);
     try {
+      // SECURITY FIX: Tạm thời force filter theo created_by để đảm bảo bảo mật
+      const FORCE_USER_FILTER = true; // Set false khi đã fix logic admin
+
       // Lấy tất cả kê khai của user
-      const keKhaiList = await keKhaiService.getKeKhaiList({});
+      let keKhaiList: any[] = [];
+      if (FORCE_USER_FILTER) {
+        console.log('🔒 SECURITY: Force filtering by user ID for security in DeclarationHistory');
+        keKhaiList = await keKhaiService.getKeKhaiList({
+          created_by: user.id
+        });
+      } else {
+        const isAdmin = await keKhaiService.isUserAdmin(user.id);
+        if (isAdmin) {
+          keKhaiList = await keKhaiService.getKeKhaiListForAdmin({});
+        } else {
+          keKhaiList = await keKhaiService.getKeKhaiList({
+            created_by: user.id
+          });
+        }
+      }
 
       // Lấy tất cả người tham gia từ các kê khai này
       const allParticipants: ParticipantWithKeKhai[] = [];
@@ -66,8 +86,10 @@ const DeclarationHistory: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    loadParticipantsData();
-  }, []);
+    if (user?.id) {
+      loadParticipantsData();
+    }
+  }, [user?.id]);
 
 
 

@@ -195,15 +195,32 @@ const KeKhai603: React.FC = () => {
       // QUAN TRỌNG: Kiểm tra quyền user để quyết định filter
       let keKhaiData: any[] = [];
       if (user?.id) {
-        const isAdmin = await keKhaiService.isUserAdmin(user.id);
-        if (isAdmin) {
-          // Admin có thể xem tất cả kê khai (không filter theo created_by)
-          keKhaiData = await keKhaiService.getKeKhaiListForAdmin(searchParams);
-        } else {
-          // Chỉ hiển thị kê khai của user hiện tại nếu không phải admin
+        console.log('🔍 Checking user permissions for:', user.id, user.email);
+
+        // SECURITY FIX: Tạm thời force filter theo created_by để đảm bảo bảo mật
+        // TODO: Cần kiểm tra lại logic phân quyền admin
+        const FORCE_USER_FILTER = true; // Set false khi đã fix logic admin
+
+        if (FORCE_USER_FILTER) {
+          console.log('🔒 SECURITY: Force filtering by user ID for security');
           searchParams.created_by = user.id;
           keKhaiData = await keKhaiService.getKeKhaiList(searchParams);
+        } else {
+          const isAdmin = await keKhaiService.isUserAdmin(user.id);
+          console.log('👤 User admin status:', isAdmin);
+
+          if (isAdmin) {
+            // Admin có thể xem tất cả kê khai (không filter theo created_by)
+            console.log('🔓 Loading ALL ke khai for admin');
+            keKhaiData = await keKhaiService.getKeKhaiListForAdmin(searchParams);
+          } else {
+            // Chỉ hiển thị kê khai của user hiện tại nếu không phải admin
+            console.log('🔒 Loading ke khai ONLY for user:', user.id);
+            searchParams.created_by = user.id;
+            keKhaiData = await keKhaiService.getKeKhaiList(searchParams);
+          }
         }
+        console.log('📋 Loaded ke khai count:', keKhaiData.length);
       } else {
         // Nếu không có user, không hiển thị gì
         keKhaiData = [];

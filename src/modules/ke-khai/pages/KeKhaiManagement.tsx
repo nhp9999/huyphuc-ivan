@@ -78,14 +78,23 @@ const KeKhaiManagement: React.FC = () => {
       // QUAN TRỌNG: Kiểm tra quyền user để quyết định filter
       let data: any[] = [];
       if (user?.id) {
-        const isAdmin = await keKhaiService.isUserAdmin(user.id);
-        if (isAdmin) {
-          // Admin có thể xem tất cả kê khai (không filter theo created_by)
-          data = await keKhaiService.getKeKhaiForApprovalForAdmin(searchParams);
-        } else {
-          // Chỉ hiển thị kê khai của user hiện tại nếu không phải admin
+        // SECURITY FIX: Tạm thời force filter theo created_by để đảm bảo bảo mật
+        const FORCE_USER_FILTER = true; // Set false khi đã fix logic admin
+
+        if (FORCE_USER_FILTER) {
+          console.log('🔒 SECURITY: Force filtering by user ID for security');
           searchParams.created_by = user.id;
           data = await keKhaiService.getKeKhaiForApproval(searchParams);
+        } else {
+          const isAdmin = await keKhaiService.isUserAdmin(user.id);
+          if (isAdmin) {
+            // Admin có thể xem tất cả kê khai (không filter theo created_by)
+            data = await keKhaiService.getKeKhaiForApprovalForAdmin(searchParams);
+          } else {
+            // Chỉ hiển thị kê khai của user hiện tại nếu không phải admin
+            searchParams.created_by = user.id;
+            data = await keKhaiService.getKeKhaiForApproval(searchParams);
+          }
         }
       } else {
         // Nếu không có user, không hiển thị gì

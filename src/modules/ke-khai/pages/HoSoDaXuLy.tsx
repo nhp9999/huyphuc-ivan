@@ -57,19 +57,30 @@ const HoSoDaXuLy: React.FC = () => {
       // Lấy tất cả kê khai và filter các trạng thái đã xử lý
       let allData: DanhSachKeKhai[];
 
-      // Kiểm tra quyền admin để quyết định function nào sử dụng
-      const isAdmin = await keKhaiService.isUserAdmin(user.id);
-      console.log('HoSoDaXuLy: User is admin:', isAdmin);
+      // SECURITY FIX: Tạm thời force filter theo created_by để đảm bảo bảo mật
+      const FORCE_USER_FILTER = true; // Set false khi đã fix logic admin
 
-      if (isAdmin) {
-        // Admin có thể xem tất cả kê khai
-        allData = await keKhaiService.getKeKhaiListForAdmin(params);
-      } else {
-        // User thường chỉ xem kê khai của mình
+      if (FORCE_USER_FILTER) {
+        console.log('🔒 SECURITY: Force filtering by user ID for security');
         allData = await keKhaiService.getKeKhaiList({
           ...params,
           created_by: user.id
         });
+      } else {
+        // Kiểm tra quyền admin để quyết định function nào sử dụng
+        const isAdmin = await keKhaiService.isUserAdmin(user.id);
+        console.log('HoSoDaXuLy: User is admin:', isAdmin);
+
+        if (isAdmin) {
+          // Admin có thể xem tất cả kê khai
+          allData = await keKhaiService.getKeKhaiListForAdmin(params);
+        } else {
+          // User thường chỉ xem kê khai của mình
+          allData = await keKhaiService.getKeKhaiList({
+            ...params,
+            created_by: user.id
+          });
+        }
       }
 
       console.log('HoSoDaXuLy: Raw data loaded:', allData.length, 'items');

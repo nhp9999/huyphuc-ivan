@@ -46,16 +46,50 @@ const HoSoChuaXuLy: React.FC = () => {
     try {
       const params: KeKhaiSearchParams = {
         ma_ke_khai: searchTerm || undefined,
+        // Nếu user chọn trạng thái cụ thể, dùng nó. Nếu không, không filter ở DB level
         trang_thai: filterStatus !== 'all' ? filterStatus : undefined
       };
 
+      // SECURITY FIX: Tạm thời force filter theo created_by để đảm bảo bảo mật
+      const FORCE_USER_FILTER = true; // Set false khi đã fix logic admin
+
       // Lấy tất cả kê khai trước, sau đó filter
       let allData: DanhSachKeKhai[];
-      allData = await keKhaiService.getKeKhaiList(params);
+      if (FORCE_USER_FILTER && user?.id) {
+        console.log('🔒 SECURITY: Force filtering by user ID for security');
+        allData = await keKhaiService.getKeKhaiList({
+          ...params,
+          created_by: user.id
+        });
+      } else {
+        allData = await keKhaiService.getKeKhaiList(params);
+      }
 
-      // Filter chỉ lấy các kê khai chưa xử lý
-      const unprocessedStatuses = ['submitted', 'processing', 'pending_payment'];
-      const unprocessedData = allData.filter(item => unprocessedStatuses.includes(item.trang_thai));
+      // Filter chỉ lấy các kê khai chưa xử lý (bao gồm cả draft)
+      const unprocessedStatuses = ['draft', 'submitted', 'processing', 'pending_payment'];
+      const excludedStatuses = ['completed', 'approved', 'rejected'];
+
+      console.log('🔍 HoSoChuaXuLy: All data before filter:', allData.map(item => ({
+        id: item.id,
+        ma_ke_khai: item.ma_ke_khai,
+        trang_thai: item.trang_thai
+      })));
+
+      // Filter để chỉ lấy các trạng thái chưa xử lý và loại bỏ các trạng thái không mong muốn
+      const unprocessedData = allData.filter(item => {
+        const isUnprocessed = unprocessedStatuses.includes(item.trang_thai);
+        const isNotExcluded = !excludedStatuses.includes(item.trang_thai);
+        return isUnprocessed && isNotExcluded;
+      });
+
+      console.log('📋 HoSoChuaXuLy: Filtered unprocessed data:', unprocessedData.map(item => ({
+        id: item.id,
+        ma_ke_khai: item.ma_ke_khai,
+        trang_thai: item.trang_thai
+      })));
+
+      console.log('❌ HoSoChuaXuLy: Excluded statuses:', excludedStatuses);
+      console.log('✅ HoSoChuaXuLy: Allowed statuses:', unprocessedStatuses);
 
       setKeKhaiList(unprocessedData);
     } catch (error) {
@@ -107,6 +141,13 @@ const HoSoChuaXuLy: React.FC = () => {
   // Get status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'draft':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+            <FileText className="w-3 h-3 mr-1" />
+            Nháp
+          </span>
+        );
       case 'submitted':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
@@ -202,7 +243,7 @@ const HoSoChuaXuLy: React.FC = () => {
             Hồ sơ chưa xử lý
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Quản lý các kê khai đang chờ duyệt và xử lý
+            Quản lý các kê khai nháp, đang chờ duyệt và xử lý
           </p>
         </div>
         
@@ -240,6 +281,7 @@ const HoSoChuaXuLy: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
             >
               <option value="all">Tất cả trạng thái</option>
+              <option value="draft">Nháp</option>
               <option value="submitted">Chờ duyệt</option>
               <option value="processing">Đang xử lý</option>
               <option value="pending_payment">Chờ thanh toán</option>
@@ -268,7 +310,7 @@ const HoSoChuaXuLy: React.FC = () => {
               Không có hồ sơ chưa xử lý
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Hiện tại không có kê khai nào đang chờ duyệt hoặc xử lý.
+              Hiện tại không có kê khai nháp hoặc đang chờ duyệt, xử lý.
             </p>
           </div>
         ) : (
@@ -340,7 +382,17 @@ const HoSoChuaXuLy: React.FC = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        
+
+                        {keKhai.trang_thai === 'draft' && (
+                          <button
+                            onClick={() => handleViewDetails(keKhai)}
+                            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
+                            title="Chỉnh sửa nháp"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                        )}
+
                         {keKhai.trang_thai === 'submitted' && (
                           <button
                             onClick={() => handleApprove(keKhai)}
@@ -350,7 +402,7 @@ const HoSoChuaXuLy: React.FC = () => {
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         )}
-                        
+
                         {keKhai.trang_thai === 'pending_payment' && (
                           <button
                             onClick={() => handlePayment(keKhai)}

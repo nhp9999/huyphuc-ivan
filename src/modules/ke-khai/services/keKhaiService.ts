@@ -202,6 +202,8 @@ class KeKhaiService {
   // Lấy danh sách kê khai
   async getKeKhaiList(params?: KeKhaiSearchParams): Promise<DanhSachKeKhai[]> {
     try {
+      console.log('📋 getKeKhaiList called with params:', params);
+
       let query = supabase
         .from('danh_sach_ke_khai')
         .select('*')
@@ -235,12 +237,25 @@ class KeKhaiService {
         query = query.lte('created_at', params.den_ngay);
       }
 
+      // QUAN TRỌNG: Filter theo created_by để đảm bảo bảo mật
+      if (params?.created_by) {
+        console.log('🔒 Filtering by created_by:', params.created_by);
+        query = query.eq('created_by', params.created_by);
+      }
+
       const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching ke khai list:', error);
         throw new Error('Không thể tải danh sách kê khai');
       }
+
+      console.log('📋 getKeKhaiList result count:', data?.length || 0);
+      console.log('📋 getKeKhaiList first few items:', data?.slice(0, 3).map(item => ({
+        id: item.id,
+        ma_ke_khai: item.ma_ke_khai,
+        created_by: item.created_by
+      })));
 
       return data || [];
     } catch (error) {
@@ -749,11 +764,49 @@ class KeKhaiService {
   // Kiểm tra quyền admin của user
   async isUserAdmin(userId: string): Promise<boolean> {
     try {
+      console.log('🔍 Checking admin status for user ID:', userId);
       const permissions = await phanQuyenService.getPhanQuyenByUserId(parseInt(userId));
-      return permissions.some(p => p.cap_do_quyen === 'admin' || p.cap_do_quyen === 'super_admin');
+      console.log('📋 User permissions:', permissions);
+
+      const isAdmin = permissions.some(p => p.cap_do_quyen === 'admin' || p.cap_do_quyen === 'super_admin');
+      console.log('👤 Is admin result:', isAdmin);
+
+      return isAdmin;
     } catch (error) {
       console.error('Error checking user admin status:', error);
       return false; // Mặc định không có quyền admin
+    }
+  }
+
+  // Kiểm tra quyền admin thực sự (strict check)
+  async isUserRealAdmin(userId: string): Promise<boolean> {
+    try {
+      console.log('🔍 STRICT admin check for user ID:', userId);
+
+      // Kiểm tra trực tiếp trong database
+      const { data, error } = await supabase
+        .from('phan_quyen_nguoi_dung')
+        .select('cap_do_quyen, trang_thai')
+        .eq('nguoi_dung_id', parseInt(userId))
+        .eq('trang_thai', 'active');
+
+      if (error) {
+        console.error('Error in strict admin check:', error);
+        return false;
+      }
+
+      console.log('📋 Direct DB permissions:', data);
+
+      const isRealAdmin = data?.some(p =>
+        (p.cap_do_quyen === 'admin' || p.cap_do_quyen === 'super_admin') &&
+        p.trang_thai === 'active'
+      ) || false;
+
+      console.log('👤 STRICT admin result:', isRealAdmin);
+      return isRealAdmin;
+    } catch (error) {
+      console.error('Error in strict admin check:', error);
+      return false;
     }
   }
 
