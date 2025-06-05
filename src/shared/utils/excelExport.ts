@@ -129,7 +129,7 @@ export const convertToD03TK1Format = (
       TyleNSDP: '', // Empty as requested
       NgayBienLai: formatDate(participant.ngayBienLai),
       SoBienLai: participant.sttHo || '',
-      NguoiThamGiaThu: 1, // Default value as per sample
+      NguoiThamGiaThu: parseInt(participant.sttHo) || 1, // Use stt_ho data or default to 1
       Tiendong: parseAmount(participant.mucLuong) || parseAmount(keKhaiInfo.luong_co_so?.toString()) || 2340000, // Lương cơ sở từ participant hoặc kê khai
       TienDongThucTe: parseAmount(participant.soTienDong), // Tiền đóng thực tế
       MucHuong: 4, // Default value as per sample
