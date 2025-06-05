@@ -47,3 +47,173 @@
 .cskcbTableCell td {
   overflow: visible !important;
 }
+
+/* Table layout optimization */
+.participantTable {
+  table-layout: fixed !important;
+  width: 100% !important;
+}
+
+/* Ensure consistent column widths */
+.participantTable th,
+.participantTable td {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: normal !important;
+}
+
+/* Specific column width enforcement */
+.participantTable th:nth-child(1),
+.participantTable td:nth-child(1) {
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  text-align: center !important;
+}
+
+.participantTable th:nth-child(2),
+.participantTable td:nth-child(2) {
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
+}
+
+.participantTable th:nth-child(3),
+.participantTable td:nth-child(3) {
+  width: 180px !important;
+  min-width: 180px !important;
+  max-width: 180px !important;
+}
+
+.participantTable th:nth-child(4),
+.participantTable td:nth-child(4) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 90px !important;
+}
+
+.participantTable th:nth-child(5),
+.participantTable td:nth-child(5) {
+  width: 65px !important;
+  min-width: 65px !important;
+  max-width: 65px !important;
+}
+
+.participantTable th:nth-child(6),
+.participantTable td:nth-child(6) {
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+}
+
+.participantTable th:nth-child(7),
+.participantTable td:nth-child(7) {
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+}
+
+.participantTable th:nth-child(8),
+.participantTable td:nth-child(8) {
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+}
+
+.participantTable th:nth-child(9),
+.participantTable td:nth-child(9) {
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+}
+
+.participantTable th:nth-child(10),
+.participantTable td:nth-child(10) {
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
+}
+
+.participantTable th:nth-child(11),
+.participantTable td:nth-child(11) {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+}
+
+.participantTable th:nth-child(12),
+.participantTable td:nth-child(12) {
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+}
+
+.participantTable th:nth-child(13),
+.participantTable td:nth-child(13) {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+}
+
+.participantTable th:nth-child(14),
+.participantTable td:nth-child(14) {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+}
+
+.participantTable th:nth-child(15),
+.participantTable td:nth-child(15) {
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+}
+
+.participantTable th:nth-child(16),
+.participantTable td:nth-child(16) {
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+}
+
+.participantTable th:nth-child(17),
+.participantTable td:nth-child(17) {
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+}
+
+.participantTable th:nth-child(18),
+.participantTable td:nth-child(18) {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+}
+
+.participantTable th:nth-child(19),
+.participantTable td:nth-child(19) {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+}
+
+.participantTable th:nth-child(20),
+.participantTable td:nth-child(20) {
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+}
+
+.participantTable th:nth-child(21),
+.participantTable td:nth-child(21) {
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 200px !important;
+}
+
+.participantTable th:nth-child(22),
+.participantTable td:nth-child(22) {
+  width: 90px !important;
+  min-width: 90px !important;
+  max-width: 90px !important;
+}

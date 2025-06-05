@@ -4,6 +4,7 @@ import paymentService from '../services/paymentService';
 import { DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import { KeKhai603Participant } from './useKeKhai603Participants';
+import { calculateKeKhai603Amount, calculateKeKhai603AmountThucTe } from './useKeKhai603FormData';
 
 // Interface for page parameters
 export interface PageParams {
@@ -340,8 +341,9 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
             quoc_tich: participant.quocTich || 'VN',
             noi_dang_ky_kcb: participant.noiDangKyKCB || null,
             muc_luong: participant.mucLuong ? parseFloat(participant.mucLuong.replace(/[.,]/g, '')) : null,
-            ty_le_dong: participant.tyLeDong ? parseFloat(participant.tyLeDong) : 4.5,
-            so_tien_dong: participant.soTienDong ? parseFloat(participant.soTienDong.replace(/[.,]/g, '')) : null,
+            ty_le_dong: participant.tyLeDong ? parseFloat(participant.tyLeDong) : 100,
+            tien_dong: participant.tienDong || (participant.soTienDong ? parseFloat(participant.soTienDong.replace(/[.,]/g, '')) : null), // Ưu tiên sử dụng tienDong, fallback về soTienDong
+            tien_dong_thuc_te: participant.tienDongThucTe || (participant.sttHo && participant.soThangDong ? calculateKeKhai603AmountThucTe(participant.sttHo, participant.soThangDong) : null), // Tính toán tiền đóng thực tế theo công thức cũ
             tu_ngay_the_cu: participant.tuNgayTheCu || null,
             den_ngay_the_cu: participant.denNgayTheCu || null,
             tu_ngay_the_moi: participant.tuNgayTheMoi || null,

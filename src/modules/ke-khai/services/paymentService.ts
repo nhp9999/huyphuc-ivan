@@ -51,7 +51,7 @@ class PaymentService {
     try {
       const { data, error } = await supabase
         .from('danh_sach_nguoi_tham_gia')
-        .select('so_tien_dong')
+        .select('tien_dong_thuc_te, tien_dong') // Lấy cả hai trường để fallback
         .eq('ke_khai_id', keKhaiId);
 
       if (error) {
@@ -64,7 +64,8 @@ class PaymentService {
       }
 
       const total = data.reduce((sum, item) => {
-        const amount = parseFloat(item.so_tien_dong) || 0;
+        // Ưu tiên sử dụng tien_dong_thuc_te (công thức cũ) cho thanh toán, fallback về tien_dong nếu không có
+        const amount = parseFloat(item.tien_dong_thuc_te) || parseFloat(item.tien_dong) || 0;
         return sum + amount;
       }, 0);
 

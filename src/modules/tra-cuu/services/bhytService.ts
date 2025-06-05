@@ -339,7 +339,7 @@ export class BhytService {
           soTheBHYT: apiResponse.data.soTheBHYT || '',
           loaiDoiTuong: apiResponse.data.typeId || 'GD',
           mucLuong: apiResponse.data.mucLuongNsTw?.toString() || '',
-          tyLeDong: '4.5',
+          tyLeDong: '100', // 100% lương cơ sở
           soTienDong: '',
           // Thêm mapping cho các trường còn thiếu
           quocTich: apiResponse.data.quocTich || 'VN',
@@ -461,7 +461,7 @@ export class BhytService {
           soTheBHYT: apiResponse.data.soTheBHYT || '',
           loaiDoiTuong: apiResponse.data.typeId || 'GD',
           mucLuong: apiResponse.data.mucLuongNsTw?.toString() || '',
-          tyLeDong: '4.5',
+          tyLeDong: '100', // 100% lương cơ sở
           soTienDong: '',
           // Thêm mapping cho các trường còn thiếu
           quocTich: apiResponse.data.quocTich || 'VN',

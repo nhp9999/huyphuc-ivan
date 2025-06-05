@@ -356,7 +356,12 @@ const KeKhaiDetailModal: React.FC<KeKhaiDetailModalProps> = ({ keKhai, onClose }
                           {nguoi.gioi_tinh || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {formatCurrency(nguoi.so_tien_dong)}
+                          {formatCurrency(nguoi.tien_dong_thuc_te || nguoi.tien_dong)}
+                          {nguoi.tien_dong_thuc_te && nguoi.tien_dong && nguoi.tien_dong_thuc_te !== nguoi.tien_dong && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Hiển thị: {formatCurrency(nguoi.tien_dong)}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}

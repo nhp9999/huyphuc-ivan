@@ -37,14 +37,15 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
           {/* Tỷ lệ đóng */}
           <div className="md:col-span-1 lg:col-span-1 xl:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Tỷ lệ đóng (%)
+              Tỷ lệ đóng (% lương cơ sở)
             </label>
             <input
               type="text"
               value={formData.tyLeDong}
               onChange={(e) => handleInputChange('tyLeDong', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="4.5"
+              placeholder="100"
+              readOnly
             />
           </div>
 
@@ -79,12 +80,15 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
               required
             >
               <option value="">Chọn STT hộ</option>
-              <option value="1">Người thứ 1</option>
-              <option value="2">Người thứ 2</option>
-              <option value="3">Người thứ 3</option>
-              <option value="4">Người thứ 4</option>
-              <option value="5+">Người thứ 5+</option>
+              <option value="1">Người thứ 1 (100% lương cơ sở)</option>
+              <option value="2">Người thứ 2 (70% lương cơ sở)</option>
+              <option value="3">Người thứ 3 (60% lương cơ sở)</option>
+              <option value="4">Người thứ 4 (50% lương cơ sở)</option>
+              <option value="5+">Người thứ 5+ (40% lương cơ sở)</option>
             </select>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Tiền đóng = Lương cơ sở × Tỷ lệ theo thứ tự
+            </p>
           </div>
 
           {/* Số tháng đóng */}

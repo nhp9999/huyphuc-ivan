@@ -26,6 +26,8 @@ export interface KeKhai603FormData {
   mucLuong: string;
   tyLeDong: string;
   soTienDong: string;
+  tienDong?: number; // Giá trị từ cột tien_dong trong database (công thức mới)
+  tienDongThucTe?: number; // Giá trị từ cột tien_dong_thuc_te trong database (công thức cũ)
   tinhKCB: string;
   noiNhanHoSo: string;
   maBenhVien: string; // Mã cơ sở KCB được chọn
@@ -71,8 +73,10 @@ const initialFormData: KeKhai603FormData = {
 
   // Thông tin BHYT
   mucLuong: '',
-  tyLeDong: '4.5',
+  tyLeDong: '100', // Mặc định 100% lương cơ sở
   soTienDong: '',
+  tienDong: 0, // Khởi tạo giá trị từ database = 0
+  tienDongThucTe: 0, // Khởi tạo giá trị số = 0
   tinhKCB: '',
   noiNhanHoSo: '',
   maBenhVien: '',
@@ -96,6 +100,39 @@ const initialFormData: KeKhai603FormData = {
 
 // Calculation utilities
 export const calculateKeKhai603Amount = (sttHo: string, soThangDong: string, mucLuongCoSo: number = 2340000): number => {
+  if (!sttHo) return 0;
+
+  // Tỷ lệ theo STT hộ (áp dụng trực tiếp lên lương cơ sở)
+  let tyLe = 1; // Người thứ 1: 100%
+
+  switch (sttHo) {
+    case '1':
+      tyLe = 1; // 100%
+      break;
+    case '2':
+      tyLe = 0.7; // 70%
+      break;
+    case '3':
+      tyLe = 0.6; // 60%
+      break;
+    case '4':
+      tyLe = 0.5; // 50%
+      break;
+    case '5+':
+      tyLe = 0.4; // 40%
+      break;
+    default:
+      tyLe = 1;
+  }
+
+  // Công thức: Lương cơ sở × Tỷ lệ (KHÔNG nhân với số tháng)
+  const soTienDong = mucLuongCoSo * tyLe;
+
+  return Math.round(soTienDong);
+};
+
+// Function tính toán tiền đóng thực tế (sử dụng công thức cũ với 4.5%)
+export const calculateKeKhai603AmountThucTe = (sttHo: string, soThangDong: string, mucLuongCoSo: number = 2340000): number => {
   if (!sttHo || !soThangDong) return 0;
 
   const soThang = parseInt(soThangDong);
@@ -128,8 +165,9 @@ export const calculateKeKhai603Amount = (sttHo: string, soThangDong: string, muc
       tyLeGiam = 1;
   }
 
-  const soTienDong = mucDongCoBan * tyLeGiam * soThang;
-  return Math.round(soTienDong);
+  // Công thức cũ: Lương cơ sở × 4.5% × Tỷ lệ giảm × Số tháng
+  const soTienDongThucTe = mucDongCoBan * tyLeGiam * soThang;
+  return Math.round(soTienDongThucTe);
 };
 
 export const calculateKeKhai603CardValidity = (soThangDong: string, denNgayTheCu: string, ngayBienLai: string) => {
@@ -195,32 +233,38 @@ export const useKeKhai603FormData = () => {
         const sttHo = field === 'sttHo' ? value : prev.sttHo;
         const soThangDong = field === 'soThangDong' ? value : prev.soThangDong;
 
-        // Cập nhật tỷ lệ đóng theo STT hộ
+        // Cập nhật tỷ lệ đóng theo STT hộ (% của lương cơ sở)
         if (field === 'sttHo') {
-          let tyLeDong = '4.5';
+          let tyLeDong = '100';
           switch (value) {
             case '1':
-              tyLeDong = '4.5'; // 100% của 4.5%
+              tyLeDong = '100'; // 100% lương cơ sở
               break;
             case '2':
-              tyLeDong = '3.15'; // 70% của 4.5%
+              tyLeDong = '70'; // 70% lương cơ sở
               break;
             case '3':
-              tyLeDong = '2.7'; // 60% của 4.5%
+              tyLeDong = '60'; // 60% lương cơ sở
               break;
             case '4':
-              tyLeDong = '2.25'; // 50% của 4.5%
+              tyLeDong = '50'; // 50% lương cơ sở
               break;
             case '5+':
-              tyLeDong = '1.8'; // 40% của 4.5%
+              tyLeDong = '40'; // 40% lương cơ sở
               break;
           }
           newData.tyLeDong = tyLeDong;
         }
 
         if (sttHo && soThangDong) {
+          // Tính tiền đóng theo công thức mới (lưu vào tien_dong)
           const soTien = calculateKeKhai603Amount(sttHo, soThangDong);
           newData.soTienDong = soTien.toLocaleString('vi-VN');
+          newData.tienDong = soTien;
+
+          // Tính tiền đóng thực tế theo công thức cũ (lưu vào tien_dong_thuc_te)
+          const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong);
+          newData.tienDongThucTe = soTienThucTe;
         }
       }
 

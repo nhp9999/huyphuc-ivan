@@ -557,8 +557,9 @@ const KeKhai603: React.FC = () => {
         maBenhVien: item.ma_benh_vien || '',
         tenBenhVien: item.noi_dang_ky_kcb || '',
         mucLuong: item.muc_luong?.toString() || '',
-        tyLeDong: item.ty_le_dong?.toString() || '4.5',
-        soTienDong: item.so_tien_dong?.toString() || '',
+        tyLeDong: item.ty_le_dong?.toString() || '100',
+        soTienDong: item.tien_dong?.toString() || '', // Sử dụng tien_dong thay vì so_tien_dong
+        tienDongThucTe: item.tien_dong_thuc_te, // Thêm trường tienDongThucTe
         tuNgayTheCu: item.tu_ngay_the_cu || '',
         denNgayTheCu: item.den_ngay_the_cu || '',
         ngayBienLai: item.ngay_bien_lai || new Date().toISOString().split('T')[0],

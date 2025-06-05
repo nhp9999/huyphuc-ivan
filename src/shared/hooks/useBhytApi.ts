@@ -87,7 +87,7 @@ export const useBhytApi = () => {
 
           // BHYT information
           mucLuong: response.data.mucLuong || '',
-          tyLeDong: response.data.tyLeDong || '4.5',
+          tyLeDong: response.data.tyLeDong || '100', // 100% lương cơ sở
           soTienDong: response.data.soTienDong || '',
           tinhKCB: response.data.maKV || '',
           noiNhanHoSo: response.data.noiNhanHoSo || '',
@@ -150,7 +150,7 @@ export const useBhytApi = () => {
           gioiTinh: response.data.gioiTinh,
           noiDangKyKCB: response.data.noiDangKyKCB,
           mucLuong: response.data.mucLuong || '',
-          tyLeDong: response.data.tyLeDong || '4.5',
+          tyLeDong: response.data.tyLeDong || '100', // 100% lương cơ sở
           soTienDong: response.data.soTienDong || '',
           
           // Old card information - convert from DD/MM/YYYY to YYYY-MM-DD for date input

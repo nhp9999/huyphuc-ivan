@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { keKhaiService } from '../services/keKhaiService';
-import { calculateKeKhai603Amount, calculateKeKhai603CardValidity } from './useKeKhai603FormData';
+import { calculateKeKhai603Amount, calculateKeKhai603AmountThucTe, calculateKeKhai603CardValidity } from './useKeKhai603FormData';
 
 // Interface for participant data
 export interface KeKhai603Participant {
@@ -21,6 +21,8 @@ export interface KeKhai603Participant {
   mucLuong: string;
   tyLeDong: string;
   soTienDong: string;
+  tienDong?: number; // Giá trị từ cột tien_dong trong database (công thức mới)
+  tienDongThucTe?: number; // Giá trị từ cột tien_dong_thuc_te trong database (công thức cũ)
   tuNgayTheCu: string;
   denNgayTheCu: string;
   tuNgayTheMoi: string;
@@ -64,8 +66,10 @@ const createInitialParticipant = (): KeKhai603Participant => ({
   maBenhVien: DEFAULT_CSKCB.value,
   tenBenhVien: DEFAULT_CSKCB.ten,
   mucLuong: '',
-  tyLeDong: '4.5',
+  tyLeDong: '100', // Mặc định 100% lương cơ sở
   soTienDong: '',
+  tienDong: 0, // Khởi tạo giá trị từ database = 0
+  tienDongThucTe: 0, // Khởi tạo giá trị số = 0
   tuNgayTheCu: '',
   denNgayTheCu: '',
   tuNgayTheMoi: '',
@@ -117,8 +121,10 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         maBenhVien: item.ma_benh_vien || DEFAULT_CSKCB.value,
         tenBenhVien: item.noi_dang_ky_kcb || DEFAULT_CSKCB.ten, // Use the name from database or default
         mucLuong: item.muc_luong !== null && item.muc_luong !== undefined ? item.muc_luong.toString() : '',
-        tyLeDong: item.ty_le_dong?.toString() || '4.5',
-        soTienDong: item.so_tien_dong?.toString() || '',
+        tyLeDong: item.ty_le_dong?.toString() || '100', // Mặc định 100% lương cơ sở
+        soTienDong: item.tien_dong?.toString() || '', // Hiển thị từ tien_dong
+        tienDong: item.tien_dong || 0, // Load tien_dong từ database
+        tienDongThucTe: item.tien_dong_thuc_te || 0, // Load tien_dong_thuc_te từ database
         tuNgayTheCu: item.tu_ngay_the_cu || '',
         denNgayTheCu: item.den_ngay_the_cu || '',
         tuNgayTheMoi: item.tu_ngay_the_moi || '',
@@ -187,8 +193,14 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
           const soThangDong = field === 'soThangDong' ? value : p.soThangDong;
 
           if (sttHo && soThangDong) {
+            // Tính tiền đóng theo công thức mới (lưu vào tien_dong)
             const soTien = calculateKeKhai603Amount(sttHo, soThangDong);
             updatedParticipant.soTienDong = soTien.toLocaleString('vi-VN');
+            updatedParticipant.tienDong = soTien;
+
+            // Tính tiền đóng thực tế theo công thức cũ (lưu vào tien_dong_thuc_te)
+            const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong);
+            updatedParticipant.tienDongThucTe = soTienThucTe;
           }
         }
 
@@ -238,8 +250,9 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         tinh_kcb: DEFAULT_CSKCB.maTinh,
         ma_benh_vien: DEFAULT_CSKCB.value,
         muc_luong: 0,
-        ty_le_dong: 4.5,
-        so_tien_dong: 0,
+        ty_le_dong: 100, // Mặc định 100% lương cơ sở
+        tien_dong: 0, // Sử dụng tien_dong thay vì so_tien_dong
+        tien_dong_thuc_te: 0, // Khởi tạo tien_dong_thuc_te = 0
         ngay_bien_lai: new Date().toISOString().split('T')[0],
         so_thang_dong: 0,
         // Add organization fields from ke khai
@@ -325,8 +338,9 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         quoc_tich: participant.quocTich || 'VN',
         noi_dang_ky_kcb: participant.noiDangKyKCB || null,
         muc_luong: participant.mucLuong ? parseFloat(participant.mucLuong.replace(/[.,]/g, '')) : null,
-        ty_le_dong: participant.tyLeDong ? parseFloat(participant.tyLeDong) : 4.5,
-        so_tien_dong: participant.soTienDong ? parseFloat(participant.soTienDong.replace(/[.,]/g, '')) : null,
+        ty_le_dong: participant.tyLeDong ? parseFloat(participant.tyLeDong) : 100, // Mặc định 100% lương cơ sở
+        tien_dong: participant.tienDong || (participant.soTienDong ? parseFloat(participant.soTienDong.replace(/[.,]/g, '')) : null), // Ưu tiên sử dụng tienDong, fallback về soTienDong
+        tien_dong_thuc_te: participant.tienDongThucTe || null, // Lưu tien_dong_thuc_te
         tu_ngay_the_cu: participant.tuNgayTheCu || null,
         den_ngay_the_cu: participant.denNgayTheCu || null,
         tu_ngay_the_moi: participant.tuNgayTheMoi || null,
@@ -414,7 +428,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         quocTich: apiData.quocTich || 'VN',
         noiDangKyKCB: apiData.noiDangKyKCB,
         mucLuong: apiData.mucLuong || '',
-        tyLeDong: apiData.tyLeDong || '4.5',
+        tyLeDong: apiData.tyLeDong || '100', // Mặc định 100% lương cơ sở
         soTienDong: apiData.soTienDong || '',
         tuNgayTheCu: apiData.tuNgayTheCu || '',
         denNgayTheCu: apiData.denNgayTheCu || '',

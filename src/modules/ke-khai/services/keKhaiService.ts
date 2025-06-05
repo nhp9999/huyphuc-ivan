@@ -47,7 +47,8 @@ export interface CreateNguoiThamGiaRequest {
   noi_nhan_ho_so?: string;
   muc_luong?: number;
   ty_le_dong?: number;
-  so_tien_dong?: number;
+  tien_dong?: number; // Cột để lưu số tiền đóng được tính toán
+  tien_dong_thuc_te?: number; // Cột để lưu số tiền đóng thực tế được tính toán
   tinh_kcb?: string;
   ma_benh_vien?: string;
   ma_ho_gia_dinh?: string;

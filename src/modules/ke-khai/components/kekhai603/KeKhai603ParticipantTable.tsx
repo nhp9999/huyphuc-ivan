@@ -5,6 +5,7 @@ import { tinhService, TinhOption } from '../../../../shared/services/location/ti
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
 import { cskcbService, DmCSKCB } from '../../../../shared/services/cskcbService';
+import styles from './KeKhai603ParticipantTable.module.css';
 
 interface KeKhai603ParticipantTableProps {
   participants: KeKhai603Participant[];
@@ -197,31 +198,31 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
 
       <div className="p-6">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-max">
+          <table className={`w-full min-w-max ${styles.participantTable}`}>
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[50px]">STT</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Mã BHXH</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Họ tên</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Ngày sinh</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Giới tính</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Số ĐT</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Số thẻ BHYT</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">Dân tộc</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[200px]">Nơi đăng ký KCB</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">Mức lương</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Tỷ lệ đóng</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">STT hộ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Số tháng</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">Số tiền</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Từ ngày thẻ cũ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Đến ngày thẻ cũ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Ngày biên lai</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Tỉnh NKQ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Huyện NKQ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Xã NKQ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Nơi nhận hồ sơ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Thao tác</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[40px] min-w-[40px] max-w-[40px]">STT</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[100px] min-w-[100px] max-w-[100px]">Mã BHXH</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[180px] min-w-[180px] max-w-[180px]">Họ tên</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[90px] min-w-[90px] max-w-[90px]">Ngày sinh</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[65px] min-w-[65px] max-w-[65px]">Giới tính</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[110px] min-w-[110px] max-w-[110px]">Số ĐT</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Số thẻ BHYT</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[70px] min-w-[70px] max-w-[70px]">Dân tộc</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[280px] min-w-[280px] max-w-[280px]">Nơi đăng ký KCB</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[100px] min-w-[100px] max-w-[100px]">Mức lương</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[80px] min-w-[80px] max-w-[80px]">Tỷ lệ đóng</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[70px] min-w-[70px] max-w-[70px]">STT hộ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[80px] min-w-[80px] max-w-[80px]">Số tháng</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Số tiền</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Từ ngày thẻ cũ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Đến ngày thẻ cũ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Ngày biên lai</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Tỉnh NKQ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Huyện NKQ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Xã NKQ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[200px] min-w-[200px] max-w-[200px]">Nơi nhận hồ sơ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[90px] min-w-[90px] max-w-[90px]">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -367,7 +368,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="text"
-                      value={participant.soTienDong || ''}
+                      value={participant.tienDongThucTe ? participant.tienDongThucTe.toLocaleString('vi-VN') : ''}
                       readOnly
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
                       placeholder="Tự động tính"
