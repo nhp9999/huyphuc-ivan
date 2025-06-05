@@ -8,6 +8,7 @@ import { useKeKhai603 } from '../hooks/useKeKhai603';
 import { useToast } from '../../../shared/hooks/useToast';
 import { ThanhToan } from '../../../shared/services/api/supabaseClient';
 import PaymentQRModal from './PaymentQRModal';
+import vnpostTokenService from '../../../shared/services/api/vnpostTokenService';
 import { KeKhai603Header } from './kekhai603/KeKhai603Header';
 import { KeKhai603PersonalInfoForm } from './kekhai603/KeKhai603PersonalInfoForm';
 import { KeKhai603CardInfoForm } from './kekhai603/KeKhai603CardInfoForm';
@@ -34,7 +35,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   // Custom hooks
   const { formData, handleInputChange, resetForm } = useKeKhai603FormData();
   const { toast, showToast, hideToast } = useToast();
-  const { searchLoading, apiSummary, searchKeKhai603, searchParticipantData } = useKeKhai603Api();
+  const { searchLoading, participantSearchLoading, apiSummary, searchKeKhai603, searchParticipantData } = useKeKhai603Api();
   const {
     keKhaiInfo,
     saving,
@@ -133,7 +134,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
 
     try {
-      const result = await searchParticipantData(participant.maSoBHXH);
+      const result = await searchParticipantData(participant.maSoBHXH, index);
 
       if (result.success && result.data) {
         updateParticipantWithApiData(index, result.data);
@@ -160,6 +161,33 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       handleParticipantSearch(index);
     }
   };
+
+  // Handle refresh token
+  const handleRefreshToken = async () => {
+    try {
+      showToast('Đang làm mới token...', 'info');
+      await vnpostTokenService.forceRefresh();
+      showToast('Đã làm mới token thành công!', 'success');
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      showToast('Có lỗi khi làm mới token', 'error');
+    }
+  };
+
+  // Auto-refresh token when window gains focus (user comes back to tab)
+  React.useEffect(() => {
+    const handleFocus = async () => {
+      // Check if token cache is old and refresh if needed
+      try {
+        await vnpostTokenService.getLatestToken();
+      } catch (error) {
+        console.error('Error checking token on focus:', error);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   // Handle save all data
   const handleSaveAll = async () => {
@@ -277,6 +305,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           inputMode={inputMode}
           setInputMode={setInputMode}
           apiSummary={apiSummary}
+          onRefreshToken={handleRefreshToken}
         />
 
       {/* Main Content */}
@@ -340,7 +369,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleParticipantKeyPress={handleParticipantKeyPress}
                 handleAddParticipant={handleAddParticipant}
                 handleRemoveParticipant={handleRemoveParticipant}
-                searchLoading={searchLoading}
+                participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
               />
             )}
@@ -353,7 +382,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleParticipantKeyPress={handleParticipantKeyPress}
                 handleAddParticipant={handleAddParticipant}
                 handleRemoveParticipant={handleRemoveParticipant}
-                searchLoading={searchLoading}
+                participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
               />
             )}

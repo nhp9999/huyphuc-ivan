@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
 import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
@@ -11,7 +11,7 @@ interface KeKhai603ParticipantTableProps {
   handleParticipantKeyPress: (e: React.KeyboardEvent, index: number) => void;
   handleAddParticipant: () => void;
   handleRemoveParticipant: (index: number) => void;
-  searchLoading: boolean;
+  participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
 }
 
@@ -21,7 +21,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   handleParticipantKeyPress,
   handleAddParticipant,
   handleRemoveParticipant,
-  searchLoading,
+  participantSearchLoading,
   savingData
 }) => {
   // State for location data
@@ -29,6 +29,14 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   const [huyenOptions, setHuyenOptions] = useState<{ [key: string]: HuyenOption[] }>({});
   const [xaOptions, setXaOptions] = useState<{ [key: string]: XaOption[] }>({});
   const [loadingLocation, setLoadingLocation] = useState(false);
+
+  // Track loading states to prevent duplicate API calls
+  const [loadingHuyen, setLoadingHuyen] = useState<{ [key: string]: boolean }>({});
+  const [loadingXa, setLoadingXa] = useState<{ [key: string]: boolean }>({});
+
+  // Refs for debouncing
+  const huyenTimeoutRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  const xaTimeoutRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
   // Load province data on component mount
   useEffect(() => {
@@ -47,30 +55,69 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     loadTinhData();
   }, []);
 
-  // Load district data when province changes for any participant
-  const loadHuyenData = async (maTinh: string) => {
-    if (!maTinh || huyenOptions[maTinh]) return; // Already loaded
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      // Clear all huyen timeouts
+      Object.values(huyenTimeoutRef.current).forEach(timeout => {
+        if (timeout) clearTimeout(timeout);
+      });
 
-    try {
-      const options = await huyenService.getHuyenOptionsByTinh(maTinh);
-      setHuyenOptions(prev => ({ ...prev, [maTinh]: options }));
-    } catch (error) {
-      console.error('Error loading district data:', error);
+      // Clear all xa timeouts
+      Object.values(xaTimeoutRef.current).forEach(timeout => {
+        if (timeout) clearTimeout(timeout);
+      });
+    };
+  }, []);
+
+  // Load district data when province changes for any participant (with debounce)
+  const loadHuyenData = useCallback((maTinh: string) => {
+    if (!maTinh || huyenOptions[maTinh] || loadingHuyen[maTinh]) return; // Already loaded or loading
+
+    // Clear existing timeout
+    if (huyenTimeoutRef.current[maTinh]) {
+      clearTimeout(huyenTimeoutRef.current[maTinh]);
     }
-  };
 
-  // Load ward data when district changes for any participant
-  const loadXaData = async (maHuyen: string, maTinh: string) => {
+    // Set new timeout
+    huyenTimeoutRef.current[maTinh] = setTimeout(async () => {
+      try {
+        setLoadingHuyen(prev => ({ ...prev, [maTinh]: true }));
+        const options = await huyenService.getHuyenOptionsByTinh(maTinh);
+        setHuyenOptions(prev => ({ ...prev, [maTinh]: options }));
+      } catch (error) {
+        console.error('Error loading district data:', error);
+      } finally {
+        setLoadingHuyen(prev => ({ ...prev, [maTinh]: false }));
+        delete huyenTimeoutRef.current[maTinh];
+      }
+    }, 100); // 100ms debounce
+  }, [huyenOptions, loadingHuyen]);
+
+  // Load ward data when district changes for any participant (with debounce)
+  const loadXaData = useCallback((maHuyen: string, maTinh: string) => {
     const key = `${maTinh}-${maHuyen}`;
-    if (!maHuyen || !maTinh || xaOptions[key]) return; // Already loaded
+    if (!maHuyen || !maTinh || xaOptions[key] || loadingXa[key]) return; // Already loaded or loading
 
-    try {
-      const options = await xaService.getXaOptionsByHuyen(maHuyen, maTinh);
-      setXaOptions(prev => ({ ...prev, [key]: options }));
-    } catch (error) {
-      console.error('Error loading ward data:', error);
+    // Clear existing timeout
+    if (xaTimeoutRef.current[key]) {
+      clearTimeout(xaTimeoutRef.current[key]);
     }
-  };
+
+    // Set new timeout
+    xaTimeoutRef.current[key] = setTimeout(async () => {
+      try {
+        setLoadingXa(prev => ({ ...prev, [key]: true }));
+        const options = await xaService.getXaOptionsByHuyen(maHuyen, maTinh);
+        setXaOptions(prev => ({ ...prev, [key]: options }));
+      } catch (error) {
+        console.error('Error loading ward data:', error);
+      } finally {
+        setLoadingXa(prev => ({ ...prev, [key]: false }));
+        delete xaTimeoutRef.current[key];
+      }
+    }, 100); // 100ms debounce
+  }, [xaOptions, loadingXa]);
 
   // Handle province change
   const handleTinhChange = (index: number, maTinh: string) => {
@@ -114,7 +161,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         }
       }
     });
-  }, [participants, huyenOptions, xaOptions]);
+  }, [participants]); // Remove huyenOptions and xaOptions from dependencies to prevent infinite loop
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -169,13 +216,13 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     <div className="relative">
                       <input
                         type="text"
-                        value={participant.maSoBHXH}
+                        value={participant.maSoBHXH || ''}
                         onChange={(e) => handleParticipantChange(index, 'maSoBHXH', e.target.value)}
                         onKeyDown={(e) => handleParticipantKeyPress(e, index)}
                         className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         placeholder="Mã BHXH (Enter để tìm)"
                       />
-                      {searchLoading && (
+                      {participantSearchLoading[index] && (
                         <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
                       )}
                     </div>
@@ -183,7 +230,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="text"
-                      value={participant.hoTen}
+                      value={participant.hoTen || ''}
                       onChange={(e) => handleParticipantChange(index, 'hoTen', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Họ tên"
@@ -192,14 +239,14 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="date"
-                      value={participant.ngaySinh}
+                      value={participant.ngaySinh || ''}
                       onChange={(e) => handleParticipantChange(index, 'ngaySinh', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                   </td>
                   <td className="py-3 px-2">
                     <select
-                      value={participant.gioiTinh}
+                      value={participant.gioiTinh || 'Nam'}
                       onChange={(e) => handleParticipantChange(index, 'gioiTinh', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
@@ -210,7 +257,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="text"
-                      value={participant.noiDangKyKCB}
+                      value={participant.noiDangKyKCB || ''}
                       onChange={(e) => handleParticipantChange(index, 'noiDangKyKCB', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Nơi đăng ký KCB"
@@ -219,7 +266,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="text"
-                      value={participant.mucLuong}
+                      value={participant.mucLuong || ''}
                       onChange={(e) => handleParticipantChange(index, 'mucLuong', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Mức lương"
@@ -228,7 +275,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="text"
-                      value={participant.tyLeDong}
+                      value={participant.tyLeDong || ''}
                       onChange={(e) => handleParticipantChange(index, 'tyLeDong', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Tỷ lệ đóng"
@@ -236,7 +283,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   </td>
                   <td className="py-3 px-2">
                     <select
-                      value={participant.sttHo}
+                      value={participant.sttHo || ''}
                       onChange={(e) => handleParticipantChange(index, 'sttHo', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
@@ -250,7 +297,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   </td>
                   <td className="py-3 px-2">
                     <select
-                      value={participant.soThangDong}
+                      value={participant.soThangDong || ''}
                       onChange={(e) => handleParticipantChange(index, 'soThangDong', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
@@ -263,7 +310,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="text"
-                      value={participant.soTienDong}
+                      value={participant.soTienDong || ''}
                       readOnly
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
                       placeholder="Tự động tính"
@@ -272,7 +319,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="date"
-                      value={participant.tuNgayTheCu}
+                      value={participant.tuNgayTheCu || ''}
                       onChange={(e) => handleParticipantChange(index, 'tuNgayTheCu', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
@@ -280,7 +327,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="date"
-                      value={participant.denNgayTheCu}
+                      value={participant.denNgayTheCu || ''}
                       onChange={(e) => handleParticipantChange(index, 'denNgayTheCu', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
@@ -288,14 +335,14 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="date"
-                      value={participant.ngayBienLai}
+                      value={participant.ngayBienLai || ''}
                       onChange={(e) => handleParticipantChange(index, 'ngayBienLai', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                   </td>
                   <td className="py-3 px-2">
                     <select
-                      value={participant.maTinhNkq}
+                      value={participant.maTinhNkq || ''}
                       onChange={(e) => handleTinhChange(index, e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       disabled={loadingLocation}
@@ -310,7 +357,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   </td>
                   <td className="py-3 px-2">
                     <select
-                      value={participant.maHuyenNkq}
+                      value={participant.maHuyenNkq || ''}
                       onChange={(e) => handleHuyenChange(index, e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       disabled={!participant.maTinhNkq || loadingLocation}
@@ -325,7 +372,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   </td>
                   <td className="py-3 px-2">
                     <select
-                      value={participant.maXaNkq}
+                      value={participant.maXaNkq || ''}
                       onChange={(e) => handleParticipantChange(index, 'maXaNkq', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       disabled={!participant.maHuyenNkq || !participant.maTinhNkq || loadingLocation}
@@ -342,7 +389,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="text"
-                      value={participant.noiNhanHoSo}
+                      value={participant.noiNhanHoSo || ''}
                       onChange={(e) => handleParticipantChange(index, 'noiNhanHoSo', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       placeholder="Nơi nhận hồ sơ"

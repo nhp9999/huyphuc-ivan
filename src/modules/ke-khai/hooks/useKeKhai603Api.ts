@@ -28,6 +28,7 @@ export interface ApiSummary {
 // Custom hook for KeKhai603 API integration
 export const useKeKhai603Api = () => {
   const [searchLoading, setSearchLoading] = useState(false);
+  const [participantSearchLoading, setParticipantSearchLoading] = useState<{ [key: number]: boolean }>({});
   const [apiSummary, setApiSummary] = useState<ApiSummary>({
     isLoaded: false
   });
@@ -124,12 +125,18 @@ export const useKeKhai603Api = () => {
   };
 
   // Search for participant data
-  const searchParticipantData = async (maSoBHXH: string) => {
+  const searchParticipantData = async (maSoBHXH: string, participantIndex?: number) => {
     if (!maSoBHXH.trim()) {
       throw new Error('Vui lòng nhập mã số BHXH');
     }
 
-    setSearchLoading(true);
+    // Set loading state for specific participant if index provided
+    if (participantIndex !== undefined) {
+      setParticipantSearchLoading(prev => ({ ...prev, [participantIndex]: true }));
+    } else {
+      setSearchLoading(true);
+    }
+
     try {
       const request: KeKhai603Request = {
         maSoBHXH: maSoBHXH.trim(),
@@ -145,7 +152,7 @@ export const useKeKhai603Api = () => {
         // Transform API data for participant
         const participantData = {
           hoTen: response.data.hoTen,
-          maSoBhxh: response.data.maSoBHXH,
+          maSoBHXH: response.data.maSoBHXH,
           ngaySinh: response.data.ngaySinh,
           gioiTinh: response.data.gioiTinh,
           soCCCD: response.data.cmnd || '',
@@ -191,7 +198,12 @@ export const useKeKhai603Api = () => {
         message: 'Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.'
       };
     } finally {
-      setSearchLoading(false);
+      // Clear loading state for specific participant if index provided
+      if (participantIndex !== undefined) {
+        setParticipantSearchLoading(prev => ({ ...prev, [participantIndex]: false }));
+      } else {
+        setSearchLoading(false);
+      }
     }
   };
 
@@ -204,6 +216,7 @@ export const useKeKhai603Api = () => {
 
   return {
     searchLoading,
+    participantSearchLoading,
     apiSummary,
     searchKeKhai603,
     searchParticipantData,

@@ -280,7 +280,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
       i === index ? {
         ...p,
         hoTen: apiData.hoTen,
-        maSoBHXH: apiData.maSoBhxh,
+        maSoBHXH: apiData.maSoBHXH || p.maSoBHXH, // Keep original if API doesn't return it
         ngaySinh: apiData.ngaySinh,
         gioiTinh: apiData.gioiTinh,
         soCCCD: apiData.soCCCD || '',

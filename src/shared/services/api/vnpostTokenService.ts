@@ -24,7 +24,11 @@ export interface TokenInfo {
 class VnPostTokenService {
   private cachedToken: TokenInfo | null = null;
   private cacheExpiry: number = 0;
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private readonly CACHE_DURATION = 2 * 60 * 1000; // 2 minutes (reduced from 5)
+  private errorCount: number = 0;
+  private lastErrorTime: number = 0;
+  private readonly MAX_ERRORS_BEFORE_CLEAR = 3;
+  private readonly ERROR_RESET_TIME = 5 * 60 * 1000; // 5 minutes
 
   /**
    * Get the latest authorization token and timestamp from vnpost_tokens table
@@ -76,6 +80,11 @@ class VnPostTokenService {
         cacheExpiry: new Date(this.cacheExpiry).toISOString()
       });
 
+      // Dispatch custom event for UI to listen to
+      window.dispatchEvent(new CustomEvent('tokenRefreshed', {
+        detail: { timestamp: tokenInfo.timestamp }
+      }));
+
       return tokenInfo;
     } catch (error) {
       console.error('Error in getLatestToken:', error);
@@ -95,6 +104,49 @@ class VnPostTokenService {
   clearCache(): void {
     this.cachedToken = null;
     this.cacheExpiry = 0;
+    console.log('Token cache cleared - next request will fetch fresh token from database');
+  }
+
+  /**
+   * Force refresh token from database (clear cache and get new token)
+   */
+  async forceRefresh(): Promise<TokenInfo> {
+    this.clearCache();
+    return await this.getLatestToken();
+  }
+
+  /**
+   * Report an authentication error to potentially trigger cache clear
+   */
+  reportAuthError(): void {
+    const now = Date.now();
+
+    // Reset error count if enough time has passed
+    if (now - this.lastErrorTime > this.ERROR_RESET_TIME) {
+      this.errorCount = 0;
+    }
+
+    this.errorCount++;
+    this.lastErrorTime = now;
+
+    console.log(`Auth error reported. Count: ${this.errorCount}/${this.MAX_ERRORS_BEFORE_CLEAR}`);
+
+    // Clear cache if too many errors
+    if (this.errorCount >= this.MAX_ERRORS_BEFORE_CLEAR) {
+      console.log('Too many auth errors, clearing token cache automatically');
+      this.clearCache();
+      this.errorCount = 0; // Reset after clearing
+    }
+  }
+
+  /**
+   * Report a successful authentication to reset error count
+   */
+  reportAuthSuccess(): void {
+    if (this.errorCount > 0) {
+      console.log('Auth success reported, resetting error count');
+      this.errorCount = 0;
+    }
   }
 
   /**

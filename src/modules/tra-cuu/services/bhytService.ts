@@ -6,6 +6,41 @@ export class BhytService {
   protected baseURL = 'https://ssm.vnpost.vn';
   protected authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiODg0MDAwX3hhX3RsaV9waHVvY2x0IiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoidXNlciIsInN1YiI6IjEwMDkxNyIsInNpZCI6IkthMkZWQUR0T0F0Qnp3QVVsaWI2N1N3N01IdVRzVW5CbUFmVFVGbC14dTgiLCJuYW1lIjoiTMOqIFRo4buLIFBoxrDhu5tjIiwibmlja25hbWUiOiI4ODQwMDBfeGFfdGxpX3BodW9jbHQiLCJjbGllbnRfaWQiOiJZamcyTldVd01XRXRORFZtWlMwME1UZGhMVGc1TTJNdE56ZGtabUUzTmpVNE56VXoiLCJtYW5nTHVvaSI6Ijc2MjU1IiwiZG9uVmlDb25nVGFjIjoixJBp4buDbSB0aHUgeMOjIFTDom4gTOG7o2kiLCJjaHVjRGFuaCI6IkPhu5luZyB0w6FjIHZpw6puIHRodSIsImVtYWlsIjoibmd1eWVudGFuZHVuZzI3MTE4OUBnbWFpbC5jb20iLCJzb0RpZW5UaG9haSI6IiIsImlzU3VwZXJBZG1pbiI6IkZhbHNlIiwiaXNDYXMiOiJGYWxzZSIsIm5iZiI6MTc0ODgyNTk1MiwiZXhwIjoxNzQ4ODQzOTUyLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjUwMDAiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAifQ.6aRuO_8h4K0KcFqee7zLGXiPWEq-psMda7wNoyC8zGo';
 
+  // Generic method to make API calls with auto-retry on auth errors
+  protected async makeApiCall(url: string, options: RequestInit): Promise<Response> {
+    const response = await fetch(url, options);
+
+    // If authentication error, report it and retry once
+    if (!response.ok && (response.status === 401 || response.status === 403)) {
+      console.log('Authentication error detected, reporting and retrying...');
+      vnpostTokenService.reportAuthError();
+
+      // Update headers with fresh token for retry
+      const freshHeaders = await this.getHeaders();
+      const retryOptions = {
+        ...options,
+        headers: freshHeaders
+      };
+
+      // Retry with fresh token
+      const retryResponse = await fetch(url, retryOptions);
+
+      if (!retryResponse.ok) {
+        vnpostTokenService.reportAuthError(); // Report retry failure
+        throw new Error(`HTTP error! status: ${retryResponse.status} (after retry)`);
+      }
+
+      vnpostTokenService.reportAuthSuccess(); // Report retry success
+      return retryResponse;
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response;
+  }
+
   protected async getHeaders(): Promise<Record<string, string>> {
     try {
       // Get fresh token from database
@@ -191,14 +226,10 @@ export class BhytService {
     try {
       const url = `${this.baseURL}/connect/tracuu/thongtinthe?maSoBHXH=${encodeURIComponent(maSoBHXH)}`;
 
-      const response = await fetch(url, {
+      const response = await this.makeApiCall(url, {
         method: 'GET',
         headers: await this.getHeaders(),
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
 
       const apiResponse: VnPostApiResponse = await response.json();
 
@@ -265,19 +296,26 @@ export class BhytService {
     try {
       const url = `${this.baseURL}/connect/tracuu/thongtinbhytforkekhai`;
 
-      const response = await fetch(url, {
+      const response = await this.makeApiCall(url, {
         method: 'POST',
         headers: await this.getHeaders(),
         body: JSON.stringify(request)
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const apiResponse = await response.json();
 
       console.log('KeKhai603 API Response:', apiResponse); // Debug log
+
+      // Check for authentication errors in response body
+      if (!apiResponse.success && apiResponse.message &&
+          (apiResponse.message.includes('token') ||
+           apiResponse.message.includes('unauthorized') ||
+           apiResponse.message.includes('authentication'))) {
+        console.log('Authentication error in response body, reporting error...');
+        vnpostTokenService.reportAuthError();
+      } else if (apiResponse.success) {
+        vnpostTokenService.reportAuthSuccess();
+      }
 
       // Kiểm tra response từ API
       if (apiResponse.success && apiResponse.data && this.isValidDeclarationData(apiResponse.data)) {
@@ -380,19 +418,26 @@ export class BhytService {
     try {
       const url = `${this.baseURL}/connect/tracuu/thongtinbhytforkekhai`;
 
-      const response = await fetch(url, {
+      const response = await this.makeApiCall(url, {
         method: 'POST',
         headers: await this.getHeaders(),
         body: JSON.stringify(request)
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const apiResponse = await response.json();
 
       console.log('BHYT Declaration API Response:', apiResponse); // Debug log
+
+      // Check for authentication errors in response body
+      if (!apiResponse.success && apiResponse.message &&
+          (apiResponse.message.includes('token') ||
+           apiResponse.message.includes('unauthorized') ||
+           apiResponse.message.includes('authentication'))) {
+        console.log('Authentication error in response body, reporting error...');
+        vnpostTokenService.reportAuthError();
+      } else if (apiResponse.success) {
+        vnpostTokenService.reportAuthSuccess();
+      }
 
       // Kiểm tra response từ API
       if (apiResponse.success && apiResponse.data && this.isValidDeclarationData(apiResponse.data)) {

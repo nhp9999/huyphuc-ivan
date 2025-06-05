@@ -5,7 +5,8 @@ import {
   FileText,
   Users,
   List,
-  Info
+  Info,
+  RefreshCw
 } from 'lucide-react';
 
 interface KeKhai603HeaderProps {
@@ -13,13 +14,15 @@ interface KeKhai603HeaderProps {
   inputMode: 'form' | 'list';
   setInputMode: (mode: 'form' | 'list') => void;
   apiSummary: ApiSummary;
+  onRefreshToken?: () => void;
 }
 
 export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
   keKhaiInfo,
   inputMode,
   setInputMode,
-  apiSummary
+  apiSummary,
+  onRefreshToken
 }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
@@ -55,10 +58,23 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
             </div>
           </div>
 
-          {/* Input Mode Toggle */}
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Chế độ nhập:</span>
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          {/* Input Mode Toggle and Refresh Token */}
+          <div className="flex items-center space-x-4">
+            {/* Refresh Token Button */}
+            {onRefreshToken && (
+              <button
+                onClick={onRefreshToken}
+                className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Làm mới token xác thực"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Làm mới token</span>
+              </button>
+            )}
+
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Chế độ nhập:</span>
+              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
               <button
                 onClick={() => setInputMode('form')}
                 className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -81,6 +97,7 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
                 <List className="h-4 w-4" />
                 <span>Danh sách</span>
               </button>
+              </div>
             </div>
           </div>
         </div>
