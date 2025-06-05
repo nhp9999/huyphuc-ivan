@@ -75,6 +75,13 @@ const DeclarationHistory: React.FC = () => {
         new Date(b.ke_khai.created_at || '').getTime() - new Date(a.ke_khai.created_at || '').getTime()
       );
 
+      console.log('💰 DeclarationHistory: Sample participant payment data:', allParticipants.slice(0, 3).map(p => ({
+        ho_ten: p.ho_ten,
+        tien_dong: p.tien_dong,
+        tien_dong_thuc_te: p.tien_dong_thuc_te,
+        ke_khai_id: p.ke_khai_id
+      })));
+
       setParticipants(allParticipants);
     } catch (error) {
       console.error('Error loading participants data:', error);
@@ -139,6 +146,7 @@ const DeclarationHistory: React.FC = () => {
   const filteredParticipants = participants.filter(participant => {
     const matchesSearch = participant.ho_ten.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          participant.ke_khai.ma_ke_khai.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (participant.ke_khai.ma_ho_so && participant.ke_khai.ma_ho_so.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          (participant.ma_so_bhxh && participant.ma_so_bhxh.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesType = filterType === 'all' || participant.ke_khai.loai_ke_khai === filterType;
@@ -210,7 +218,7 @@ const DeclarationHistory: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Tìm kiếm theo tên hoặc mã kê khai..."
+              placeholder="Tìm kiếm theo tên, mã kê khai, mã hồ sơ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -263,7 +271,7 @@ const DeclarationHistory: React.FC = () => {
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Mã kê khai
+                    Mã kê khai / Mã hồ sơ
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Họ tên
@@ -283,6 +291,9 @@ const DeclarationHistory: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Ngày tạo
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Ngày nộp
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Thao tác
                   </th>
@@ -301,6 +312,11 @@ const DeclarationHistory: React.FC = () => {
                           <div className="text-xs text-gray-500 dark:text-gray-400">
                             {participant.ke_khai.loai_ke_khai}
                           </div>
+                          {participant.ke_khai.ma_ho_so && (
+                            <div className="text-xs text-purple-600 dark:text-purple-400 font-mono mt-1">
+                              HS: {participant.ke_khai.ma_ho_so}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -337,7 +353,8 @@ const DeclarationHistory: React.FC = () => {
                       <div className="flex items-center">
                         <CreditCard className="text-gray-400 mr-2" size={16} />
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {participant.so_tien_dong ? formatCurrency(participant.so_tien_dong) : 'N/A'}
+                          {participant.tien_dong_thuc_te ? formatCurrency(participant.tien_dong_thuc_te) :
+                           participant.tien_dong ? formatCurrency(participant.tien_dong) : 'N/A'}
                         </span>
                       </div>
                     </td>
@@ -351,6 +368,17 @@ const DeclarationHistory: React.FC = () => {
                         <Calendar className="text-gray-400 mr-2" size={16} />
                         <span className="text-sm text-gray-900 dark:text-white">
                           {participant.ke_khai.created_at ? new Date(participant.ke_khai.created_at).toLocaleDateString('vi-VN') : 'N/A'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <Calendar className="text-gray-400 mr-2" size={16} />
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {participant.ke_khai.updated_at && participant.ke_khai.trang_thai !== 'draft' ?
+                            new Date(participant.ke_khai.updated_at).toLocaleDateString('vi-VN') :
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Chưa nộp</span>
+                          }
                         </span>
                       </div>
                     </td>

@@ -103,10 +103,20 @@ const MyPayments: React.FC = () => {
       const filteredData = filterStatus === 'all'
         ? paymentRelatedKeKhai
         : paymentRelatedKeKhai.filter((kk: any) => {
+            const latestPayment = getLatestPayment(kk);
+
             if (filterStatus === 'pending_payment') {
-              return isPaymentPending(kk);
+              return isPaymentPending(kk) || latestPayment?.trang_thai === 'pending';
             } else if (filterStatus === 'paid') {
-              return isPaymentCompleted(kk);
+              return isPaymentCompleted(kk) || latestPayment?.trang_thai === 'completed';
+            } else if (filterStatus === 'processing') {
+              return latestPayment?.trang_thai === 'processing';
+            } else if (filterStatus === 'failed') {
+              return latestPayment?.trang_thai === 'failed';
+            } else if (filterStatus === 'cancelled') {
+              return latestPayment?.trang_thai === 'cancelled';
+            } else if (filterStatus === 'expired') {
+              return latestPayment?.trang_thai === 'expired';
             }
             return true;
           });
@@ -199,74 +209,133 @@ const MyPayments: React.FC = () => {
     }
   };
 
-  // Get status badge based on payment status
+  // Get ke khai status badge
+  const getKeKhaiStatusBadge = (keKhai: any) => {
+    switch (keKhai.trang_thai) {
+      case 'draft':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Nháp
+          </span>
+        );
+      case 'submitted':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+            <Clock className="w-3 h-3 mr-1" />
+            Chờ duyệt
+          </span>
+        );
+      case 'processing':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+            <Clock className="w-3 h-3 mr-1" />
+            Đang xử lý
+          </span>
+        );
+      case 'pending_payment':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+            <CreditCard className="w-3 h-3 mr-1" />
+            Chờ thanh toán
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Hoàn thành
+          </span>
+        );
+      case 'approved':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Đã duyệt
+          </span>
+        );
+      case 'rejected':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Từ chối
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            {keKhai.trang_thai || 'N/A'}
+          </span>
+        );
+    }
+  };
+
+  // Get status badge based on payment status only
   const getPaymentStatusBadge = (keKhai: any) => {
     const latestPayment = getLatestPayment(keKhai);
 
-    // Kiểm tra trạng thái đang xử lý
-    if (keKhai.trang_thai === 'processing') {
+    if (!latestPayment) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-          <Clock className="w-3 h-3 mr-1" />
-          Đang xử lý
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          Chưa có thanh toán
         </span>
       );
     }
 
-    // Kiểm tra trạng thái đã thanh toán
-    if (isPaymentCompleted(keKhai)) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          Đã thanh toán
-        </span>
-      );
+    // Dựa vào trạng thái thanh toán thực tế
+    switch (latestPayment.trang_thai) {
+      case 'pending':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+            <Clock className="w-3 h-3 mr-1" />
+            Chờ thanh toán
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Đã thanh toán
+          </span>
+        );
+      case 'processing':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+            <Clock className="w-3 h-3 mr-1" />
+            Đang xử lý
+          </span>
+        );
+      case 'failed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Thất bại
+          </span>
+        );
+      case 'cancelled':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Đã hủy
+          </span>
+        );
+      case 'expired':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Hết hạn
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            {latestPayment.trang_thai}
+          </span>
+        );
     }
-
-    // Kiểm tra trạng thái chờ thanh toán
-    if (isPaymentPending(keKhai)) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
-          <Clock className="w-3 h-3 mr-1" />
-          Chờ thanh toán
-        </span>
-      );
-    }
-
-    // Kiểm tra các trạng thái khác
-    if (latestPayment) {
-      switch (latestPayment.trang_thai) {
-        case 'failed':
-          return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              Thất bại
-            </span>
-          );
-        case 'cancelled':
-          return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              Đã hủy
-            </span>
-          );
-        default:
-          return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              {latestPayment.trang_thai}
-            </span>
-          );
-      }
-    }
-
-    // Không có thanh toán
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
-        <AlertCircle className="w-3 h-3 mr-1" />
-        Chưa có thanh toán
-      </span>
-    );
   };
 
   // Handle view payment
@@ -347,6 +416,10 @@ const MyPayments: React.FC = () => {
               <option value="all">Tất cả trạng thái</option>
               <option value="pending_payment">Chờ thanh toán</option>
               <option value="paid">Đã thanh toán</option>
+              <option value="processing">Đang xử lý</option>
+              <option value="failed">Thất bại</option>
+              <option value="cancelled">Đã hủy</option>
+              <option value="expired">Hết hạn</option>
             </select>
           </div>
         </div>
@@ -385,7 +458,10 @@ const MyPayments: React.FC = () => {
                       Số tiền
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Trạng thái
+                      Trạng thái kê khai
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Trạng thái thanh toán
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Ngày yêu cầu
@@ -426,6 +502,9 @@ const MyPayments: React.FC = () => {
                             })()}
                           </span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getKeKhaiStatusBadge(keKhai)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getPaymentStatusBadge(keKhai)}
