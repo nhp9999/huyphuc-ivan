@@ -50,7 +50,7 @@ const DEFAULT_CSKCB = {
 };
 
 // Initial participant data
-const createInitialParticipant = (): KeKhai603Participant => ({
+const createInitialParticipant = (doiTuongThamGia?: string): KeKhai603Participant => ({
   id: 0,
   hoTen: '',
   maSoBHXH: '',
@@ -75,7 +75,7 @@ const createInitialParticipant = (): KeKhai603Participant => ({
   tuNgayTheMoi: '',
   denNgayTheMoi: '',
   ngayBienLai: new Date().toISOString().split('T')[0],
-  sttHo: '',
+  sttHo: doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : '', // Mặc định STT hộ = 1 cho đối tượng DS
   soThangDong: '',
   maTinhNkq: '',
   maHuyenNkq: '',
@@ -90,7 +90,7 @@ const createInitialParticipant = (): KeKhai603Participant => ({
 });
 
 // Custom hook for participant management
-export const useKeKhai603Participants = (keKhaiId?: number) => {
+export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: string) => {
   const [participants, setParticipants] = useState<KeKhai603Participant[]>([]);
   const [savingData, setSavingData] = useState(false);
   const [initialized, setInitialized] = useState(false);
@@ -130,7 +130,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         tuNgayTheMoi: item.tu_ngay_the_moi || '',
         denNgayTheMoi: item.den_ngay_the_moi || '',
         ngayBienLai: item.ngay_bien_lai || new Date().toISOString().split('T')[0],
-        sttHo: item.stt_ho || '',
+        sttHo: item.stt_ho || (doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : ''),
         soThangDong: item.so_thang_dong?.toString() || '',
         maTinhNkq: item.ma_tinh_nkq || '',
         maHuyenNkq: item.ma_huyen_nkq || '',
@@ -199,7 +199,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
             updatedParticipant.tienDong = soTien;
 
             // Tính tiền đóng thực tế theo công thức cũ (lưu vào tien_dong_thuc_te)
-            const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong);
+            const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, 2340000, doiTuongThamGia);
             updatedParticipant.tienDongThucTe = soTienThucTe;
           }
         }
@@ -255,6 +255,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         tien_dong_thuc_te: 0, // Khởi tạo tien_dong_thuc_te = 0
         ngay_bien_lai: new Date().toISOString().split('T')[0],
         so_thang_dong: 0,
+        stt_ho: doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : null, // Mặc định STT hộ = 1 cho đối tượng DS
         // Add organization fields from ke khai
         cong_ty_id: keKhaiInfo.cong_ty_id,
         co_quan_bhxh_id: keKhaiInfo.co_quan_bhxh_id,
@@ -266,7 +267,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
 
       // Update local state
       const newParticipant: KeKhai603Participant = {
-        ...createInitialParticipant(),
+        ...createInitialParticipant(doiTuongThamGia),
         id: savedParticipant.id
       };
 

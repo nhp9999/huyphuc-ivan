@@ -132,7 +132,7 @@ export const calculateKeKhai603Amount = (sttHo: string, soThangDong: string, muc
 };
 
 // Function tính toán tiền đóng thực tế (sử dụng công thức cũ với 4.5%)
-export const calculateKeKhai603AmountThucTe = (sttHo: string, soThangDong: string, mucLuongCoSo: number = 2340000): number => {
+export const calculateKeKhai603AmountThucTe = (sttHo: string, soThangDong: string, mucLuongCoSo: number = 2340000, doiTuongThamGia?: string): number => {
   if (!sttHo || !soThangDong) return 0;
 
   const soThang = parseInt(soThangDong);
@@ -142,7 +142,16 @@ export const calculateKeKhai603AmountThucTe = (sttHo: string, soThangDong: strin
   const tyLeCoBan = 0.045;
   const mucDongCoBan = tyLeCoBan * mucLuongCoSo;
 
-  // Tỷ lệ giảm theo STT hộ
+  // Kiểm tra nếu là đối tượng DS (Dân tộc thiểu số)
+  if (doiTuongThamGia && doiTuongThamGia.includes('DS')) {
+    // Công thức cho DS: Lương cơ sở × 4.5% × 30% × Số tháng
+    // (Nhà nước hỗ trợ 70%, người dân đóng 30%)
+    const tyLeNguoiDanDong = 0.3; // 30%
+    const soTienDongThucTe = mucDongCoBan * tyLeNguoiDanDong * soThang;
+    return Math.round(soTienDongThucTe);
+  }
+
+  // Tỷ lệ giảm theo STT hộ (cho các đối tượng khác)
   let tyLeGiam = 1; // Người thứ 1: 100%
 
   switch (sttHo) {
@@ -218,7 +227,7 @@ export const calculateKeKhai603CardValidity = (soThangDong: string, denNgayTheCu
 };
 
 // Custom hook for form data management
-export const useKeKhai603FormData = () => {
+export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
   const [formData, setFormData] = useState<KeKhai603FormData>(initialFormData);
 
   const handleInputChange = (field: keyof KeKhai603FormData, value: string) => {
@@ -263,7 +272,7 @@ export const useKeKhai603FormData = () => {
           newData.tienDong = soTien;
 
           // Tính tiền đóng thực tế theo công thức cũ (lưu vào tien_dong_thuc_te)
-          const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong);
+          const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, 2340000, doiTuongThamGia);
           newData.tienDongThucTe = soTienThucTe;
         }
       }

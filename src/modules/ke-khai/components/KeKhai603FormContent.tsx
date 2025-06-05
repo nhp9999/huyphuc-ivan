@@ -32,10 +32,11 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   const [showPaymentModal, setShowPaymentModal] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<ThanhToan | null>(null);
 
-  // Custom hooks
-  const { formData, handleInputChange, resetForm } = useKeKhai603FormData();
+  // Custom hooks - order matters for dependencies
   const { toast, showToast, hideToast } = useToast();
   const { searchLoading, participantSearchLoading, apiSummary, searchKeKhai603, searchParticipantData } = useKeKhai603Api();
+
+  // Get keKhaiInfo first
   const {
     keKhaiInfo,
     saving,
@@ -48,6 +49,9 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     saveAllParticipants
   } = useKeKhai603(pageParams);
 
+  // Then use keKhaiInfo in dependent hooks
+  const { formData, handleInputChange, resetForm } = useKeKhai603FormData(keKhaiInfo?.doi_tuong_tham_gia);
+
   const {
     participants,
     savingData,
@@ -56,7 +60,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     removeParticipant,
     updateParticipantWithApiData,
     saveSingleParticipant
-  } = useKeKhai603Participants(keKhaiInfo?.id);
+  } = useKeKhai603Participants(keKhaiInfo?.id, keKhaiInfo?.doi_tuong_tham_gia);
 
   // Track changes to mark as unsaved
   React.useEffect(() => {
@@ -375,6 +379,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 <KeKhai603PaymentInfoForm
                   formData={formData}
                   handleInputChange={handleInputChange}
+                  doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
                 />
               </>
             ) : (
@@ -388,6 +393,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleSaveSingleParticipant={handleSaveSingleParticipant}
                 participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
+                doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
               />
             )}
 
@@ -402,6 +408,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleSaveSingleParticipant={handleSaveSingleParticipant}
                 participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
+                doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
               />
             )}
 

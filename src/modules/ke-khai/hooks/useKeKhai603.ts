@@ -343,7 +343,7 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
             muc_luong: participant.mucLuong ? parseFloat(participant.mucLuong.replace(/[.,]/g, '')) : null,
             ty_le_dong: participant.tyLeDong ? parseFloat(participant.tyLeDong) : 100,
             tien_dong: participant.tienDong || (participant.soTienDong ? parseFloat(participant.soTienDong.replace(/[.,]/g, '')) : null), // Ưu tiên sử dụng tienDong, fallback về soTienDong
-            tien_dong_thuc_te: participant.tienDongThucTe || (participant.sttHo && participant.soThangDong ? calculateKeKhai603AmountThucTe(participant.sttHo, participant.soThangDong) : null), // Tính toán tiền đóng thực tế theo công thức cũ
+            tien_dong_thuc_te: participant.tienDongThucTe || (participant.sttHo && participant.soThangDong ? calculateKeKhai603AmountThucTe(participant.sttHo, participant.soThangDong, 2340000, keKhaiInfo?.doi_tuong_tham_gia) : null), // Tính toán tiền đóng thực tế theo công thức cũ
             tu_ngay_the_cu: participant.tuNgayTheCu || null,
             den_ngay_the_cu: participant.denNgayTheCu || null,
             tu_ngay_the_moi: participant.tuNgayTheMoi || null,

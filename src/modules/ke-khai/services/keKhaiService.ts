@@ -128,6 +128,14 @@ class KeKhaiService {
           })
         );
 
+        // Validate và rút ngắn doi_tuong_tham_gia nếu cần
+        if (cleanData.doi_tuong_tham_gia && typeof cleanData.doi_tuong_tham_gia === 'string') {
+          if (cleanData.doi_tuong_tham_gia.length > 100) {
+            cleanData.doi_tuong_tham_gia = cleanData.doi_tuong_tham_gia.substring(0, 97) + '...';
+            console.warn('doi_tuong_tham_gia was truncated to fit database constraint (100 chars)');
+          }
+        }
+
         const { data: result, error } = await supabase
           .from('danh_sach_ke_khai')
           .insert({

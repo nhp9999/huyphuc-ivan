@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle, RefreshCw } from 'lucide-react';
-import { DmKhoiKcb, VDaiLyChiTiet } from '../../../shared/services/api/supabaseClient';
+import { DmKhoiKcb, VDaiLyChiTiet, DmCongTy, DmCoQuanBhxh } from '../../../shared/services/api/supabaseClient';
 import { donViService } from '../services/donViService';
 import { daiLyService } from '../services/daiLyService';
+import { congTyService } from '../services/congTyService';
+import { coQuanBhxhService } from '../services/coQuanBhxhService';
 
 interface DonViCreateModalProps {
   isOpen: boolean;
@@ -21,6 +23,9 @@ interface FormData {
   ten_khoi_kcb: string;
   type: number;
   dai_ly_id: number | null;
+  loai_to_chuc: 'cong_ty' | 'co_quan_bhxh';
+  cong_ty_id: number | null;
+  co_quan_bhxh_id: number | null;
 }
 
 const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, onSave }) => {
@@ -34,11 +39,16 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
     ma_khoi_kcb: '',
     ten_khoi_kcb: '',
     type: 2,
-    dai_ly_id: null
+    dai_ly_id: null,
+    loai_to_chuc: 'cong_ty',
+    cong_ty_id: null,
+    co_quan_bhxh_id: null
   });
 
   const [khoiKcbList, setKhoiKcbList] = useState<DmKhoiKcb[]>([]);
   const [daiLyList, setDaiLyList] = useState<VDaiLyChiTiet[]>([]);
+  const [congTyList, setCongTyList] = useState<DmCongTy[]>([]);
+  const [coQuanBhxhList, setCoQuanBhxhList] = useState<DmCoQuanBhxh[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,12 +58,23 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [khoiKcbData, daiLyData] = await Promise.all([
+        const [khoiKcbData, daiLyData, congTyData, coQuanBhxhData] = await Promise.all([
           donViService.getKhoiKCBList(),
-          daiLyService.getAllDaiLy()
+          daiLyService.getAllDaiLy(),
+          congTyService.getAllCongTy(),
+          coQuanBhxhService.getAllCoQuanBhxh()
         ]);
         setKhoiKcbList(khoiKcbData);
         setDaiLyList(daiLyData);
+        setCongTyList(congTyData);
+        setCoQuanBhxhList(coQuanBhxhData);
+
+        console.log('Loaded data:', {
+          khoiKcbCount: khoiKcbData.length,
+          daiLyCount: daiLyData.length,
+          congTyCount: congTyData.length,
+          coQuanBhxhCount: coQuanBhxhData.length
+        });
       } catch (err) {
         console.error('Error loading data:', err);
       }
@@ -69,7 +90,7 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
     if (isOpen) {
       setFormData({
         ma_co_quan_bhxh: '',
-        ma_so_bhxh: '',
+        ma_don_vi: '',
         ten_don_vi: '',
         is_bhxh_tn: 0,
         is_bhyt: 0,
@@ -77,7 +98,10 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
         ma_khoi_kcb: '',
         ten_khoi_kcb: '',
         type: 2,
-        dai_ly_id: null
+        dai_ly_id: null,
+        loai_to_chuc: 'cong_ty',
+        cong_ty_id: null,
+        co_quan_bhxh_id: null
       });
       setError(null);
       setValidationErrors({});
@@ -119,6 +143,25 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
     }
   };
 
+  const handleLoaiToChucChange = (value: 'cong_ty' | 'co_quan_bhxh') => {
+    setFormData(prev => ({
+      ...prev,
+      loai_to_chuc: value,
+      // Reset organization IDs when changing type
+      cong_ty_id: null,
+      co_quan_bhxh_id: null
+    }));
+
+    // Clear validation errors for organization fields
+    if (validationErrors.cong_ty_id || validationErrors.co_quan_bhxh_id) {
+      setValidationErrors(prev => ({
+        ...prev,
+        cong_ty_id: '',
+        co_quan_bhxh_id: ''
+      }));
+    }
+  };
+
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {};
 
@@ -139,11 +182,32 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
       errors.service = 'Phải chọn ít nhất một dịch vụ (BHXH TN hoặc BHYT)';
     }
 
+    // Validate organization type and related fields
+    console.log('Validating organization fields:', {
+      loai_to_chuc: formData.loai_to_chuc,
+      cong_ty_id: formData.cong_ty_id,
+      co_quan_bhxh_id: formData.co_quan_bhxh_id
+    });
+
+    if (formData.loai_to_chuc === 'cong_ty' && !formData.cong_ty_id) {
+      errors.cong_ty_id = 'Công ty là bắt buộc khi chọn loại tổ chức là Công ty';
+      console.log('Validation error: Missing cong_ty_id');
+    }
+
+    if (formData.loai_to_chuc === 'co_quan_bhxh' && !formData.co_quan_bhxh_id) {
+      errors.co_quan_bhxh_id = 'Cơ quan BHXH là bắt buộc khi chọn loại tổ chức là Cơ quan BHXH';
+      console.log('Validation error: Missing co_quan_bhxh_id');
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleSave = async () => {
+    console.log('Form data before validation:', formData);
+    console.log('Company list:', congTyList);
+    console.log('Co quan BHXH list:', coQuanBhxhList);
+
     if (!validateForm()) return;
 
     setSaving(true);
@@ -170,9 +234,13 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
         ten_khoi_kcb: formData.ten_khoi_kcb,
         type: formData.type,
         dai_ly_id: formData.dai_ly_id,
+        loai_to_chuc: formData.loai_to_chuc,
+        cong_ty_id: formData.loai_to_chuc === 'cong_ty' ? formData.cong_ty_id : null,
+        co_quan_bhxh_id: formData.loai_to_chuc === 'co_quan_bhxh' ? formData.co_quan_bhxh_id : null,
         trang_thai: 'active'
       };
 
+      console.log('Creating don vi with data:', createData);
       await donViService.createDonVi(createData);
       onSave();
       onClose();
@@ -328,6 +396,80 @@ const DonViCreateModal: React.FC<DonViCreateModalProps> = ({ isOpen, onClose, on
                   <option value={1}>Có hỗ trợ</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          {/* Organization Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Thông tin tổ chức</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Loại tổ chức */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Loại tổ chức <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.loai_to_chuc}
+                  onChange={(e) => handleLoaiToChucChange(e.target.value as 'cong_ty' | 'co_quan_bhxh')}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="cong_ty">Công ty</option>
+                  <option value="co_quan_bhxh">Cơ quan BHXH</option>
+                </select>
+              </div>
+
+              {/* Công ty (hiển thị khi loại tổ chức là công ty) */}
+              {formData.loai_to_chuc === 'cong_ty' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Công ty <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.cong_ty_id || ''}
+                    onChange={(e) => handleInputChange('cong_ty_id', e.target.value ? parseInt(e.target.value) : null)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                      validationErrors.cong_ty_id ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                  >
+                    <option value="">Chọn công ty</option>
+                    {congTyList.map(congTy => (
+                      <option key={congTy.id} value={congTy.id}>
+                        {congTy.ma_cong_ty} - {congTy.ten_cong_ty}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.cong_ty_id && (
+                    <p className="text-sm text-red-600 dark:text-red-400 mt-1">{validationErrors.cong_ty_id}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Cơ quan BHXH (hiển thị khi loại tổ chức là cơ quan BHXH) */}
+              {formData.loai_to_chuc === 'co_quan_bhxh' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Cơ quan BHXH <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.co_quan_bhxh_id || ''}
+                    onChange={(e) => handleInputChange('co_quan_bhxh_id', e.target.value ? parseInt(e.target.value) : null)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                      validationErrors.co_quan_bhxh_id ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                  >
+                    <option value="">Chọn cơ quan BHXH</option>
+                    {coQuanBhxhList.map(coQuan => (
+                      <option key={coQuan.id} value={coQuan.id}>
+                        {coQuan.ma_co_quan} - {coQuan.ten_co_quan}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.co_quan_bhxh_id && (
+                    <p className="text-sm text-red-600 dark:text-red-400 mt-1">{validationErrors.co_quan_bhxh_id}</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

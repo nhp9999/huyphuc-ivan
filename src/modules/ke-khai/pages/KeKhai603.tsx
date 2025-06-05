@@ -222,10 +222,29 @@ const KeKhai603: React.FC = () => {
 
   // Xử lý khi chọn đơn vị từ component mới
   const handleNewDonViChange = (donViId: number | null) => {
-    handleInputChange('chonDonVi', donViId ? donViId.toString() : '');
+    const donViIdString = donViId ? donViId.toString() : '';
 
-    // Reset đối tượng tham gia về mặc định khi thay đổi đơn vị
-    handleInputChange('doiTuongThamGia', 'GD - Hộ gia đình');
+    // Sử dụng logic từ handleDonViChange để tự động điền đối tượng tham gia
+    const selectedDonViData = donViList.find(dv => dv.id === donViId);
+    setSelectedDonVi(selectedDonViData || null);
+
+    // Cập nhật form data
+    handleInputChange('chonDonVi', donViIdString);
+
+    // Tự động điền đối tượng tham gia dựa trên khối KCB
+    if (selectedDonViData && selectedDonViData.ma_khoi_kcb) {
+      let doiTuongText = `${selectedDonViData.ma_khoi_kcb} - ${selectedDonViData.ten_khoi_kcb}`;
+
+      // Rút ngắn chuỗi nếu quá 100 ký tự để tránh lỗi database
+      if (doiTuongText.length > 100) {
+        doiTuongText = doiTuongText.substring(0, 97) + '...';
+      }
+
+      handleInputChange('doiTuongThamGia', doiTuongText);
+    } else if (!selectedDonViData) {
+      // Reset về mặc định khi không chọn đơn vị
+      handleInputChange('doiTuongThamGia', 'GD - Hộ gia đình');
+    }
   };
 
   // Xử lý khi chọn đơn vị (legacy - giữ lại cho tương thích)
@@ -238,7 +257,13 @@ const KeKhai603: React.FC = () => {
 
     // Tự động điền đối tượng tham gia dựa trên khối KCB
     if (selectedDonViData && selectedDonViData.ma_khoi_kcb) {
-      const doiTuongText = `${selectedDonViData.ma_khoi_kcb} - ${selectedDonViData.ten_khoi_kcb}`;
+      let doiTuongText = `${selectedDonViData.ma_khoi_kcb} - ${selectedDonViData.ten_khoi_kcb}`;
+
+      // Rút ngắn chuỗi nếu quá 100 ký tự để tránh lỗi database
+      if (doiTuongText.length > 100) {
+        doiTuongText = doiTuongText.substring(0, 97) + '...';
+      }
+
       handleInputChange('doiTuongThamGia', doiTuongText);
     } else if (!selectedDonViData) {
       // Reset về mặc định khi không chọn đơn vị

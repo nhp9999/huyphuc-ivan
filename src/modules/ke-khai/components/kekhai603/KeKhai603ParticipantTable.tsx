@@ -16,6 +16,7 @@ interface KeKhai603ParticipantTableProps {
   handleSaveSingleParticipant: (index: number) => Promise<void>;
   participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
+  doiTuongThamGia?: string; // Thêm prop để kiểm tra đối tượng tham gia
 }
 
 export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps> = ({
@@ -26,7 +27,8 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   handleRemoveParticipant,
   handleSaveSingleParticipant,
   participantSearchLoading,
-  savingData
+  savingData,
+  doiTuongThamGia
 }) => {
   // State for location data
   const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
@@ -343,7 +345,12 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     <select
                       value={participant.sttHo || ''}
                       onChange={(e) => handleParticipantChange(index, 'sttHo', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      disabled={doiTuongThamGia && doiTuongThamGia.includes('DS')} // Disable cho đối tượng DS
+                      className={`w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                        doiTuongThamGia && doiTuongThamGia.includes('DS')
+                          ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed'
+                          : ''
+                      }`}
                     >
                       <option value="">Chọn</option>
                       <option value="1">1</option>

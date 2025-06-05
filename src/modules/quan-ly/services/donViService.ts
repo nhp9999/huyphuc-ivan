@@ -257,10 +257,11 @@ class DonViService {
   // Tạo mới đơn vị
   async createDonVi(donViData: Omit<DmDonVi, 'id' | 'ngay_tao' | 'ngay_cap_nhat'>): Promise<DmDonVi> {
     try {
+      console.log('Service received data:', donViData);
       const { data, error } = await supabase
         .from('dm_don_vi')
         .insert([donViData])
-        .select()
+        .select('*')
         .single();
 
       if (error) {

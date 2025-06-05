@@ -4,11 +4,13 @@ import { KeKhai603FormData } from '../../../hooks/useKeKhai603FormData';
 interface KeKhai603PaymentInfoFormProps {
   formData: KeKhai603FormData;
   handleInputChange: (field: keyof KeKhai603FormData, value: string) => void;
+  doiTuongThamGia?: string; // Thêm prop để kiểm tra đối tượng tham gia
 }
 
 export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> = ({
   formData,
-  handleInputChange
+  handleInputChange,
+  doiTuongThamGia
 }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -72,10 +74,15 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
             <select
               value={formData.sttHo}
               onChange={(e) => handleInputChange('sttHo', e.target.value)}
+              disabled={doiTuongThamGia && doiTuongThamGia.includes('DS')} // Disable cho đối tượng DS
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
                 !formData.sttHo
                   ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
                   : 'border-gray-300 dark:border-gray-600'
+              } ${
+                doiTuongThamGia && doiTuongThamGia.includes('DS')
+                  ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed'
+                  : ''
               }`}
               required
             >
@@ -87,7 +94,10 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
               <option value="5+">Người thứ 5+ (40% lương cơ sở)</option>
             </select>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Tiền đóng = Lương cơ sở × Tỷ lệ theo thứ tự
+              {doiTuongThamGia && doiTuongThamGia.includes('DS')
+                ? 'Đối tượng DS: STT hộ cố định = 1 (30% lương cơ sở)'
+                : 'Tiền đóng = Lương cơ sở × Tỷ lệ theo thứ tự'
+              }
             </p>
           </div>
 

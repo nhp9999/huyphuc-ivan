@@ -122,6 +122,9 @@ export interface DmDonVi {
   ten_khoi_kcb?: string;
   type: number;
   dai_ly_id?: number;
+  loai_to_chuc: string;
+  cong_ty_id?: number;
+  co_quan_bhxh_id?: number;
   trang_thai: string;
   ngay_tao: string;
   ngay_cap_nhat: string;
