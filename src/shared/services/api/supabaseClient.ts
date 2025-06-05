@@ -273,6 +273,7 @@ export interface VDaiLyDonVi {
 export interface DanhSachKeKhai {
   id: number;
   ma_ke_khai: string;
+  ma_ho_so?: string; // Mã hồ sơ riêng biệt với mã kê khai
   ten_ke_khai: string;
   loai_ke_khai: string;
   dai_ly_id?: number;

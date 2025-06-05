@@ -107,6 +107,8 @@ class KeKhaiService {
     }
   }
 
+
+
   // Tạo kê khai mới với retry logic
   async createKeKhai(data: CreateKeKhaiRequest): Promise<DanhSachKeKhai> {
     const maxRetries = 3;
@@ -337,6 +339,29 @@ class KeKhaiService {
       }
     } catch (error) {
       console.error('Error in deleteKeKhai:', error);
+      throw error;
+    }
+  }
+
+  // Cập nhật mã hồ sơ
+  async updateMaHoSo(keKhaiId: number, maHoSo: string | null): Promise<void> {
+    try {
+      console.log('Updating ma_ho_so:', { keKhaiId, maHoSo });
+
+      const { data, error } = await supabase
+        .from('danh_sach_ke_khai')
+        .update({ ma_ho_so: maHoSo })
+        .eq('id', keKhaiId)
+        .select();
+
+      if (error) {
+        console.error('Error updating ma ho so:', error);
+        throw new Error(`Không thể cập nhật mã hồ sơ: ${error.message}`);
+      }
+
+      console.log('Successfully updated ma_ho_so:', data);
+    } catch (error) {
+      console.error('Error in updateMaHoSo:', error);
       throw error;
     }
   }

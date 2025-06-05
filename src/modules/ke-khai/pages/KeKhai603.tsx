@@ -18,7 +18,13 @@ import {
   Eye,
   CreditCard,
   QrCode,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Copy,
+  Check,
+  Edit3,
+  X,
+  MoreVertical,
+  ChevronDown
 } from 'lucide-react';
 import DaiLyDonViSelector from '../components/DaiLyDonViSelector';
 import PaymentQRModal from '../components/PaymentQRModal';
@@ -74,6 +80,18 @@ const KeKhai603: React.FC = () => {
 
   // State cho export Excel
   const [exportingExcel, setExportingExcel] = useState<number | null>(null);
+
+  // State cho copy mã hồ sơ
+  const [copiedKeKhaiId, setCopiedKeKhaiId] = useState<number | null>(null);
+  const [copiedHoSoId, setCopiedHoSoId] = useState<number | null>(null);
+
+  // State cho chỉnh sửa mã hồ sơ inline
+  const [editingHoSoId, setEditingHoSoId] = useState<number | null>(null);
+  const [editingHoSoValue, setEditingHoSoValue] = useState<string>('');
+  const [savingHoSo, setSavingHoSo] = useState<number | null>(null);
+
+  // State cho dropdown menu
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     // Thông tin đại lý
@@ -498,6 +516,133 @@ const KeKhai603: React.FC = () => {
     }
   };
 
+  // Copy mã kê khai
+  const handleCopyKeKhaiCode = async (keKhai: DanhSachKeKhai) => {
+    try {
+      await navigator.clipboard.writeText(keKhai.ma_ke_khai);
+      setCopiedKeKhaiId(keKhai.id);
+      showToast(`Đã copy mã kê khai: ${keKhai.ma_ke_khai}`, 'success');
+
+      // Reset trạng thái copy sau 2 giây
+      setTimeout(() => {
+        setCopiedKeKhaiId(null);
+      }, 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      showToast('Không thể copy mã kê khai', 'error');
+    }
+  };
+
+  // Copy mã hồ sơ
+  const handleCopyHoSoCode = async (keKhai: DanhSachKeKhai) => {
+    if (!keKhai.ma_ho_so) {
+      showToast('Không có mã hồ sơ để copy', 'warning');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(keKhai.ma_ho_so);
+      setCopiedHoSoId(keKhai.id);
+      showToast(`Đã copy mã hồ sơ: ${keKhai.ma_ho_so}`, 'success');
+
+      // Reset trạng thái copy sau 2 giây
+      setTimeout(() => {
+        setCopiedHoSoId(null);
+      }, 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      showToast('Không thể copy mã hồ sơ', 'error');
+    }
+  };
+
+  // Bắt đầu chỉnh sửa mã hồ sơ
+  const handleStartEditHoSo = (keKhai: DanhSachKeKhai) => {
+    setEditingHoSoId(keKhai.id);
+    setEditingHoSoValue(keKhai.ma_ho_so || '');
+  };
+
+  // Hủy chỉnh sửa mã hồ sơ
+  const handleCancelEditHoSo = () => {
+    setEditingHoSoId(null);
+    setEditingHoSoValue('');
+  };
+
+  // Lưu mã hồ sơ
+  const handleSaveHoSo = async (keKhaiId: number) => {
+    console.log('handleSaveHoSo called:', { keKhaiId, editingHoSoValue });
+    setSavingHoSo(keKhaiId);
+    try {
+      const maHoSo = editingHoSoValue.trim() || null;
+      console.log('Calling updateMaHoSo with:', { keKhaiId, maHoSo });
+
+      await keKhaiService.updateMaHoSo(keKhaiId, maHoSo);
+
+      // Cập nhật danh sách kê khai
+      setKeKhaiList(prev => prev.map(item =>
+        item.id === keKhaiId
+          ? { ...item, ma_ho_so: maHoSo }
+          : item
+      ));
+
+      setEditingHoSoId(null);
+      setEditingHoSoValue('');
+      showToast(
+        maHoSo
+          ? 'Đã cập nhật mã hồ sơ thành công'
+          : 'Đã xóa mã hồ sơ thành công',
+        'success'
+      );
+    } catch (error) {
+      console.error('Error updating ma ho so:', error);
+      showToast(`Không thể cập nhật mã hồ sơ: ${error.message}`, 'error');
+    } finally {
+      setSavingHoSo(null);
+    }
+  };
+
+  // Xử lý phím Enter khi chỉnh sửa mã hồ sơ
+  const handleHoSoKeyPress = (e: React.KeyboardEvent, keKhaiId: number) => {
+    if (e.key === 'Enter') {
+      handleSaveHoSo(keKhaiId);
+    } else if (e.key === 'Escape') {
+      handleCancelEditHoSo();
+    }
+  };
+
+  // Toggle dropdown menu
+  const toggleDropdown = (keKhaiId: number) => {
+    setOpenDropdownId(openDropdownId === keKhaiId ? null : keKhaiId);
+  };
+
+  // Đóng dropdown khi click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-container')) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    if (openDropdownId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openDropdownId]);
+
+  // Đóng dropdown khi nhấn Escape
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenDropdownId(null);
+      }
+    };
+
+    if (openDropdownId) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [openDropdownId]);
+
   // Đóng modal thanh toán
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);
@@ -874,7 +1019,7 @@ const KeKhai603: React.FC = () => {
                 {/* Table header - hidden on mobile, shown on larger screens */}
                 <div className="hidden lg:block bg-gray-50 dark:bg-gray-700 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700">
                   <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    <div className="col-span-2">Mã kê khai</div>
+                    <div className="col-span-2">Mã kê khai / Mã hồ sơ</div>
                     <div className="col-span-2">Tên kê khai</div>
                     <div className="col-span-2">Đối tượng tham gia</div>
                     <div className="col-span-1">Trạng thái</div>
@@ -892,9 +1037,90 @@ const KeKhai603: React.FC = () => {
                       {/* Mobile layout */}
                       <div className="lg:hidden space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-blue-600 dark:text-blue-400">
-                            {keKhai.ma_ke_khai}
-                          </span>
+                          <div className="flex flex-col space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">Mã kê khai:</span>
+                              <span className="font-medium text-blue-600 dark:text-blue-400">
+                                {keKhai.ma_ke_khai}
+                              </span>
+                              <button
+                                onClick={() => handleCopyKeKhaiCode(keKhai)}
+                                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                title="Copy mã kê khai"
+                              >
+                                {copiedKeKhaiId === keKhai.id ? (
+                                  <Check className="w-3 h-3 text-green-600" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                              </button>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">Mã hồ sơ:</span>
+                              {editingHoSoId === keKhai.id ? (
+                                <div className="flex items-center space-x-1">
+                                  <input
+                                    type="text"
+                                    value={editingHoSoValue}
+                                    onChange={(e) => setEditingHoSoValue(e.target.value)}
+                                    onKeyDown={(e) => handleHoSoKeyPress(e, keKhai.id)}
+                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                                    placeholder="Nhập mã hồ sơ"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleSaveHoSo(keKhai.id)}
+                                    disabled={savingHoSo === keKhai.id}
+                                    className="p-1 text-green-600 hover:text-green-700 transition-colors"
+                                    title="Lưu mã hồ sơ"
+                                  >
+                                    {savingHoSo === keKhai.id ? (
+                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Check className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEditHoSo}
+                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                    title="Hủy"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-2">
+                                  {keKhai.ma_ho_so ? (
+                                    <>
+                                      <span className="font-medium text-purple-600 dark:text-purple-400">
+                                        {keKhai.ma_ho_so}
+                                      </span>
+                                      <button
+                                        onClick={() => handleCopyHoSoCode(keKhai)}
+                                        className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                                        title="Copy mã hồ sơ"
+                                      >
+                                        {copiedHoSoId === keKhai.id ? (
+                                          <Check className="w-3 h-3 text-green-600" />
+                                        ) : (
+                                          <Copy className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-400 dark:text-gray-500 text-xs">Chưa có</span>
+                                  )}
+                                  <button
+                                    onClick={() => handleStartEditHoSo(keKhai)}
+                                    className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                                    title="Chỉnh sửa mã hồ sơ"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             keKhai.trang_thai === 'draft'
                               ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
@@ -962,19 +1188,141 @@ const KeKhai603: React.FC = () => {
                             </button>
                           )}
 
-                          <button
-                            onClick={() => openDeleteModal(keKhai)}
-                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {/* Dropdown menu for secondary actions */}
+                          <div className="relative dropdown-container">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleDropdown(keKhai.id);
+                              }}
+                              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            {openDropdownId === keKhai.id && (
+                              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[160px]">
+                                <button
+                                  onClick={() => {
+                                    handleExportD03TK1Excel(keKhai);
+                                    setOpenDropdownId(null);
+                                  }}
+                                  disabled={exportingExcel === keKhai.id}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 disabled:opacity-50"
+                                >
+                                  {exportingExcel === keKhai.id ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <FileSpreadsheet className="w-4 h-4" />
+                                  )}
+                                  <span>Xuất Excel</span>
+                                </button>
+                                <hr className="border-gray-200 dark:border-gray-700" />
+                                <button
+                                  onClick={() => {
+                                    openDeleteModal(keKhai);
+                                    setOpenDropdownId(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Xóa</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
                       {/* Desktop layout */}
                       <div className="hidden lg:grid lg:grid-cols-12 lg:gap-2 lg:items-center">
-                        <div className="col-span-2 font-medium text-blue-600 dark:text-blue-400">
-                          {keKhai.ma_ke_khai}
+                        <div className="col-span-2">
+                          <div className="space-y-1">
+                            {/* Mã kê khai */}
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">KK:</span>
+                              <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">
+                                {keKhai.ma_ke_khai}
+                              </span>
+                              <button
+                                onClick={() => handleCopyKeKhaiCode(keKhai)}
+                                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                title="Copy mã kê khai"
+                              >
+                                {copiedKeKhaiId === keKhai.id ? (
+                                  <Check className="w-3 h-3 text-green-600" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                              </button>
+                            </div>
+                            {/* Mã hồ sơ */}
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">HS:</span>
+                              {editingHoSoId === keKhai.id ? (
+                                <div className="flex items-center space-x-1">
+                                  <input
+                                    type="text"
+                                    value={editingHoSoValue}
+                                    onChange={(e) => setEditingHoSoValue(e.target.value)}
+                                    onKeyDown={(e) => handleHoSoKeyPress(e, keKhai.id)}
+                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white w-24"
+                                    placeholder="Mã hồ sơ"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleSaveHoSo(keKhai.id)}
+                                    disabled={savingHoSo === keKhai.id}
+                                    className="p-1 text-green-600 hover:text-green-700 transition-colors"
+                                    title="Lưu mã hồ sơ"
+                                  >
+                                    {savingHoSo === keKhai.id ? (
+                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Check className="w-3 h-3" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEditHoSo}
+                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                    title="Hủy"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-1">
+                                  {keKhai.ma_ho_so ? (
+                                    <>
+                                      <span className="font-medium text-purple-600 dark:text-purple-400 text-sm">
+                                        {keKhai.ma_ho_so}
+                                      </span>
+                                      <button
+                                        onClick={() => handleCopyHoSoCode(keKhai)}
+                                        className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                                        title="Copy mã hồ sơ"
+                                      >
+                                        {copiedHoSoId === keKhai.id ? (
+                                          <Check className="w-3 h-3 text-green-600" />
+                                        ) : (
+                                          <Copy className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-400 dark:text-gray-500 text-xs">Chưa có</span>
+                                  )}
+                                  <button
+                                    onClick={() => handleStartEditHoSo(keKhai)}
+                                    className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                                    title="Chỉnh sửa mã hồ sơ"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                         <div className="col-span-2 text-sm text-gray-900 dark:text-white">
                           {keKhai.ten_ke_khai}
@@ -1026,6 +1374,7 @@ const KeKhai603: React.FC = () => {
                           {new Date(keKhai.created_at || '').toLocaleDateString('vi-VN')}
                         </div>
                         <div className="col-span-1 flex space-x-1">
+                          {/* Primary actions */}
                           <button
                             onClick={() => {
                               setCurrentPage('ke-khai-603-form', {
@@ -1041,7 +1390,7 @@ const KeKhai603: React.FC = () => {
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          {/* Payment buttons for desktop */}
+                          {/* Payment buttons - primary when needed */}
                           {needsPayment(keKhai) && (
                             <button
                               onClick={() => handleCreatePayment(keKhai)}
@@ -1067,27 +1416,50 @@ const KeKhai603: React.FC = () => {
                             </button>
                           )}
 
-                          {/* Export Excel D03-TK1-VNPT button */}
-                          <button
-                            onClick={() => handleExportD03TK1Excel(keKhai)}
-                            disabled={exportingExcel === keKhai.id}
-                            className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
-                            title="Xuất Excel D03-TK1-VNPT"
-                          >
-                            {exportingExcel === keKhai.id ? (
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <FileSpreadsheet className="w-4 h-4" />
-                            )}
-                          </button>
+                          {/* Dropdown menu for secondary actions */}
+                          <div className="relative dropdown-container">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleDropdown(keKhai.id);
+                              }}
+                              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
+                              title="Thêm thao tác"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
 
-                          <button
-                            onClick={() => openDeleteModal(keKhai)}
-                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
-                            title="Xóa kê khai"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            {openDropdownId === keKhai.id && (
+                              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[160px]">
+                                <button
+                                  onClick={() => {
+                                    handleExportD03TK1Excel(keKhai);
+                                    setOpenDropdownId(null);
+                                  }}
+                                  disabled={exportingExcel === keKhai.id}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 disabled:opacity-50 rounded-t-lg"
+                                >
+                                  {exportingExcel === keKhai.id ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <FileSpreadsheet className="w-4 h-4" />
+                                  )}
+                                  <span>Xuất Excel</span>
+                                </button>
+                                <hr className="border-gray-200 dark:border-gray-700" />
+                                <button
+                                  onClick={() => {
+                                    openDeleteModal(keKhai);
+                                    setOpenDropdownId(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2 rounded-b-lg"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Xóa</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
