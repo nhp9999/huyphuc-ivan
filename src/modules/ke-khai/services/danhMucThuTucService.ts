@@ -175,36 +175,6 @@ class DanhMucThuTucService {
     };
     return linhVucMap[linhVuc] || `Lĩnh vực ${linhVuc}`;
   }
-
-  // Thống kê số lượng thủ tục theo lĩnh vực
-  async getThongKeTheoLinhVuc(): Promise<{ linh_vuc: number; so_luong: number; ten_linh_vuc: string }[]> {
-    try {
-      const { data, error } = await supabase
-        .from('danh_muc_thu_tuc')
-        .select('linh_vuc')
-        .eq('trang_thai', 'active');
-
-      if (error) {
-        console.error('Error fetching statistics:', error);
-        throw error;
-      }
-
-      // Đếm số lượng theo lĩnh vực
-      const counts: { [key: number]: number } = {};
-      data?.forEach(item => {
-        counts[item.linh_vuc] = (counts[item.linh_vuc] || 0) + 1;
-      });
-
-      return Object.entries(counts).map(([linhVuc, soLuong]) => ({
-        linh_vuc: parseInt(linhVuc),
-        so_luong: soLuong,
-        ten_linh_vuc: this.getLinhVucLabel(parseInt(linhVuc))
-      })).sort((a, b) => a.linh_vuc - b.linh_vuc);
-    } catch (error) {
-      console.error('Error in getThongKeTheoLinhVuc:', error);
-      throw error;
-    }
-  }
 }
 
 export const danhMucThuTucService = new DanhMucThuTucService();

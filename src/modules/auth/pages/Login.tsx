@@ -44,10 +44,10 @@ const Login: React.FC = () => {
 
   return (
     <div className={`${theme} min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center py-8`}>
-      <div className="max-w-4xl w-full mx-auto p-4">
+      <div className="max-w-3xl w-full mx-auto p-4">
         <div className="flex flex-col lg:flex-row shadow-xl rounded-xl overflow-hidden">
           {/* Left Panel - Brand */}
-          <div className="lg:w-5/12 bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white hidden lg:block">
+          <div className="lg:w-1/2 bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white hidden lg:block">
             <div className="h-full flex flex-col">
               {/* Logo */}
               <div className="flex items-center space-x-3 mb-8">
@@ -84,7 +84,7 @@ const Login: React.FC = () => {
           </div>
           
           {/* Right Panel - Login Form */}
-          <div className="lg:w-7/12 bg-white dark:bg-gray-800 p-8">
+          <div className="lg:w-1/2 bg-white dark:bg-gray-800 p-8">
             {/* Mobile Logo */}
             <div className="flex items-center justify-center mb-6 lg:hidden">
               <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -214,20 +214,9 @@ const Login: React.FC = () => {
                 )}
               </button>
             </form>
-
-            {/* Demo Credentials */}
-            <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-sm text-blue-700 dark:text-blue-300 font-medium mb-1">
-                Tài khoản demo:
-              </div>
-              <div className="text-xs text-blue-600 dark:text-blue-400">
-                <p><span className="font-medium">Admin:</span> superadmin@system.vn / password123</p>
-                <p><span className="font-medium">Nhân viên:</span> thu1@abc.com / password123</p>
-              </div>
-            </div>
             
             {/* Security Badge */}
-            <div className="mt-4 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
+            <div className="mt-6 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
               <Shield className="h-3 w-3 mr-1" />
               <span>Kết nối được bảo mật</span>
             </div>

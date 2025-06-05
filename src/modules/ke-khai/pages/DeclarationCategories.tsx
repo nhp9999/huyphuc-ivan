@@ -24,7 +24,7 @@ const DeclarationCategories: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedLinhVuc, setSelectedLinhVuc] = useState<number | null>(null);
   const [linhVucOptions, setLinhVucOptions] = useState<{ value: number; label: string }[]>([]);
-  const [statistics, setStatistics] = useState<{ linh_vuc: number; so_luong: number; ten_linh_vuc: string }[]>([]);
+
   const [showOnlyDeveloped, setShowOnlyDeveloped] = useState<boolean>(() => {
     // Load từ localStorage, mặc định là true (chỉ hiển thị thủ tục đã phát triển)
     const saved = localStorage.getItem('showOnlyDevelopedProcedures');
@@ -73,17 +73,15 @@ const DeclarationCategories: React.FC = () => {
         showOnlyDeveloped: showOnlyDeveloped // true = chỉ lấy 'active', false = lấy tất cả
       };
 
-      const [thuTucData, linhVucData, statsData] = await Promise.all([
+      const [thuTucData, linhVucData] = await Promise.all([
         danhMucThuTucService.searchThuTuc(searchParams), // Sử dụng searchThuTuc thay vì getAllThuTuc
-        danhMucThuTucService.getLinhVucList(),
-        danhMucThuTucService.getThongKeTheoLinhVuc()
+        danhMucThuTucService.getLinhVucList()
       ]);
 
       const convertedData = convertToDeclarationCategory(thuTucData);
       setAllData(convertedData);
       setFilteredData(convertedData);
       setLinhVucOptions(linhVucData);
-      setStatistics(statsData);
     } catch (err) {
       console.error('Error loading data:', err);
       setError('Không thể tải dữ liệu. Vui lòng thử lại.');
@@ -215,18 +213,6 @@ const DeclarationCategories: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Statistics Cards */}
-      {statistics.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {statistics.map((stat) => (
-            <div key={stat.linh_vuc} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stat.so_luong}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">{stat.ten_linh_vuc}</div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Error Alert */}
       {error && (
@@ -489,8 +475,6 @@ const DeclarationCategories: React.FC = () => {
           </div>
         </div>
       </div>
-
-
 
       {/* Toast Notification */}
       <Toast
