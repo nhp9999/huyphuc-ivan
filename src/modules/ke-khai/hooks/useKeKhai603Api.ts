@@ -2,20 +2,75 @@ import { useState } from 'react';
 import { bhytService } from '../../tra-cuu/services/bhytService';
 import { KeKhai603Request } from '../types/kekhai603';
 
-// Helper function to convert from DD/MM/YYYY to YYYY-MM-DD for date input
+// Helper function to normalize birth date from various formats
 export const convertDisplayDateToInputDate = (displayDate: string): string => {
   if (!displayDate) return '';
 
-  // Check DD/MM/YYYY format
-  const parts = displayDate.split('/');
-  if (parts.length === 3) {
-    const day = parts[0].padStart(2, '0');
-    const month = parts[1].padStart(2, '0');
-    const year = parts[2];
-    return `${year}-${month}-${day}`;
+  // Remove any extra spaces
+  const cleaned = displayDate.trim();
+
+  // Case 1: Full date format "dd/mm/yyyy" or "dd-mm-yyyy"
+  const fullDateMatch = cleaned.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (fullDateMatch) {
+    const [, day, month, year] = fullDateMatch;
+    // Convert to ISO format YYYY-MM-DD
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
-  return displayDate; // Return original if not correct format
+  // Case 2: Month/Year format "mm/yyyy" or "mm-yyyy"
+  const monthYearMatch = cleaned.match(/^(\d{1,2})[\/\-](\d{4})$/);
+  if (monthYearMatch) {
+    const [, month, year] = monthYearMatch;
+    // Default to 1st day of the month
+    return `${year}-${month.padStart(2, '0')}-01`;
+  }
+
+  // Case 3: Year only "yyyy" - keep as year only, don't add month/day
+  const yearMatch = cleaned.match(/^(\d{4})$/);
+  if (yearMatch) {
+    const [, year] = yearMatch;
+    // Return just the year, not a full date
+    return year;
+  }
+
+  // Case 4: Already in ISO format "yyyy-mm-dd"
+  const isoMatch = cleaned.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  // Case 5: Invalid format - try to extract year at least
+  const yearExtract = cleaned.match(/(\d{4})/);
+  if (yearExtract) {
+    const year = yearExtract[1];
+    console.warn(`Invalid birth date format: "${displayDate}", extracting year only: ${year}`);
+    return year;
+  }
+
+  // If all else fails, return original value
+  console.warn(`Cannot parse birth date: "${displayDate}", keeping original`);
+  return cleaned;
+};
+
+// Test function for birth date conversion (for debugging)
+export const testBirthDateConversion = () => {
+  const testCases = [
+    '12/05/1966',    // Full date DD/MM/YYYY → 1966-05-12
+    '05/1966',       // Month/Year MM/YYYY → 1966-05-01
+    '1966',          // Year only → 1966 (keep as is)
+    '1966-05-12',    // ISO format → 1966-05-12
+    '12-05-1966',    // DD-MM-YYYY with dashes → 1966-05-12
+    '1966-5-12',     // ISO with single digits → 1966-05-12
+    'invalid',       // Invalid format → invalid
+    '1966 something' // Year with extra text → 1966
+  ];
+
+  console.log('🧪 Testing birth date conversion:');
+  testCases.forEach(testCase => {
+    const result = convertDisplayDateToInputDate(testCase);
+    console.log(`"${testCase}" → "${result}"`);
+  });
 };
 
 // Interface for API summary
@@ -69,7 +124,7 @@ export const useKeKhai603Api = () => {
         // Transform API data to form format
         const transformedData = {
           hoTen: response.data.hoTen,
-          ngaySinh: response.data.ngaySinh,
+          ngaySinh: convertDisplayDateToInputDate(response.data.ngaySinh),
           gioiTinh: response.data.gioiTinh,
           soCCCD: response.data.cmnd,
           noiDangKyKCB: response.data.noiDangKyKCB,
@@ -150,13 +205,37 @@ export const useKeKhai603Api = () => {
 
       if (response.success && response.data) {
         // Transform API data for participant
+        console.log('🔄 Converting birth date:', response.data.ngaySinh, '→', convertDisplayDateToInputDate(response.data.ngaySinh));
+
         const participantData = {
           hoTen: response.data.hoTen,
           maSoBHXH: response.data.maSoBHXH,
-          ngaySinh: response.data.ngaySinh,
+          ngaySinh: convertDisplayDateToInputDate(response.data.ngaySinh),
           gioiTinh: response.data.gioiTinh,
           soCCCD: response.data.cmnd || '',
+          soDienThoai: response.data.soDienThoai || '',
+          soTheBHYT: response.data.soTheBHYT || '',
+          danToc: response.data.danToc || '',
+          quocTich: response.data.quocTich || 'VN',
           noiDangKyKCB: response.data.noiDangKyKCB,
+          // Location data (Khẩu sử)
+          maTinhKS: response.data.maTinhKS || '',
+          maHuyenKS: response.data.maHuyenKS || '',
+          maXaKS: response.data.maXaKS || '',
+          // Location data (Nơi khai quyết)
+          maTinhNkq: response.data.maTinhNkq || '',
+          maHuyenNkq: response.data.maHuyenNkq || '',
+          maXaNkq: response.data.maXaNkq || '',
+          // Medical facility data
+          tinhKCB: response.data.tinhKCB || '',
+          maBenhVien: response.data.maBenhVien || '',
+          noiNhanHoSo: response.data.noiNhanHoSo || '',
+          // Card validity dates
+          tuNgayTheCu: response.data.tuNgayTheCu || '',
+          denNgayTheCu: response.data.denNgayTheCu || '',
+          // Additional data
+          maHoGiaDinh: response.data.maHoGiaDinh || '',
+          phuongAn: response.data.phuongAn || '',
           mucLuong: response.data.mucLuong || '',
           tyLeDong: response.data.tyLeDong || '4.5',
           soTienDong: response.data.soTienDong || '',

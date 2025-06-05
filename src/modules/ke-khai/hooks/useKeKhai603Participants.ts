@@ -10,6 +10,10 @@ export interface KeKhai603Participant {
   ngaySinh: string;
   gioiTinh: string;
   soCCCD: string;
+  soDienThoai: string;
+  soTheBHYT: string;
+  danToc: string;
+  quocTich: string;
   noiDangKyKCB: string;
   tinhKCB: string; // Mã tỉnh KCB
   maBenhVien: string; // Mã cơ sở KCB
@@ -51,6 +55,10 @@ const createInitialParticipant = (): KeKhai603Participant => ({
   ngaySinh: '',
   gioiTinh: 'Nam',
   soCCCD: '',
+  soDienThoai: '',
+  soTheBHYT: '',
+  danToc: '',
+  quocTich: 'VN',
   noiDangKyKCB: DEFAULT_CSKCB.ten,
   tinhKCB: DEFAULT_CSKCB.maTinh,
   maBenhVien: DEFAULT_CSKCB.value,
@@ -83,23 +91,11 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
   const [savingData, setSavingData] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
-  // Auto-load participants when keKhaiId is available
-  React.useEffect(() => {
-    if (keKhaiId && !initialized) {
-      const initializeParticipants = async () => {
-        try {
-          await loadParticipants();
-        } catch (error) {
-          console.error('Error auto-loading participants:', error);
-        }
-      };
-      initializeParticipants();
-    }
-  }, [keKhaiId, initialized]);
-
   // Load participants from database
-  const loadParticipants = async () => {
+  const loadParticipants = React.useCallback(async () => {
     if (!keKhaiId) return [];
+
+    console.log(`🔄 loadParticipants called for keKhaiId: ${keKhaiId}`, new Error().stack);
 
     try {
       const nguoiThamGiaList = await keKhaiService.getNguoiThamGiaByKeKhai(keKhaiId);
@@ -112,6 +108,10 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         ngaySinh: item.ngay_sinh || '',
         gioiTinh: item.gioi_tinh || 'Nam',
         soCCCD: item.so_cccd || '',
+        soDienThoai: item.so_dien_thoai || '',
+        soTheBHYT: item.so_the_bhyt || '',
+        danToc: item.dan_toc || '',
+        quocTich: item.quoc_tich || 'VN',
         noiDangKyKCB: item.noi_dang_ky_kcb || DEFAULT_CSKCB.ten,
         tinhKCB: item.tinh_kcb || DEFAULT_CSKCB.maTinh,
         maBenhVien: item.ma_benh_vien || DEFAULT_CSKCB.value,
@@ -146,7 +146,23 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
       console.error('Error loading participants:', error);
       throw error;
     }
-  };
+  }, [keKhaiId]);
+
+  // Auto-load participants when keKhaiId is available
+  React.useEffect(() => {
+    if (keKhaiId && !initialized) {
+      const initializeParticipants = async () => {
+        try {
+          await loadParticipants();
+        } catch (error) {
+          console.error('Error auto-loading participants:', error);
+        }
+      };
+      initializeParticipants();
+    }
+  }, [keKhaiId, initialized, loadParticipants]);
+
+
 
 
 
@@ -274,8 +290,116 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
     }
   };
 
+  // Save single participant (only the changed one)
+  const saveSingleParticipant = async (index: number) => {
+    if (!keKhaiId) {
+      throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
+    }
+
+    const participant = participants[index];
+    if (!participant) {
+      throw new Error('Không tìm thấy thông tin người tham gia.');
+    }
+
+    try {
+      setSavingData(true);
+
+      // Get ke khai info to get organization details
+      const keKhaiInfo = await keKhaiService.getKeKhaiById(keKhaiId);
+      if (!keKhaiInfo) {
+        throw new Error('Không tìm thấy thông tin kê khai');
+      }
+
+      // Prepare data to save
+      const participantData: any = {
+        ke_khai_id: keKhaiId,
+        stt: index + 1,
+        ho_ten: participant.hoTen || '',
+        ma_so_bhxh: participant.maSoBHXH || null,
+        ngay_sinh: participant.ngaySinh || null,
+        gioi_tinh: participant.gioiTinh || 'Nam',
+        so_cccd: participant.soCCCD || null,
+        so_dien_thoai: participant.soDienThoai || null,
+        so_the_bhyt: participant.soTheBHYT || null,
+        dan_toc: participant.danToc || null,
+        quoc_tich: participant.quocTich || 'VN',
+        noi_dang_ky_kcb: participant.noiDangKyKCB || null,
+        muc_luong: participant.mucLuong ? parseFloat(participant.mucLuong.replace(/[.,]/g, '')) : null,
+        ty_le_dong: participant.tyLeDong ? parseFloat(participant.tyLeDong) : 4.5,
+        so_tien_dong: participant.soTienDong ? parseFloat(participant.soTienDong.replace(/[.,]/g, '')) : null,
+        tu_ngay_the_cu: participant.tuNgayTheCu || null,
+        den_ngay_the_cu: participant.denNgayTheCu || null,
+        tu_ngay_the_moi: participant.tuNgayTheMoi || null,
+        den_ngay_the_moi: participant.denNgayTheMoi || null,
+        so_thang_dong: participant.soThangDong ? parseInt(participant.soThangDong) : null,
+        stt_ho: participant.sttHo || null,
+        ngay_bien_lai: participant.ngayBienLai || new Date().toISOString().split('T')[0],
+        ma_tinh_nkq: participant.maTinhNkq || null,
+        ma_huyen_nkq: participant.maHuyenNkq || null,
+        ma_xa_nkq: participant.maXaNkq || null,
+        noi_nhan_ho_so: participant.noiNhanHoSo || null,
+        // Additional fields from API
+        ma_tinh_ks: participant.maTinhKS || null,
+        ma_huyen_ks: participant.maHuyenKS || null,
+        ma_xa_ks: participant.maXaKS || null,
+        tinh_kcb: participant.tinhKCB || null,
+        ma_benh_vien: participant.maBenhVien || null,
+        ma_ho_gia_dinh: participant.maHoGiaDinh || null,
+        phuong_an: participant.phuongAn || null,
+        // Add organization fields from ke khai
+        cong_ty_id: keKhaiInfo.cong_ty_id,
+        co_quan_bhxh_id: keKhaiInfo.co_quan_bhxh_id,
+        loai_to_chuc: keKhaiInfo.loai_to_chuc || 'cong_ty'
+      };
+
+      // Remove null values to avoid database issues
+      Object.keys(participantData).forEach(key => {
+        if (participantData[key] === null || participantData[key] === undefined || participantData[key] === '') {
+          delete participantData[key];
+        }
+      });
+
+      if (participant.id) {
+        // Update existing participant
+        const updatedParticipant = await keKhaiService.updateNguoiThamGia(participant.id, participantData);
+        console.log(`✅ Updated participant ${index + 1}:`, updatedParticipant);
+        return {
+          success: true,
+          message: `Đã cập nhật thành công người tham gia ${participant.hoTen || 'STT ' + (index + 1)}!`
+        };
+      } else {
+        // Add new participant
+        const savedParticipant = await keKhaiService.addNguoiThamGia(participantData);
+
+        // Update local state with new ID
+        setParticipants(prev => prev.map((p, i) =>
+          i === index ? { ...p, id: savedParticipant.id } : p
+        ));
+
+        console.log(`✅ Saved new participant ${index + 1}:`, savedParticipant);
+        return {
+          success: true,
+          message: `Đã lưu thành công người tham gia ${participant.hoTen || 'STT ' + (index + 1)}!`
+        };
+      }
+    } catch (error) {
+      console.error(`Error saving participant ${index + 1}:`, error);
+      return {
+        success: false,
+        message: `Có lỗi xảy ra khi lưu người tham gia ${participant.hoTen || 'STT ' + (index + 1)}. Vui lòng thử lại.`
+      };
+    } finally {
+      setSavingData(false);
+    }
+  };
+
   // Update participant with API data
   const updateParticipantWithApiData = (index: number, apiData: any) => {
+    console.log('Updating participant with API data:', apiData);
+    console.log('soDienThoai:', apiData.soDienThoai);
+    console.log('soTheBHYT:', apiData.soTheBHYT);
+    console.log('danToc:', apiData.danToc);
+
     setParticipants(prev => prev.map((p, i) =>
       i === index ? {
         ...p,
@@ -284,6 +408,10 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         ngaySinh: apiData.ngaySinh,
         gioiTinh: apiData.gioiTinh,
         soCCCD: apiData.soCCCD || '',
+        soDienThoai: apiData.soDienThoai || '',
+        soTheBHYT: apiData.soTheBHYT || '',
+        danToc: apiData.danToc || '',
+        quocTich: apiData.quocTich || 'VN',
         noiDangKyKCB: apiData.noiDangKyKCB,
         mucLuong: apiData.mucLuong || '',
         tyLeDong: apiData.tyLeDong || '4.5',
@@ -315,6 +443,7 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
     addParticipant,
     removeParticipant,
     updateParticipantWithApiData,
+    saveSingleParticipant,
     setParticipants
   };
 };

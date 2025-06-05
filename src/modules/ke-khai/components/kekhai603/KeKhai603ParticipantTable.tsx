@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
-import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Search, Loader2, Save } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
+import { cskcbService, DmCSKCB } from '../../../../shared/services/cskcbService';
 
 interface KeKhai603ParticipantTableProps {
   participants: KeKhai603Participant[];
@@ -11,6 +12,7 @@ interface KeKhai603ParticipantTableProps {
   handleParticipantKeyPress: (e: React.KeyboardEvent, index: number) => void;
   handleAddParticipant: () => void;
   handleRemoveParticipant: (index: number) => void;
+  handleSaveSingleParticipant: (index: number) => Promise<void>;
   participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
 }
@@ -21,6 +23,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   handleParticipantKeyPress,
   handleAddParticipant,
   handleRemoveParticipant,
+  handleSaveSingleParticipant,
   participantSearchLoading,
   savingData
 }) => {
@@ -28,7 +31,9 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
   const [huyenOptions, setHuyenOptions] = useState<{ [key: string]: HuyenOption[] }>({});
   const [xaOptions, setXaOptions] = useState<{ [key: string]: XaOption[] }>({});
+  const [cskcbOptions, setCSKCBOptions] = useState<DmCSKCB[]>([]);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [loadingCSKCB, setLoadingCSKCB] = useState(false);
 
   // Track loading states to prevent duplicate API calls
   const [loadingHuyen, setLoadingHuyen] = useState<{ [key: string]: boolean }>({});
@@ -38,21 +43,31 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   const huyenTimeoutRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const xaTimeoutRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
-  // Load province data on component mount
+  // Load province data and CSKCB data on component mount
   useEffect(() => {
-    const loadTinhData = async () => {
+    const loadInitialData = async () => {
       try {
         setLoadingLocation(true);
-        const options = await tinhService.getTinhOptions();
-        setTinhOptions(options);
+        setLoadingCSKCB(true);
+
+        // Load provinces and CSKCB in parallel
+        const [tinhOptions, cskcbList] = await Promise.all([
+          tinhService.getTinhOptions(),
+          cskcbService.getCSKCBList({ trang_thai: 'active', limit: 500 })
+        ]);
+
+        setTinhOptions(tinhOptions);
+        setCSKCBOptions(cskcbList);
+        console.log(`Loaded ${cskcbList.length} CSKCB options`);
       } catch (error) {
-        console.error('Error loading province data:', error);
+        console.error('Error loading initial data:', error);
       } finally {
         setLoadingLocation(false);
+        setLoadingCSKCB(false);
       }
     };
 
-    loadTinhData();
+    loadInitialData();
   }, []);
 
   // Cleanup timeouts on unmount
@@ -190,6 +205,9 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Họ tên</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Ngày sinh</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Giới tính</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Số ĐT</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Số thẻ BHYT</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">Dân tộc</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[200px]">Nơi đăng ký KCB</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">Mức lương</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Tỷ lệ đóng</th>
@@ -238,10 +256,11 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   </td>
                   <td className="py-3 px-2">
                     <input
-                      type="date"
+                      type={participant.ngaySinh && participant.ngaySinh.includes('-') && participant.ngaySinh.length === 10 ? "date" : "text"}
                       value={participant.ngaySinh || ''}
                       onChange={(e) => handleParticipantChange(index, 'ngaySinh', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Ngày sinh (dd/mm/yyyy hoặc yyyy)"
                     />
                   </td>
                   <td className="py-3 px-2">
@@ -257,11 +276,49 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <td className="py-3 px-2">
                     <input
                       type="text"
-                      value={participant.noiDangKyKCB || ''}
-                      onChange={(e) => handleParticipantChange(index, 'noiDangKyKCB', e.target.value)}
+                      value={participant.soDienThoai || ''}
+                      onChange={(e) => handleParticipantChange(index, 'soDienThoai', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      placeholder="Nơi đăng ký KCB"
+                      placeholder="Số điện thoại"
                     />
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      type="text"
+                      value={participant.soTheBHYT || ''}
+                      onChange={(e) => handleParticipantChange(index, 'soTheBHYT', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Số thẻ BHYT"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      type="text"
+                      value={participant.danToc || ''}
+                      onChange={(e) => handleParticipantChange(index, 'danToc', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Dân tộc"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <select
+                      value={participant.maBenhVien || ''}
+                      onChange={(e) => {
+                        const selectedCSKCB = cskcbOptions.find(cskcb => cskcb.value === e.target.value);
+                        handleParticipantChange(index, 'maBenhVien', e.target.value);
+                        handleParticipantChange(index, 'noiDangKyKCB', selectedCSKCB?.ten || '');
+                        handleParticipantChange(index, 'tinhKCB', selectedCSKCB?.ma_tinh || '');
+                      }}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      disabled={loadingCSKCB}
+                    >
+                      <option value="">Chọn cơ sở KCB</option>
+                      {cskcbOptions.map((cskcb) => (
+                        <option key={cskcb.value} value={cskcb.value}>
+                          {cskcb.ten} ({cskcb.ma_tinh})
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="py-3 px-2">
                     <input
@@ -396,14 +453,24 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     />
                   </td>
                   <td className="py-3 px-2">
-                    <button
-                      onClick={() => handleRemoveParticipant(index)}
-                      disabled={savingData}
-                      className="p-2 text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Xóa người tham gia"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleSaveSingleParticipant(index)}
+                        disabled={savingData}
+                        className="p-2 text-green-600 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Lưu người tham gia này"
+                      >
+                        <Save className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveParticipant(index)}
+                        disabled={savingData}
+                        className="p-2 text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Xóa người tham gia"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

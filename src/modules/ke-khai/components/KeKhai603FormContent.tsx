@@ -54,7 +54,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     handleParticipantChange,
     addParticipant,
     removeParticipant,
-    updateParticipantWithApiData
+    updateParticipantWithApiData,
+    saveSingleParticipant
   } = useKeKhai603Participants(keKhaiInfo?.id);
 
   // Track changes to mark as unsaved
@@ -269,6 +270,21 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
+  // Handle save single participant
+  const handleSaveSingleParticipant = async (index: number) => {
+    try {
+      const result = await saveSingleParticipant(index);
+      if (result.success) {
+        showToast(result.message, 'success');
+      } else {
+        showToast(result.message, 'error');
+      }
+    } catch (error) {
+      console.error('Save single participant error:', error);
+      showToast('Có lỗi xảy ra khi lưu người tham gia. Vui lòng thử lại.', 'error');
+    }
+  };
+
   // Handle create new declaration
   const handleCreateNewKeKhai = async () => {
     try {
@@ -369,6 +385,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleParticipantKeyPress={handleParticipantKeyPress}
                 handleAddParticipant={handleAddParticipant}
                 handleRemoveParticipant={handleRemoveParticipant}
+                handleSaveSingleParticipant={handleSaveSingleParticipant}
                 participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
               />
@@ -382,6 +399,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleParticipantKeyPress={handleParticipantKeyPress}
                 handleAddParticipant={handleAddParticipant}
                 handleRemoveParticipant={handleRemoveParticipant}
+                handleSaveSingleParticipant={handleSaveSingleParticipant}
                 participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
               />
