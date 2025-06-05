@@ -17,11 +17,13 @@ import {
   Trash2,
   Eye,
   CreditCard,
-  QrCode
+  QrCode,
+  FileSpreadsheet
 } from 'lucide-react';
 import DaiLyDonViSelector from '../components/DaiLyDonViSelector';
 import PaymentQRModal from '../components/PaymentQRModal';
 import { useToast } from '../../../shared/hooks/useToast';
+import { exportD03TK1VNPTExcel } from '../../../shared/utils/excelExport';
 
 const KeKhai603: React.FC = () => {
   const { pageParams, setCurrentPage } = useNavigation();
@@ -69,6 +71,9 @@ const KeKhai603: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
   const [creatingPayment, setCreatingPayment] = useState<number | null>(null);
+
+  // State cho export Excel
+  const [exportingExcel, setExportingExcel] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     // Thông tin đại lý
@@ -511,6 +516,77 @@ const KeKhai603: React.FC = () => {
       return formatCurrency(keKhai.total_amount);
     }
     return 'Chưa tính';
+  };
+
+  // Xuất Excel D03-TK1-VNPT
+  const handleExportD03TK1Excel = async (keKhai: DanhSachKeKhai) => {
+    try {
+      setExportingExcel(keKhai.id);
+
+      // Lấy danh sách người tham gia
+      const participants = await keKhaiService.getNguoiThamGiaByKeKhai(keKhai.id);
+
+      if (!participants || participants.length === 0) {
+        showToast('Kê khai này chưa có người tham gia nào để xuất Excel', 'warning');
+        return;
+      }
+
+      // Lấy thông tin mã nhân viên từ user hiện tại
+      let maNhanVienThu = '';
+      if (user?.id) {
+        try {
+          // Import nguoiDungService để lấy thông tin user đầy đủ
+          const { default: nguoiDungService } = await import('../../quan-ly/services/nguoiDungService');
+          const userInfo = await nguoiDungService.getNguoiDungById(parseInt(user.id));
+          maNhanVienThu = userInfo?.ma_nhan_vien || '';
+        } catch (error) {
+          console.warn('Could not get user employee code:', error);
+          maNhanVienThu = user.id; // Fallback to user ID
+        }
+      }
+
+      // Convert database format to UI format for export
+      const convertedParticipants = participants.map(item => ({
+        id: item.id,
+        hoTen: item.ho_ten || '',
+        maSoBHXH: item.ma_so_bhxh || '',
+        ngaySinh: item.ngay_sinh || '',
+        gioiTinh: item.gioi_tinh || 'Nam',
+        noiDangKyKCB: item.noi_dang_ky_kcb || '',
+        tinhKCB: item.tinh_kcb || '',
+        maBenhVien: item.ma_benh_vien || '',
+        tenBenhVien: item.noi_dang_ky_kcb || '',
+        mucLuong: item.muc_luong?.toString() || '',
+        tyLeDong: item.ty_le_dong?.toString() || '4.5',
+        soTienDong: item.so_tien_dong?.toString() || '',
+        tuNgayTheCu: item.tu_ngay_the_cu || '',
+        denNgayTheCu: item.den_ngay_the_cu || '',
+        ngayBienLai: item.ngay_bien_lai || new Date().toISOString().split('T')[0],
+        sttHo: item.stt_ho || '',
+        soThangDong: item.so_thang_dong?.toString() || '',
+        maTinhNkq: item.ma_tinh_nkq || '',
+        maHuyenNkq: item.ma_huyen_nkq || '',
+        maXaNkq: item.ma_xa_nkq || '',
+        noiNhanHoSo: item.noi_nhan_ho_so || '',
+        soCCCD: item.so_cccd || '',
+        maHoGiaDinh: item.ma_ho_gia_dinh || '',
+        phuongAn: item.phuong_an || 'ON',
+        maTinhKS: item.ma_tinh_ks || '',
+        maHuyenKS: item.ma_huyen_ks || '',
+        maXaKS: item.ma_xa_ks || ''
+      }));
+
+      // Xuất Excel với mã nhân viên thu
+      await exportD03TK1VNPTExcel(convertedParticipants, keKhai, maNhanVienThu);
+
+      showToast('Đã xuất file Excel D03-TK1-VNPT thành công!', 'success');
+    } catch (error) {
+      console.error('Error exporting D03-TK1-VNPT Excel:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi xuất Excel';
+      showToast(errorMessage, 'error');
+    } finally {
+      setExportingExcel(null);
+    }
   };
 
   return (
@@ -964,6 +1040,20 @@ const KeKhai603: React.FC = () => {
                               <QrCode className="w-4 h-4" />
                             </button>
                           )}
+
+                          {/* Export Excel D03-TK1-VNPT button */}
+                          <button
+                            onClick={() => handleExportD03TK1Excel(keKhai)}
+                            disabled={exportingExcel === keKhai.id}
+                            className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
+                            title="Xuất Excel D03-TK1-VNPT"
+                          >
+                            {exportingExcel === keKhai.id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <FileSpreadsheet className="w-4 h-4" />
+                            )}
+                          </button>
 
                           <button
                             onClick={() => openDeleteModal(keKhai)}

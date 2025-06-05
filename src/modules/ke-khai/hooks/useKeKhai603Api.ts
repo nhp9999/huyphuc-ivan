@@ -148,20 +148,30 @@ export const useKeKhai603Api = () => {
           maSoBhxh: response.data.maSoBHXH,
           ngaySinh: response.data.ngaySinh,
           gioiTinh: response.data.gioiTinh,
+          soCCCD: response.data.cmnd || '',
           noiDangKyKCB: response.data.noiDangKyKCB,
           mucLuong: response.data.mucLuong || '',
           tyLeDong: response.data.tyLeDong || '4.5',
           soTienDong: response.data.soTienDong || '',
-          
+
           // Old card information - convert from DD/MM/YYYY to YYYY-MM-DD for date input
           tuNgayTheCu: convertDisplayDateToInputDate(response.data.ngayHieuLuc || ''),
           denNgayTheCu: convertDisplayDateToInputDate(response.data.ngayHetHan || ''),
-          
+
           // Address information for receiving results
           maTinhNkq: response.data.maTinhNkq || '',
           maHuyenNkq: response.data.maHuyenNkq || '',
           maXaNkq: response.data.maXaNkq || '',
-          noiNhanHoSo: response.data.noiNhanHoSo || ''
+          noiNhanHoSo: response.data.noiNhanHoSo || '',
+
+          // Additional fields from API
+          maTinhKS: response.data.maTinhKS || '',
+          maHuyenKS: response.data.maHuyenKS || '',
+          maXaKS: response.data.maXaKS || '',
+          tinhKCB: response.data.tinhKCB || '',
+          maBenhVien: response.data.maBenhVien || '',
+          maHoGiaDinh: response.data.maHoGiaDinh || '',
+          phuongAn: response.data.phuongAn || ''
         };
 
         return {

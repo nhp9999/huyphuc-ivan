@@ -13,7 +13,6 @@ import { KeKhai603PersonalInfoForm } from './kekhai603/KeKhai603PersonalInfoForm
 import { KeKhai603CardInfoForm } from './kekhai603/KeKhai603CardInfoForm';
 import { KeKhai603PaymentInfoForm } from './kekhai603/KeKhai603PaymentInfoForm';
 import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable';
-import { KeKhai603ListModeTable } from './kekhai603/KeKhai603ListModeTable';
 import { useCSKCBPreloader } from '../hooks/useCSKCBPreloader';
 
 interface KeKhai603FormContentProps {
@@ -335,7 +334,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
               </>
             ) : (
               /* List Mode Table */
-              <KeKhai603ListModeTable
+              <KeKhai603ParticipantTable
                 participants={participants}
                 handleParticipantChange={handleParticipantChange}
                 handleParticipantKeyPress={handleParticipantKeyPress}
@@ -343,7 +342,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleRemoveParticipant={handleRemoveParticipant}
                 searchLoading={searchLoading}
                 savingData={savingData}
-                hasUnsavedChanges={hasUnsavedChanges}
               />
             )}
 

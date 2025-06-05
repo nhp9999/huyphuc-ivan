@@ -1,24 +1,50 @@
 import { BhytInfo, BhytLookupResponse, BhytBulkLookupResponse, BhytBulkResult, BulkLookupProgress, VnPostApiResponse, VnPostBhytData, BhytDeclarationRequest, BhytDeclarationResponse, BhytDeclarationData } from '../types/bhyt';
 import { KeKhai603Request, KeKhai603Response } from '../types/kekhai603';
+import vnpostTokenService from '../../../shared/services/api/vnpostTokenService';
 
 export class BhytService {
   protected baseURL = 'https://ssm.vnpost.vn';
   protected authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiODg0MDAwX3hhX3RsaV9waHVvY2x0IiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoidXNlciIsInN1YiI6IjEwMDkxNyIsInNpZCI6IkthMkZWQUR0T0F0Qnp3QVVsaWI2N1N3N01IdVRzVW5CbUFmVFVGbC14dTgiLCJuYW1lIjoiTMOqIFRo4buLIFBoxrDhu5tjIiwibmlja25hbWUiOiI4ODQwMDBfeGFfdGxpX3BodW9jbHQiLCJjbGllbnRfaWQiOiJZamcyTldVd01XRXRORFZtWlMwME1UZGhMVGc1TTJNdE56ZGtabUUzTmpVNE56VXoiLCJtYW5nTHVvaSI6Ijc2MjU1IiwiZG9uVmlDb25nVGFjIjoixJBp4buDbSB0aHUgeMOjIFTDom4gTOG7o2kiLCJjaHVjRGFuaCI6IkPhu5luZyB0w6FjIHZpw6puIHRodSIsImVtYWlsIjoibmd1eWVudGFuZHVuZzI3MTE4OUBnbWFpbC5jb20iLCJzb0RpZW5UaG9haSI6IiIsImlzU3VwZXJBZG1pbiI6IkZhbHNlIiwiaXNDYXMiOiJGYWxzZSIsIm5iZiI6MTc0ODgyNTk1MiwiZXhwIjoxNzQ4ODQzOTUyLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjUwMDAiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAifQ.6aRuO_8h4K0KcFqee7zLGXiPWEq-psMda7wNoyC8zGo';
 
-  protected getHeaders(): Record<string, string> {
-    return {
-      'sec-ch-ua-platform': '"Windows"',
-      'Authorization': `Bearer ${this.authToken}`,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-      'Accept': 'application/json, text/plain, */*',
-      'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-      'Content-Type': 'application/json',
-      'sec-ch-ua-mobile': '?0',
-      'Sec-Fetch-Site': 'same-origin',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Dest': 'empty',
-      'host': 'ssm.vnpost.vn'
-    };
+  protected async getHeaders(): Promise<Record<string, string>> {
+    try {
+      // Get fresh token from database
+      const tokenInfo = await vnpostTokenService.getLatestToken();
+
+      return {
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'en-US,en;q=0.9,vi;q=0.8,ckb;q=0.7,zh-CN;q=0.6,zh-TW;q=0.5,zh;q=0.4',
+        'authorization': tokenInfo.authorization,
+        'content-type': 'application/json',
+        'origin': 'https://ssm.vnpost.vn',
+        'priority': 'u=1, i',
+        'referer': 'https://ssm.vnpost.vn/qldv/ke-khai/buu-cuc-ke-khai/to-khai-bhyt',
+        'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'timestamp': tokenInfo.timestamp.toString(),
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
+      };
+    } catch (error) {
+      console.error('Error getting token, using fallback:', error);
+      // Fallback to original headers if token service fails
+      return {
+        'accept': 'application/json, text/plain, */*',
+        'authorization': `Bearer ${this.authToken}`,
+        'content-type': 'application/json',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-dest': 'empty',
+        'timestamp': Date.now().toString()
+      };
+    }
   }
 
   // Helper function to validate VnPost data
@@ -167,7 +193,7 @@ export class BhytService {
 
       const response = await fetch(url, {
         method: 'GET',
-        headers: this.getHeaders(),
+        headers: await this.getHeaders(),
       });
 
       if (!response.ok) {
@@ -241,7 +267,7 @@ export class BhytService {
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: this.getHeaders(),
+        headers: await this.getHeaders(),
         body: JSON.stringify(request)
       });
 
@@ -356,7 +382,7 @@ export class BhytService {
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: this.getHeaders(),
+        headers: await this.getHeaders(),
         body: JSON.stringify(request)
       });
 
@@ -547,7 +573,7 @@ export class BhytServiceDebug extends BhytService {
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: this.getHeaders(),
+        headers: await this.getHeaders(),
         body: JSON.stringify(request)
       });
 
@@ -593,7 +619,7 @@ export class BhytServiceDebug extends BhytService {
 
       const response = await fetch(url, {
         method: 'GET',
-        headers: this.getHeaders(),
+        headers: await this.getHeaders(),
       });
 
       if (!response.ok) {

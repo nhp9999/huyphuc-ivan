@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
 import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
+import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
+import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
+import { xaService, XaOption } from '../../../../shared/services/location/xaService';
 
 interface KeKhai603ParticipantTableProps {
   participants: KeKhai603Participant[];
@@ -21,6 +24,97 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   searchLoading,
   savingData
 }) => {
+  // State for location data
+  const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
+  const [huyenOptions, setHuyenOptions] = useState<{ [key: string]: HuyenOption[] }>({});
+  const [xaOptions, setXaOptions] = useState<{ [key: string]: XaOption[] }>({});
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  // Load province data on component mount
+  useEffect(() => {
+    const loadTinhData = async () => {
+      try {
+        setLoadingLocation(true);
+        const options = await tinhService.getTinhOptions();
+        setTinhOptions(options);
+      } catch (error) {
+        console.error('Error loading province data:', error);
+      } finally {
+        setLoadingLocation(false);
+      }
+    };
+
+    loadTinhData();
+  }, []);
+
+  // Load district data when province changes for any participant
+  const loadHuyenData = async (maTinh: string) => {
+    if (!maTinh || huyenOptions[maTinh]) return; // Already loaded
+
+    try {
+      const options = await huyenService.getHuyenOptionsByTinh(maTinh);
+      setHuyenOptions(prev => ({ ...prev, [maTinh]: options }));
+    } catch (error) {
+      console.error('Error loading district data:', error);
+    }
+  };
+
+  // Load ward data when district changes for any participant
+  const loadXaData = async (maHuyen: string, maTinh: string) => {
+    const key = `${maTinh}-${maHuyen}`;
+    if (!maHuyen || !maTinh || xaOptions[key]) return; // Already loaded
+
+    try {
+      const options = await xaService.getXaOptionsByHuyen(maHuyen, maTinh);
+      setXaOptions(prev => ({ ...prev, [key]: options }));
+    } catch (error) {
+      console.error('Error loading ward data:', error);
+    }
+  };
+
+  // Handle province change
+  const handleTinhChange = (index: number, maTinh: string) => {
+    handleParticipantChange(index, 'maTinhNkq', maTinh);
+    // Reset district and ward when province changes
+    handleParticipantChange(index, 'maHuyenNkq', '');
+    handleParticipantChange(index, 'maXaNkq', '');
+    // Load districts for this province
+    if (maTinh) {
+      loadHuyenData(maTinh);
+    }
+  };
+
+  // Handle district change
+  const handleHuyenChange = (index: number, maHuyen: string) => {
+    const participant = participants[index];
+    handleParticipantChange(index, 'maHuyenNkq', maHuyen);
+    // Reset ward when district changes
+    handleParticipantChange(index, 'maXaNkq', '');
+    // Load wards for this district
+    if (maHuyen && participant.maTinhNkq) {
+      loadXaData(maHuyen, participant.maTinhNkq);
+    }
+  };
+
+
+
+  // Auto-load districts and wards for existing participants
+  useEffect(() => {
+    participants.forEach((participant, index) => {
+      // Load districts if province is selected but districts not loaded
+      if (participant.maTinhNkq && !huyenOptions[participant.maTinhNkq]) {
+        loadHuyenData(participant.maTinhNkq);
+      }
+
+      // Load wards if both province and district are selected but wards not loaded
+      if (participant.maTinhNkq && participant.maHuyenNkq) {
+        const key = `${participant.maTinhNkq}-${participant.maHuyenNkq}`;
+        if (!xaOptions[key]) {
+          loadXaData(participant.maHuyenNkq, participant.maTinhNkq);
+        }
+      }
+    });
+  }, [participants, huyenOptions, xaOptions]);
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -41,18 +135,28 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
 
       <div className="p-6">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-max">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">STT</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">Mã BHXH</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">Họ tên</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">Ngày sinh</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">Giới tính</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">STT hộ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">Số tháng</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">Số tiền</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[50px]">STT</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Mã BHXH</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Họ tên</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Ngày sinh</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Giới tính</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[200px]">Nơi đăng ký KCB</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">Mức lương</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Tỷ lệ đóng</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">STT hộ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Số tháng</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[100px]">Số tiền</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Từ ngày thẻ cũ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Đến ngày thẻ cũ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]">Ngày biên lai</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Tỉnh NKQ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Huyện NKQ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Xã NKQ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[150px]">Nơi nhận hồ sơ</th>
+                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[80px]">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -104,6 +208,33 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     </select>
                   </td>
                   <td className="py-3 px-2">
+                    <input
+                      type="text"
+                      value={participant.noiDangKyKCB}
+                      onChange={(e) => handleParticipantChange(index, 'noiDangKyKCB', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Nơi đăng ký KCB"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      type="text"
+                      value={participant.mucLuong}
+                      onChange={(e) => handleParticipantChange(index, 'mucLuong', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Mức lương"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      type="text"
+                      value={participant.tyLeDong}
+                      onChange={(e) => handleParticipantChange(index, 'tyLeDong', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Tỷ lệ đóng"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
                     <select
                       value={participant.sttHo}
                       onChange={(e) => handleParticipantChange(index, 'sttHo', e.target.value)}
@@ -136,6 +267,85 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       readOnly
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
                       placeholder="Tự động tính"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      type="date"
+                      value={participant.tuNgayTheCu}
+                      onChange={(e) => handleParticipantChange(index, 'tuNgayTheCu', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      type="date"
+                      value={participant.denNgayTheCu}
+                      onChange={(e) => handleParticipantChange(index, 'denNgayTheCu', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      type="date"
+                      value={participant.ngayBienLai}
+                      onChange={(e) => handleParticipantChange(index, 'ngayBienLai', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <select
+                      value={participant.maTinhNkq}
+                      onChange={(e) => handleTinhChange(index, e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      disabled={loadingLocation}
+                    >
+                      <option value="">Chọn tỉnh</option>
+                      {tinhOptions.map((tinh) => (
+                        <option key={tinh.value} value={tinh.value}>
+                          {tinh.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="py-3 px-2">
+                    <select
+                      value={participant.maHuyenNkq}
+                      onChange={(e) => handleHuyenChange(index, e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      disabled={!participant.maTinhNkq || loadingLocation}
+                    >
+                      <option value="">Chọn huyện</option>
+                      {participant.maTinhNkq && huyenOptions[participant.maTinhNkq]?.map((huyen) => (
+                        <option key={huyen.value} value={huyen.value}>
+                          {huyen.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="py-3 px-2">
+                    <select
+                      value={participant.maXaNkq}
+                      onChange={(e) => handleParticipantChange(index, 'maXaNkq', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      disabled={!participant.maHuyenNkq || !participant.maTinhNkq || loadingLocation}
+                    >
+                      <option value="">Chọn xã</option>
+                      {participant.maTinhNkq && participant.maHuyenNkq &&
+                        xaOptions[`${participant.maTinhNkq}-${participant.maHuyenNkq}`]?.map((xa) => (
+                        <option key={xa.value} value={xa.value}>
+                          {xa.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      type="text"
+                      value={participant.noiNhanHoSo}
+                      onChange={(e) => handleParticipantChange(index, 'noiNhanHoSo', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Nơi nhận hồ sơ"
                     />
                   </td>
                   <td className="py-3 px-2">

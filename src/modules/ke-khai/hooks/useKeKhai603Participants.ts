@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { keKhaiService } from '../services/keKhaiService';
-import { calculateKeKhai603Amount } from './useKeKhai603FormData';
+import { calculateKeKhai603Amount, calculateKeKhai603CardValidity } from './useKeKhai603FormData';
 
 // Interface for participant data
 export interface KeKhai603Participant {
@@ -9,6 +9,7 @@ export interface KeKhai603Participant {
   maSoBHXH: string;
   ngaySinh: string;
   gioiTinh: string;
+  soCCCD: string;
   noiDangKyKCB: string;
   tinhKCB: string; // Mã tỉnh KCB
   maBenhVien: string; // Mã cơ sở KCB
@@ -18,6 +19,8 @@ export interface KeKhai603Participant {
   soTienDong: string;
   tuNgayTheCu: string;
   denNgayTheCu: string;
+  tuNgayTheMoi: string;
+  denNgayTheMoi: string;
   ngayBienLai: string;
   sttHo: string;
   soThangDong: string;
@@ -25,6 +28,12 @@ export interface KeKhai603Participant {
   maHuyenNkq: string;
   maXaNkq: string;
   noiNhanHoSo: string;
+  // Additional fields from API
+  maTinhKS: string;
+  maHuyenKS: string;
+  maXaKS: string;
+  maHoGiaDinh: string;
+  phuongAn: string;
 }
 
 // Default CSKCB - Trung tâm Y tế thị xã Tịnh Biên
@@ -41,6 +50,7 @@ const createInitialParticipant = (): KeKhai603Participant => ({
   maSoBHXH: '',
   ngaySinh: '',
   gioiTinh: 'Nam',
+  soCCCD: '',
   noiDangKyKCB: DEFAULT_CSKCB.ten,
   tinhKCB: DEFAULT_CSKCB.maTinh,
   maBenhVien: DEFAULT_CSKCB.value,
@@ -50,13 +60,21 @@ const createInitialParticipant = (): KeKhai603Participant => ({
   soTienDong: '',
   tuNgayTheCu: '',
   denNgayTheCu: '',
+  tuNgayTheMoi: '',
+  denNgayTheMoi: '',
   ngayBienLai: new Date().toISOString().split('T')[0],
   sttHo: '',
   soThangDong: '',
   maTinhNkq: '',
   maHuyenNkq: '',
   maXaNkq: '',
-  noiNhanHoSo: ''
+  noiNhanHoSo: '',
+  // Additional fields from API
+  maTinhKS: '',
+  maHuyenKS: '',
+  maXaKS: '',
+  maHoGiaDinh: '',
+  phuongAn: ''
 });
 
 // Custom hook for participant management
@@ -93,22 +111,31 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         maSoBHXH: item.ma_so_bhxh || '',
         ngaySinh: item.ngay_sinh || '',
         gioiTinh: item.gioi_tinh || 'Nam',
+        soCCCD: item.so_cccd || '',
         noiDangKyKCB: item.noi_dang_ky_kcb || DEFAULT_CSKCB.ten,
         tinhKCB: item.tinh_kcb || DEFAULT_CSKCB.maTinh,
         maBenhVien: item.ma_benh_vien || DEFAULT_CSKCB.value,
         tenBenhVien: item.noi_dang_ky_kcb || DEFAULT_CSKCB.ten, // Use the name from database or default
-        mucLuong: item.muc_luong?.toString() || '',
+        mucLuong: item.muc_luong !== null && item.muc_luong !== undefined ? item.muc_luong.toString() : '',
         tyLeDong: item.ty_le_dong?.toString() || '4.5',
         soTienDong: item.so_tien_dong?.toString() || '',
         tuNgayTheCu: item.tu_ngay_the_cu || '',
         denNgayTheCu: item.den_ngay_the_cu || '',
+        tuNgayTheMoi: item.tu_ngay_the_moi || '',
+        denNgayTheMoi: item.den_ngay_the_moi || '',
         ngayBienLai: item.ngay_bien_lai || new Date().toISOString().split('T')[0],
         sttHo: item.stt_ho || '',
         soThangDong: item.so_thang_dong?.toString() || '',
         maTinhNkq: item.ma_tinh_nkq || '',
         maHuyenNkq: item.ma_huyen_nkq || '',
         maXaNkq: item.ma_xa_nkq || '',
-        noiNhanHoSo: item.noi_nhan_ho_so || ''
+        noiNhanHoSo: item.noi_nhan_ho_so || '',
+        // Additional fields from API
+        maTinhKS: item.ma_tinh_ks || '',
+        maHuyenKS: item.ma_huyen_ks || '',
+        maXaKS: item.ma_xa_ks || '',
+        maHoGiaDinh: item.ma_ho_gia_dinh || '',
+        phuongAn: item.phuong_an || ''
       }));
 
       // Set participants (can be empty array)
@@ -146,6 +173,19 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
           if (sttHo && soThangDong) {
             const soTien = calculateKeKhai603Amount(sttHo, soThangDong);
             updatedParticipant.soTienDong = soTien.toLocaleString('vi-VN');
+          }
+        }
+
+        // Auto-calculate card validity when relevant fields change
+        if (field === 'soThangDong' || field === 'ngayBienLai' || field === 'denNgayTheCu') {
+          const soThangDong = field === 'soThangDong' ? value : p.soThangDong;
+          const ngayBienLai = field === 'ngayBienLai' ? value : p.ngayBienLai;
+          const denNgayTheCu = field === 'denNgayTheCu' ? value : p.denNgayTheCu;
+
+          if (soThangDong && ngayBienLai) {
+            const cardValidity = calculateKeKhai603CardValidity(soThangDong, denNgayTheCu, ngayBienLai);
+            updatedParticipant.tuNgayTheMoi = cardValidity.tuNgay;
+            updatedParticipant.denNgayTheMoi = cardValidity.denNgay;
           }
         }
 
@@ -243,16 +283,26 @@ export const useKeKhai603Participants = (keKhaiId?: number) => {
         maSoBHXH: apiData.maSoBhxh,
         ngaySinh: apiData.ngaySinh,
         gioiTinh: apiData.gioiTinh,
+        soCCCD: apiData.soCCCD || '',
         noiDangKyKCB: apiData.noiDangKyKCB,
         mucLuong: apiData.mucLuong || '',
         tyLeDong: apiData.tyLeDong || '4.5',
         soTienDong: apiData.soTienDong || '',
         tuNgayTheCu: apiData.tuNgayTheCu || '',
         denNgayTheCu: apiData.denNgayTheCu || '',
+        tuNgayTheMoi: apiData.tuNgayTheMoi || '',
+        denNgayTheMoi: apiData.denNgayTheMoi || '',
         maTinhNkq: apiData.maTinhNkq || '',
         maHuyenNkq: apiData.maHuyenNkq || '',
         maXaNkq: apiData.maXaNkq || '',
-        noiNhanHoSo: apiData.noiNhanHoSo || ''
+        noiNhanHoSo: apiData.noiNhanHoSo || '',
+        maTinhKS: apiData.maTinhKS || '',
+        maHuyenKS: apiData.maHuyenKS || '',
+        maXaKS: apiData.maXaKS || '',
+        tinhKCB: apiData.tinhKCB || '',
+        maBenhVien: apiData.maBenhVien || '',
+        maHoGiaDinh: apiData.maHoGiaDinh || '',
+        phuongAn: apiData.phuongAn || ''
       } : p
     ));
   };

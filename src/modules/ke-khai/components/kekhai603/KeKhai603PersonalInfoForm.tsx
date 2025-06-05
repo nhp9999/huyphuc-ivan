@@ -4,8 +4,6 @@ import { Search, Loader2 } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
-import CSKCBSelector from '../../components/CSKCBSelector';
-import { DmCSKCB } from '../../../../shared/services/api/supabaseClient';
 
 interface KeKhai603PersonalInfoFormProps {
   formData: KeKhai603FormData;
@@ -246,8 +244,6 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
               onChange={(e) => {
                 handleInputChange('tinhKCB', e.target.value);
                 // Reset cơ sở KCB khi thay đổi tỉnh
-                handleInputChange('maBenhVien', '');
-                handleInputChange('tenBenhVien', '');
                 handleInputChange('noiDangKyKCB', '');
               }}
               disabled={loadingTinh}
@@ -269,27 +265,14 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Nơi đăng ký KCB <span className="text-red-500">*</span>
             </label>
-            <CSKCBSelector
-              value={formData.maBenhVien}
-              onChange={(value, cskcb) => {
-                handleInputChange('maBenhVien', value);
-                handleInputChange('tenBenhVien', cskcb?.ten || '');
-                handleInputChange('noiDangKyKCB', cskcb?.ten || '');
-                // Tự động cập nhật tỉnh KCB nếu chưa có
-                if (cskcb?.ma_tinh && !formData.tinhKCB) {
-                  handleInputChange('tinhKCB', cskcb.ma_tinh);
-                }
-              }}
-              maTinh={formData.tinhKCB}
-              placeholder="Chọn cơ sở khám chữa bệnh"
+            <input
+              type="text"
+              value={formData.noiDangKyKCB}
+              onChange={(e) => handleInputChange('noiDangKyKCB', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              placeholder="Nhập tên cơ sở khám chữa bệnh"
               required
-              className="w-full"
             />
-            {formData.tenBenhVien && (
-              <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                Đã chọn: {formData.tenBenhVien}
-              </div>
-            )}
           </div>
 
           {/* Số điện thoại */}

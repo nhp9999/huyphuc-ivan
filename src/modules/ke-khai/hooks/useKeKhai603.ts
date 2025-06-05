@@ -333,19 +333,30 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
             ma_so_bhxh: participant.maSoBHXH || null,
             ngay_sinh: participant.ngaySinh || null,
             gioi_tinh: participant.gioiTinh || 'Nam',
+            so_cccd: participant.soCCCD || null,
             noi_dang_ky_kcb: participant.noiDangKyKCB || null,
             muc_luong: participant.mucLuong ? parseFloat(participant.mucLuong.replace(/[.,]/g, '')) : null,
             ty_le_dong: participant.tyLeDong ? parseFloat(participant.tyLeDong) : 4.5,
             so_tien_dong: participant.soTienDong ? parseFloat(participant.soTienDong.replace(/[.,]/g, '')) : null,
             tu_ngay_the_cu: participant.tuNgayTheCu || null,
             den_ngay_the_cu: participant.denNgayTheCu || null,
+            tu_ngay_the_moi: participant.tuNgayTheMoi || null,
+            den_ngay_the_moi: participant.denNgayTheMoi || null,
             so_thang_dong: participant.soThangDong ? parseInt(participant.soThangDong) : null,
             stt_ho: participant.sttHo || null,
             ngay_bien_lai: participant.ngayBienLai || new Date().toISOString().split('T')[0],
             ma_tinh_nkq: participant.maTinhNkq || null,
             ma_huyen_nkq: participant.maHuyenNkq || null,
             ma_xa_nkq: participant.maXaNkq || null,
-            noi_nhan_ho_so: participant.noiNhanHoSo || null
+            noi_nhan_ho_so: participant.noiNhanHoSo || null,
+            // Additional fields from API
+            ma_tinh_ks: participant.maTinhKS || null,
+            ma_huyen_ks: participant.maHuyenKS || null,
+            ma_xa_ks: participant.maXaKS || null,
+            tinh_kcb: participant.tinhKCB || null,
+            ma_benh_vien: participant.maBenhVien || null,
+            ma_ho_gia_dinh: participant.maHoGiaDinh || null,
+            phuong_an: participant.phuongAn || null
           };
 
           // Remove null values to avoid database issues

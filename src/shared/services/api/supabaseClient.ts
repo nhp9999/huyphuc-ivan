@@ -548,6 +548,36 @@ export interface CongTacVien {
   updated_by?: string;
 }
 
+// Interface cho bảng vnpost_tokens
+export interface VnPostToken {
+  id: string;
+  token_value: string;
+  token_type: string;
+  token_format: string;
+  header_name?: string;
+  source_type: string;
+  source_detail?: string;
+  url: string;
+  http_method?: string;
+  status_code?: number;
+  request_timestamp?: string;
+  request_timestamp_ms?: number;
+  timestamp_source?: string;
+  captured_at?: string;
+  captured_at_ms?: number;
+  is_jwt?: boolean;
+  jwt_issued_at?: string;
+  jwt_issued_at_ms?: number;
+  jwt_expires_at?: string;
+  jwt_expires_at_ms?: number;
+  jwt_decoded?: any;
+  user_agent?: string;
+  request_id?: string;
+  session_info?: any;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Interface cho view v_nguoi_dung_phan_quyen
 export interface VNguoiDungPhanQuyen {
   id: number;
