@@ -5,7 +5,6 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  TrendingUp,
   Calendar,
   DollarSign,
   Users,
@@ -15,14 +14,8 @@ import { useAuth } from '../../auth/contexts/AuthContext';
 import { useToast } from '../../../shared/hooks/useToast';
 import StatsCard from '../../../shared/components/widgets/StatsCard';
 import RecentActivity from '../../../shared/components/widgets/RecentActivity';
-import TaskList from '../../../shared/components/widgets/TaskList';
 import dashboardService, { UserDashboardData } from '../services/dashboardService';
-// PaymentNotification is now handled globally in Layout.tsx
 import { useNavigation } from '../../../core/contexts/NavigationContext';
-
-
-
-
 
 const NhanVienThuDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -68,30 +61,26 @@ const NhanVienThuDashboard: React.FC = () => {
     {
       title: 'Kê khai của tôi',
       value: dashboardData.totalDeclarations.toString(),
-      change: dashboardData.totalDeclarations > 0 ? { value: 12, type: 'increase' as const } : undefined,
       icon: FileText,
-      color: '#3B82F6' // Blue
+      color: '#3B82F6'
     },
     {
       title: 'Chờ thanh toán',
       value: dashboardData.pendingPaymentDeclarations.toString(),
-      change: dashboardData.pendingPaymentDeclarations > 0 ? { value: 5, type: 'increase' as const } : undefined,
       icon: Clock,
-      color: '#F59E0B' // Amber
+      color: '#F59E0B'
     },
     {
       title: 'Đã hoàn thành',
       value: dashboardData.completedDeclarations.toString(),
-      change: dashboardData.completedDeclarations > 0 ? { value: 8, type: 'increase' as const } : undefined,
       icon: CheckCircle,
-      color: '#10B981' // Green
+      color: '#10B981'
     },
     {
       title: 'Tổng doanh thu',
       value: dashboardService.formatCurrency(dashboardData.totalRevenue),
-      change: dashboardData.totalRevenue > 0 ? { value: 15, type: 'increase' as const } : undefined,
       icon: DollarSign,
-      color: '#8B5CF6' // Purple
+      color: '#8B5CF6'
     }
   ] : [];
 
@@ -181,8 +170,6 @@ const NhanVienThuDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Payment Notification is now handled globally in Layout.tsx */}
-
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -200,7 +187,7 @@ const NhanVienThuDashboard: React.FC = () => {
             key={index}
             title={stat.title}
             value={stat.value}
-            change={stat.change}
+
             icon={stat.icon}
             color={stat.color}
           />
@@ -422,41 +409,7 @@ const NhanVienThuDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Tips and Notifications */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Lưu ý quan trọng
-          </h3>
-        </div>
-        
-        <div className="space-y-3">
-          <div className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-            <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                Hạn chót thanh toán kê khai tháng này: 25/12/2024
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                Vui lòng hoàn thành thanh toán trước hạn để tránh phát sinh phí
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-start space-x-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-            <div>
-              <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                Cập nhật API BHYT VNPost thành công
-              </p>
-              <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                Hệ thống đã được cập nhật với API mới nhất
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 };
