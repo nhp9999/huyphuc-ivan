@@ -30,6 +30,16 @@ interface SidebarProps {
   toggleSidebar: () => void;
 }
 
+interface MenuSection {
+  title: string;
+  items: Array<{
+    icon: React.ReactElement;
+    label: string;
+    page: string;
+  }>;
+  hidden?: boolean;
+}
+
 const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
   const { currentPage, setCurrentPage } = useNavigation();
   const { user } = useAuth();
@@ -138,11 +148,12 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
     {
       title: 'Tra cứu',
       items: [
-        { icon: <Hash size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const },
-        { icon: <Hash size={20} />, label: 'Tra cứu BHXH', page: 'bhxh-lookup' as const },
+        { icon: <CreditCard size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const },
+        { icon: <Shield size={20} />, label: 'Tra cứu BHXH', page: 'bhxh-lookup' as const },
         { icon: <Hash size={20} />, label: 'Tra cứu mã BHXH', page: 'bhxh-id-lookup' as const },
         { icon: <Users size={20} />, label: 'Tra cứu hộ gia đình', page: 'family-lookup' as const }
-      ]
+      ],
+      hidden: true // Ẩn section tra cứu cho nhân viên thu
     },
     {
       title: 'Cài đặt',
@@ -173,8 +184,8 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
     {
       title: 'Tra cứu',
       items: [
-        { icon: <Hash size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const },
-        { icon: <Hash size={20} />, label: 'Tra cứu BHXH', page: 'bhxh-lookup' as const },
+        { icon: <CreditCard size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const },
+        { icon: <Shield size={20} />, label: 'Tra cứu BHXH', page: 'bhxh-lookup' as const },
         { icon: <Hash size={20} />, label: 'Tra cứu mã BHXH', page: 'bhxh-id-lookup' as const },
         { icon: <Users size={20} />, label: 'Tra cứu hộ gia đình', page: 'family-lookup' as const }
       ]
@@ -198,8 +209,8 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
     {
       title: 'Tra cứu',
       items: [
-        { icon: <Hash size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const },
-        { icon: <Hash size={20} />, label: 'Tra cứu BHXH', page: 'bhxh-lookup' as const },
+        { icon: <CreditCard size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const },
+        { icon: <Shield size={20} />, label: 'Tra cứu BHXH', page: 'bhxh-lookup' as const },
         { icon: <Hash size={20} />, label: 'Tra cứu mã BHXH', page: 'bhxh-id-lookup' as const },
         { icon: <Users size={20} />, label: 'Tra cứu hộ gia đình', page: 'family-lookup' as const }
       ]
@@ -336,7 +347,7 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
           <MenuSkeleton />
         ) : (
           <div className="px-3 space-y-6">
-            {navSections.map((section, sectionIndex) => (
+            {navSections.filter(section => !(section as any).hidden).map((section, sectionIndex) => (
               <div key={sectionIndex}>
                 {isOpen && (
                   <h3 className="px-3 mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -371,7 +382,7 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
                     </li>
                   ))}
                 </ul>
-                {sectionIndex < navSections.length - 1 && isOpen && (
+                {sectionIndex < navSections.filter(section => !(section as any).hidden).length - 1 && isOpen && (
                   <div className="mt-4 mx-3 border-t border-gray-200 dark:border-gray-700"></div>
                 )}
               </div>
