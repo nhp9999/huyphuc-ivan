@@ -209,7 +209,8 @@ export const useKeKhai603Api = () => {
 
         const participantData = {
           hoTen: response.data.hoTen,
-          maSoBHXH: response.data.maSoBHXH,
+          // Sử dụng mã BHXH từ request nếu response không có (trường hợp maSoBHXH null trong response)
+          maSoBHXH: response.data.maSoBhxh || request.maSoBHXH,
           ngaySinh: convertDisplayDateToInputDate(response.data.ngaySinh),
           gioiTinh: response.data.gioiTinh,
           soCCCD: response.data.cmnd || '',
@@ -218,46 +219,32 @@ export const useKeKhai603Api = () => {
           danToc: response.data.danToc || '',
           quocTich: response.data.quocTich || 'VN',
           noiDangKyKCB: response.data.noiDangKyKCB,
+
           // Location data (Khẩu sử)
           maTinhKS: response.data.maTinhKS || '',
           maHuyenKS: response.data.maHuyenKS || '',
           maXaKS: response.data.maXaKS || '',
-          // Location data (Nơi khai quyết)
-          maTinhNkq: response.data.maTinhNkq || '',
-          maHuyenNkq: response.data.maHuyenNkq || '',
-          maXaNkq: response.data.maXaNkq || '',
+
+          // Location data (Nơi khai quyết) - fallback to khẩu sử if null
+          maTinhNkq: response.data.maTinhNkq || response.data.maTinhKS || '',
+          maHuyenNkq: response.data.maHuyenNkq || response.data.maHuyenKS || '',
+          maXaNkq: response.data.maXaNkq || response.data.maXaKS || '',
+
           // Medical facility data
-          tinhKCB: response.data.tinhKCB || '',
+          tinhKCB: response.data.maKV || '',
           maBenhVien: response.data.maBenhVien || '',
           noiNhanHoSo: response.data.noiNhanHoSo || '',
-          // Card validity dates
-          tuNgayTheCu: response.data.tuNgayTheCu || '',
-          denNgayTheCu: response.data.denNgayTheCu || '',
+
+          // Card validity dates - convert from DD/MM/YYYY to YYYY-MM-DD for date input
+          tuNgayTheCu: convertDisplayDateToInputDate(response.data.ngayHieuLuc || ''),
+          denNgayTheCu: convertDisplayDateToInputDate(response.data.ngayHetHan || ''),
+
           // Additional data
           maHoGiaDinh: response.data.maHoGiaDinh || '',
           phuongAn: response.data.phuongAn || '',
           mucLuong: response.data.mucLuong || '',
           tyLeDong: response.data.tyLeDong || '4.5',
-          soTienDong: response.data.soTienDong || '',
-
-          // Old card information - convert from DD/MM/YYYY to YYYY-MM-DD for date input
-          tuNgayTheCu: convertDisplayDateToInputDate(response.data.ngayHieuLuc || ''),
-          denNgayTheCu: convertDisplayDateToInputDate(response.data.ngayHetHan || ''),
-
-          // Address information for receiving results
-          maTinhNkq: response.data.maTinhNkq || '',
-          maHuyenNkq: response.data.maHuyenNkq || '',
-          maXaNkq: response.data.maXaNkq || '',
-          noiNhanHoSo: response.data.noiNhanHoSo || '',
-
-          // Additional fields from API
-          maTinhKS: response.data.maTinhKS || '',
-          maHuyenKS: response.data.maHuyenKS || '',
-          maXaKS: response.data.maXaKS || '',
-          tinhKCB: response.data.tinhKCB || '',
-          maBenhVien: response.data.maBenhVien || '',
-          maHoGiaDinh: response.data.maHoGiaDinh || '',
-          phuongAn: response.data.phuongAn || ''
+          soTienDong: response.data.soTienDong || ''
         };
 
         return {

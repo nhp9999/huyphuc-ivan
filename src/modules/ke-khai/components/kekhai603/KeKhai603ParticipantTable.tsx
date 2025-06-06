@@ -1,22 +1,25 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
-import { Plus, Trash2, Search, Loader2, Save } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save, Upload, Edit3 } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
-import { cskcbService, DmCSKCB } from '../../../../shared/services/cskcbService';
+import { cskcbService } from '../../../../shared/services/cskcbService';
 import styles from './KeKhai603ParticipantTable.module.css';
+import { BulkInputModal } from './BulkInputModal';
+import { QuickFillModal } from './QuickFillModal';
 
 interface KeKhai603ParticipantTableProps {
   participants: KeKhai603Participant[];
   handleParticipantChange: (index: number, field: keyof KeKhai603Participant, value: string) => void;
   handleParticipantKeyPress: (e: React.KeyboardEvent, index: number) => void;
-  handleAddParticipant: () => void;
+  handleAddParticipant: () => Promise<void>;
   handleRemoveParticipant: (index: number) => void;
   handleSaveSingleParticipant: (index: number) => Promise<void>;
   participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
   doiTuongThamGia?: string; // Thêm prop để kiểm tra đối tượng tham gia
+  onBulkAdd?: (participants: any[]) => void; // Thêm prop cho bulk add
 }
 
 export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps> = ({
@@ -28,15 +31,24 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   handleSaveSingleParticipant,
   participantSearchLoading,
   savingData,
-  doiTuongThamGia
+  doiTuongThamGia,
+  onBulkAdd
 }) => {
   // State for location data
   const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
   const [huyenOptions, setHuyenOptions] = useState<{ [key: string]: HuyenOption[] }>({});
   const [xaOptions, setXaOptions] = useState<{ [key: string]: XaOption[] }>({});
-  const [cskcbOptions, setCSKCBOptions] = useState<DmCSKCB[]>([]);
+  const [cskcbOptions, setCSKCBOptions] = useState<any[]>([]);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [loadingCSKCB, setLoadingCSKCB] = useState(false);
+
+  // State for modals
+  const [showBulkInputModal, setShowBulkInputModal] = useState(false);
+  const [showQuickFillModal, setShowQuickFillModal] = useState(false);
+
+  // State for bulk input processing
+  const [bulkInputData, setBulkInputData] = useState<any[]>([]);
+  const [bulkInputStartIndex, setBulkInputStartIndex] = useState(-1);
 
   // Track loading states to prevent duplicate API calls
   const [loadingHuyen, setLoadingHuyen] = useState<{ [key: string]: boolean }>({});
@@ -161,6 +173,69 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     }
   };
 
+  // Handle bulk input
+  const handleBulkInput = async (data: any[]) => {
+    try {
+      // Store the data and starting index for processing
+      setBulkInputData(data);
+      setBulkInputStartIndex(participants.length);
+
+      // Add participants sequentially
+      for (let i = 0; i < data.length; i++) {
+        await handleAddParticipant();
+      }
+    } catch (error) {
+      console.error('Error in bulk input:', error);
+      // Reset bulk input state on error
+      setBulkInputData([]);
+      setBulkInputStartIndex(-1);
+    }
+  };
+
+  // Effect to update participant data after bulk input
+  useEffect(() => {
+    if (bulkInputData.length > 0 && bulkInputStartIndex >= 0) {
+      // Check if all participants have been added
+      const expectedLength = bulkInputStartIndex + bulkInputData.length;
+      if (participants.length >= expectedLength) {
+        // Update each participant with the bulk input data
+        bulkInputData.forEach((item, i) => {
+          const participantIndex = bulkInputStartIndex + i;
+
+          // Set the data for each participant
+          setTimeout(() => {
+            handleParticipantChange(participantIndex, 'maSoBHXH', item.maSoBHXH);
+
+            // Set optional fields if provided
+            if (item.soThangDong) {
+              handleParticipantChange(participantIndex, 'soThangDong', item.soThangDong);
+            }
+            if (item.sttHo) {
+              // For DS type, always set to "1", otherwise use provided value
+              const sttHoValue = doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : item.sttHo;
+              handleParticipantChange(participantIndex, 'sttHo', sttHoValue);
+            }
+          }, 100 * (i + 1)); // Stagger updates to avoid race conditions
+        });
+
+        // Reset bulk input state
+        setBulkInputData([]);
+        setBulkInputStartIndex(-1);
+      }
+    }
+  }, [participants.length, bulkInputData, bulkInputStartIndex, handleParticipantChange, doiTuongThamGia]);
+
+  // Handle quick fill
+  const handleQuickFill = (field: 'soThangDong' | 'sttHo', value: string, selectedIndices?: number[]) => {
+    const indicesToUpdate = selectedIndices || Array.from({ length: participants.length }, (_, i) => i);
+
+    indicesToUpdate.forEach(index => {
+      if (index < participants.length) {
+        handleParticipantChange(index, field, value);
+      }
+    });
+  };
+
 
 
   // Auto-load districts and wards for existing participants
@@ -187,14 +262,39 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Nhập danh sách người tham gia BHYT
           </h2>
-          <button
-            onClick={handleAddParticipant}
-            disabled={savingData}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Thêm người</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            {/* Quick Fill Button */}
+            <button
+              onClick={() => setShowQuickFillModal(true)}
+              disabled={savingData || participants.length === 0}
+              className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Điền nhanh số tháng đóng hoặc STT hộ cho nhiều người"
+            >
+              <Edit3 className="h-4 w-4" />
+              <span>Điền nhanh</span>
+            </button>
+
+            {/* Bulk Input Button */}
+            <button
+              onClick={() => setShowBulkInputModal(true)}
+              disabled={savingData}
+              className="flex items-center space-x-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Nhập nhiều mã BHXH cùng lúc"
+            >
+              <Upload className="h-4 w-4" />
+              <span>Nhập hàng loạt</span>
+            </button>
+
+            {/* Add Single Button */}
+            <button
+              onClick={handleAddParticipant}
+              disabled={savingData}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Thêm người</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -345,7 +445,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     <select
                       value={participant.sttHo || ''}
                       onChange={(e) => handleParticipantChange(index, 'sttHo', e.target.value)}
-                      disabled={doiTuongThamGia && doiTuongThamGia.includes('DS')} // Disable cho đối tượng DS
+                      disabled={!!(doiTuongThamGia && doiTuongThamGia.includes('DS'))} // Disable cho đối tượng DS
                       className={`w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
                         doiTuongThamGia && doiTuongThamGia.includes('DS')
                           ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed'
@@ -494,6 +594,23 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
           </div>
         )}
       </div>
+
+      {/* Bulk Input Modal */}
+      <BulkInputModal
+        isOpen={showBulkInputModal}
+        onClose={() => setShowBulkInputModal(false)}
+        onSubmit={handleBulkInput}
+        doiTuongThamGia={doiTuongThamGia}
+      />
+
+      {/* Quick Fill Modal */}
+      <QuickFillModal
+        isOpen={showQuickFillModal}
+        onClose={() => setShowQuickFillModal(false)}
+        onApply={handleQuickFill}
+        participantCount={participants.length}
+        doiTuongThamGia={doiTuongThamGia}
+      />
     </div>
   );
 };

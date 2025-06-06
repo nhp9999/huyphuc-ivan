@@ -113,31 +113,20 @@ export class BhytService {
       return false;
     }
 
-    // Kiểm tra các trường bắt buộc - API trả về null khi không tìm thấy
+    // Kiểm tra họ tên - trường bắt buộc
     if (data.hoTen === null || data.hoTen === undefined || data.hoTen === '') {
       console.log('Declaration data validation failed: hoTen is null/empty', data.hoTen);
       return false;
     }
 
-    if (data.maSoBHXH === null || data.maSoBHXH === undefined || data.maSoBHXH === '') {
-      console.log('Declaration data validation failed: maSoBHXH is null/empty', data.maSoBHXH);
-      return false;
-    }
-
-    // Kiểm tra số thẻ BHYT - trường quan trọng để xác định có thẻ hay không
-    if (data.soTheBHYT === null || data.soTheBHYT === undefined || data.soTheBHYT === '') {
-      console.log('Declaration data validation failed: soTheBHYT is null/empty', data.soTheBHYT);
-      return false;
-    }
-
-    // Kiểm tra trạng thái thẻ
+    // Ghi log trạng thái thẻ nhưng không từ chối - vẫn có thể sử dụng thông tin cá nhân
     if (data.moTa && (
       data.moTa.toLowerCase().includes('không có thẻ') ||
       data.moTa.toLowerCase().includes('không tìm thấy') ||
       data.moTa.toLowerCase().includes('không tồn tại')
     )) {
-      console.log('Declaration data validation failed: Invalid card status', data.moTa);
-      return false;
+      console.log('Card status warning:', data.moTa, '- but personal info may still be valid');
+      // Không return false - vẫn cho phép sử dụng thông tin cá nhân
     }
 
     // Kiểm tra typeId - nếu là "GT" (Guest/Không tìm thấy) thì không hợp lệ
@@ -146,10 +135,30 @@ export class BhytService {
       return false;
     }
 
+    // Kiểm tra có ít nhất một trong các thông tin định danh
+    const hasIdentification = (
+      (data.maSoBHXH && data.maSoBHXH !== null && data.maSoBHXH !== '') ||
+      (data.cmnd && data.cmnd !== null && data.cmnd !== '') ||
+      (data.soTheBHYT && data.soTheBHYT !== null && data.soTheBHYT !== '') ||
+      (data.maHoGiaDinh && data.maHoGiaDinh !== null && data.maHoGiaDinh !== '')
+    );
+
+    if (!hasIdentification) {
+      console.log('Declaration data validation failed: No valid identification found', {
+        maSoBHXH: data.maSoBHXH,
+        cmnd: data.cmnd,
+        soTheBHYT: data.soTheBHYT,
+        maHoGiaDinh: data.maHoGiaDinh
+      });
+      return false;
+    }
+
     console.log('Declaration data validation passed', {
       hoTen: data.hoTen,
       maSoBHXH: data.maSoBHXH,
+      cmnd: data.cmnd,
       soTheBHYT: data.soTheBHYT,
+      maHoGiaDinh: data.maHoGiaDinh,
       typeId: data.typeId,
       moTa: data.moTa
     });
@@ -189,6 +198,18 @@ export class BhytService {
   protected formatDisplayDate(dateStr: string): string {
     if (!dateStr) return '';
     return dateStr; // Giữ nguyên format DD/MM/YYYY cho hiển thị
+  }
+
+  // Helper method để format trạng thái thẻ
+  protected formatCardStatus(status: string): string {
+    if (!status) return 'Không xác định';
+
+    // Thêm cảnh báo cho trạng thái "không có thẻ" nhưng vẫn cho phép sử dụng thông tin
+    if (status.toLowerCase().includes('không có thẻ')) {
+      return `⚠️ ${status} (Thông tin cá nhân vẫn có thể sử dụng)`;
+    }
+
+    return status;
   }
 
   // Convert VnPost API response to our BhytInfo format
@@ -321,13 +342,15 @@ export class BhytService {
       if (apiResponse.success && apiResponse.data && this.isValidDeclarationData(apiResponse.data)) {
         // Convert API response to our format
         const keKhai603Data = {
+          // Sử dụng mã BHXH từ request nếu response không có (trường hợp maSoBHXH null trong response)
           maSoBhxh: apiResponse.data.maSoBHXH || request.maSoBHXH,
           hoTen: apiResponse.data.hoTen || '',
           ngaySinh: this.convertDateFormat(apiResponse.data.ngaySinh || ''),
           gioiTinh: apiResponse.data.gioiTinh === 1 ? 'Nam' : 'Nữ',
           diaChi: this.buildAddress(),
           noiDangKyKCB: this.getBenhVienName(apiResponse.data),
-          trangThaiThe: apiResponse.data.moTa || 'Không xác định',
+          // Hiển thị trạng thái thẻ với cảnh báo nếu cần
+          trangThaiThe: this.formatCardStatus(apiResponse.data.moTa || 'Không xác định'),
           ngayHieuLuc: this.formatDisplayDate(apiResponse.data.tuNgayTheCu || ''),
           ngayHetHan: this.formatDisplayDate(apiResponse.data.denNgayTheCu || ''),
           mucHuong: this.getMucHuong(apiResponse.data),
@@ -347,9 +370,9 @@ export class BhytService {
           maTinhKS: apiResponse.data.maTinhKS || '',
           maHuyenKS: apiResponse.data.maHuyenKS || '',
           maXaKS: apiResponse.data.maXaKS || '',
-          maTinhNkq: apiResponse.data.maTinhNkq || '',
-          maHuyenNkq: apiResponse.data.maHuyenNkq || '',
-          maXaNkq: apiResponse.data.maXaNkq || '',
+          maTinhNkq: apiResponse.data.maTinhNkq || apiResponse.data.maTinhKS || '',
+          maHuyenNkq: apiResponse.data.maHuyenNkq || apiResponse.data.maHuyenKS || '',
+          maXaNkq: apiResponse.data.maXaNkq || apiResponse.data.maXaKS || '',
           noiNhanHoSo: apiResponse.data.noiNhanHoSo || '',
           maBenhVien: apiResponse.data.maBenhVien || '',
           maHoGiaDinh: apiResponse.data.maHoGiaDinh || '',
@@ -377,14 +400,20 @@ export class BhytService {
             errorMessage = 'Không tìm thấy thông tin BHYT với mã số này trong hệ thống';
           } else if (apiResponse.data.hoTen === null || apiResponse.data.hoTen === '') {
             errorMessage = 'Không tìm thấy thông tin họ tên với mã số này';
-          } else if (apiResponse.data.maSoBHXH === null || apiResponse.data.maSoBHXH === '') {
-            errorMessage = 'Mã số BHXH không hợp lệ trong dữ liệu trả về';
-          } else if (apiResponse.data.soTheBHYT === null || apiResponse.data.soTheBHYT === '') {
-            errorMessage = 'Không có thẻ BHYT với mã số này trong hệ thống';
-          } else if (apiResponse.data.moTa && apiResponse.data.moTa.toLowerCase().includes('không có thẻ')) {
-            errorMessage = 'Không có thẻ BHYT với mã số này trong hệ thống';
           } else {
-            errorMessage = 'Dữ liệu BHYT không đầy đủ hoặc không hợp lệ';
+            // Kiểm tra xem có thông tin định danh nào không
+            const hasAnyId = (
+              (apiResponse.data.maSoBHXH && apiResponse.data.maSoBHXH !== null) ||
+              (apiResponse.data.cmnd && apiResponse.data.cmnd !== null) ||
+              (apiResponse.data.soTheBHYT && apiResponse.data.soTheBHYT !== null) ||
+              (apiResponse.data.maHoGiaDinh && apiResponse.data.maHoGiaDinh !== null)
+            );
+
+            if (!hasAnyId) {
+              errorMessage = 'Không tìm thấy thông tin định danh (BHXH/CMND/Thẻ BHYT) với mã số này';
+            } else {
+              errorMessage = 'Dữ liệu BHYT không đầy đủ hoặc không hợp lệ';
+            }
           }
         }
 
@@ -469,9 +498,9 @@ export class BhytService {
           maTinhKS: apiResponse.data.maTinhKS || '',
           maHuyenKS: apiResponse.data.maHuyenKS || '',
           maXaKS: apiResponse.data.maXaKS || '',
-          maTinhNkq: apiResponse.data.maTinhNkq || '',
-          maHuyenNkq: apiResponse.data.maHuyenNkq || '',
-          maXaNkq: apiResponse.data.maXaNkq || '',
+          maTinhNkq: apiResponse.data.maTinhNkq || apiResponse.data.maTinhKS || '',
+          maHuyenNkq: apiResponse.data.maHuyenNkq || apiResponse.data.maHuyenKS || '',
+          maXaNkq: apiResponse.data.maXaNkq || apiResponse.data.maXaKS || '',
           noiNhanHoSo: apiResponse.data.noiNhanHoSo || '',
           maBenhVien: apiResponse.data.maBenhVien || '',
           maHoGiaDinh: apiResponse.data.maHoGiaDinh || '',
@@ -499,14 +528,20 @@ export class BhytService {
             errorMessage = 'Không tìm thấy thông tin BHYT với mã số này trong hệ thống';
           } else if (apiResponse.data.hoTen === null || apiResponse.data.hoTen === '') {
             errorMessage = 'Không tìm thấy thông tin họ tên với mã số này';
-          } else if (apiResponse.data.maSoBHXH === null || apiResponse.data.maSoBHXH === '') {
-            errorMessage = 'Mã số BHXH không hợp lệ trong dữ liệu trả về';
-          } else if (apiResponse.data.soTheBHYT === null || apiResponse.data.soTheBHYT === '') {
-            errorMessage = 'Không có thẻ BHYT với mã số này trong hệ thống';
-          } else if (apiResponse.data.moTa && apiResponse.data.moTa.toLowerCase().includes('không có thẻ')) {
-            errorMessage = 'Không có thẻ BHYT với mã số này trong hệ thống';
           } else {
-            errorMessage = 'Dữ liệu BHYT không đầy đủ hoặc không hợp lệ';
+            // Kiểm tra xem có thông tin định danh nào không
+            const hasAnyId = (
+              (apiResponse.data.maSoBHXH && apiResponse.data.maSoBHXH !== null) ||
+              (apiResponse.data.cmnd && apiResponse.data.cmnd !== null) ||
+              (apiResponse.data.soTheBHYT && apiResponse.data.soTheBHYT !== null) ||
+              (apiResponse.data.maHoGiaDinh && apiResponse.data.maHoGiaDinh !== null)
+            );
+
+            if (!hasAnyId) {
+              errorMessage = 'Không tìm thấy thông tin định danh (BHXH/CMND/Thẻ BHYT) với mã số này';
+            } else {
+              errorMessage = 'Dữ liệu BHYT không đầy đủ hoặc không hợp lệ';
+            }
           }
         }
 

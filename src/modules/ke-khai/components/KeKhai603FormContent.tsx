@@ -120,7 +120,16 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           }
         }
 
-        showToast('Đã tìm thấy và cập nhật thông tin BHYT!', 'success');
+        // Kiểm tra nếu có cảnh báo về trạng thái thẻ
+        const hasCardWarning = result.data.trangThaiThe &&
+          result.data.trangThaiThe.includes('⚠️') &&
+          result.data.trangThaiThe.toLowerCase().includes('không có thẻ');
+
+        if (hasCardWarning) {
+          showToast('Đã tìm thấy thông tin cá nhân! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
+        } else {
+          showToast('Đã tìm thấy và cập nhật thông tin BHYT!', 'success');
+        }
       } else {
         showToast(result.message || 'Không tìm thấy thông tin BHYT', 'warning');
       }
@@ -143,7 +152,17 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
       if (result.success && result.data) {
         updateParticipantWithApiData(index, result.data);
-        showToast('Đã cập nhật thông tin người tham gia!', 'success');
+
+        // Kiểm tra nếu có cảnh báo về trạng thái thẻ
+        const hasCardWarning = result.data.trangThaiThe &&
+          result.data.trangThaiThe.includes('⚠️') &&
+          result.data.trangThaiThe.toLowerCase().includes('không có thẻ');
+
+        if (hasCardWarning) {
+          showToast('Đã cập nhật thông tin cá nhân! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
+        } else {
+          showToast('Đã cập nhật thông tin người tham gia!', 'success');
+        }
       } else {
         showToast(result.message || 'Không tìm thấy thông tin BHYT', 'warning');
       }
@@ -394,6 +413,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
                 doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
+                onBulkAdd={undefined}
               />
             )}
 
@@ -409,6 +429,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
                 doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
+                onBulkAdd={undefined}
               />
             )}
 
