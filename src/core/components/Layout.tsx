@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import SidebarOptimized from './SidebarOptimized';
 import Header from './Header';
 import { useTheme } from '../contexts/ThemeContext';
+import PaymentNotification from '../../modules/ke-khai/components/PaymentNotification';
+import { useAuth } from '../../modules/auth';
+import { useRoleContext } from '../contexts/RoleContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +14,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const { isNhanVienThu, isCongTacVien } = useRoleContext();
+
+  // Show payment notifications for collection staff (nhân viên thu) and collaborators (cộng tác viên)
+  const shouldShowPaymentNotifications = user && (isNhanVienThu || isCongTacVien);
 
   // Check if screen is mobile size
   useEffect(() => {
@@ -104,6 +112,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+
+      {/* Global Payment Notifications - Only for collection staff and collaborators */}
+      {shouldShowPaymentNotifications && <PaymentNotification />}
     </div>
   );
 };

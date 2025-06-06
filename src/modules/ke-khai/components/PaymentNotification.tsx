@@ -1,58 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Bell, CreditCard, X, Eye } from 'lucide-react';
-import { DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
-import keKhaiService from '../services/keKhaiService';
-import { useAuth } from '../../auth';
 import { useNavigation } from '../../../core/contexts/NavigationContext';
+import { usePaymentNotification } from '../contexts/PaymentNotificationContext';
 
-const PaymentNotification: React.FC = () => {
-  const { user } = useAuth();
+interface PaymentNotificationProps {
+  showOnPage?: boolean; // Allow hiding on specific pages
+}
+
+const PaymentNotification: React.FC<PaymentNotificationProps> = ({ showOnPage = true }) => {
   const { setCurrentPage } = useNavigation();
-  const [pendingPayments, setPendingPayments] = useState<DanhSachKeKhai[]>([]);
-  const [showNotification, setShowNotification] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  // Load pending payments
-  const loadPendingPayments = async () => {
-    if (!user?.id) return;
-    
-    setLoading(true);
-    try {
-      const data = await keKhaiService.getKeKhaiForApproval({
-        created_by: user.id,
-        trang_thai: 'pending_payment'
-      });
-      
-      setPendingPayments(data);
-      setShowNotification(data.length > 0);
-    } catch (error) {
-      console.error('Error loading pending payments:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPendingPayments();
-    
-    // Poll for updates every 30 seconds
-    const interval = setInterval(loadPendingPayments, 30000);
-    
-    return () => clearInterval(interval);
-  }, [user?.id]);
+  const {
+    pendingPayments,
+    showNotification,
+    loading,
+    dismissNotification,
+    isVisible,
+    setIsVisible
+  } = usePaymentNotification();
 
   // Handle view payments
   const handleViewPayments = () => {
     setCurrentPage('my-payments');
-    setShowNotification(false);
+    dismissNotification();
   };
 
   // Handle dismiss notification
   const handleDismiss = () => {
-    setShowNotification(false);
+    dismissNotification();
   };
 
-  if (!showNotification || pendingPayments.length === 0) {
+  // Don't show if disabled for this page or no notifications to show
+  if (!showOnPage || !showNotification || pendingPayments.length === 0 || !isVisible) {
     return null;
   }
 
@@ -125,9 +103,9 @@ const PaymentNotification: React.FC = () => {
           </button>
         </div>
 
-        {/* Auto-dismiss timer */}
+        {/* Auto-dismiss info */}
         <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 text-center">
-          Thông báo sẽ tự động ẩn sau 30 giây
+          Thông báo sẽ ẩn trong 30 phút sau khi bỏ qua
         </div>
       </div>
     </div>

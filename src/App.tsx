@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider } from './core/contexts/ThemeContext';
 import { NavigationProvider } from './core/contexts/NavigationContext';
 import { RoleProvider } from './core/contexts/RoleContext';
+import { PaymentNotificationProvider } from './modules/ke-khai/contexts/PaymentNotificationContext';
 import Layout from './core/components/Layout';
 
 // Module imports
@@ -72,7 +73,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  return <Layout>{children}</Layout>;
+  return (
+    <PaymentNotificationProvider>
+      <Layout>{children}</Layout>
+    </PaymentNotificationProvider>
+  );
 };
 
 const AppContent: React.FC = () => {

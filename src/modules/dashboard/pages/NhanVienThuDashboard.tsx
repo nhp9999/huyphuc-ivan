@@ -13,7 +13,7 @@ import { useAuth } from '../../auth/contexts/AuthContext';
 import StatsCard from '../../../shared/components/widgets/StatsCard';
 import RecentActivity from '../../../shared/components/widgets/RecentActivity';
 import TaskList from '../../../shared/components/widgets/TaskList';
-import PaymentNotification from '../../ke-khai/components/PaymentNotification';
+// PaymentNotification is now handled globally in Layout.tsx
 import { useNavigation } from '../../../core/contexts/NavigationContext';
 
 // Mock data cho nhân viên thu
@@ -116,8 +116,7 @@ const NhanVienThuDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Payment Notification */}
-      <PaymentNotification />
+      {/* Payment Notification is now handled globally in Layout.tsx */}
 
       {/* Header */}
       <div>

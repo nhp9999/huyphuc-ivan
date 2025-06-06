@@ -19,10 +19,17 @@ import { useToast } from '../../../shared/hooks/useToast';
 import PaymentQRModal from '../components/PaymentQRModal';
 import PaymentProofModal from '../components/PaymentProofModal';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
+import { usePaymentNotificationControl } from '../hooks/usePaymentNotificationControl';
 
 const MyPayments: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+
+  // Control payment notifications on this page (don't hide, but refresh on mount)
+  const { pendingPaymentsCount, refreshNotifications } = usePaymentNotificationControl({
+    hideOnThisPage: false, // Show notifications on payment page
+    refreshOnMount: true
+  });
   
   // State
   const [loading, setLoading] = useState(false);
