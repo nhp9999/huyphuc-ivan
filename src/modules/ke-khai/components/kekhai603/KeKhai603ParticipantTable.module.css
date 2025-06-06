@@ -1,5 +1,219 @@
 /* CSS Module for KeKhai603ParticipantTable */
 
+/* ===== RESPONSIVE CONTAINER ===== */
+.responsiveContainer {
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ===== MOBILE CARD LAYOUT ===== */
+.mobileCardContainer {
+  display: none;
+}
+
+.participantCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.participantCard:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.participantCard.dark {
+  background: #374151;
+  border-color: #4b5563;
+  color: white;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.cardHeader.dark {
+  border-bottom-color: #4b5563;
+}
+
+.cardTitle {
+  font-weight: 600;
+  font-size: 16px;
+  color: #111827;
+}
+
+.cardTitle.dark {
+  color: white;
+}
+
+.cardIndex {
+  background: #3b82f6;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cardContent {
+  display: grid;
+  gap: 12px;
+}
+
+.cardField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardFieldLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cardFieldLabel.dark {
+  color: #9ca3af;
+}
+
+.cardFieldValue {
+  font-size: 14px;
+}
+
+.cardFieldValue input,
+.cardFieldValue select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 16px; /* Prevent zoom on iOS */
+  min-height: 44px; /* Better touch targets */
+  transition: border-color 0.2s ease;
+}
+
+.cardFieldValue input:focus,
+.cardFieldValue select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.cardFieldValue.dark input,
+.cardFieldValue.dark select {
+  background: #4b5563;
+  border-color: #6b7280;
+  color: white;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cardActions.dark {
+  border-top-color: #4b5563;
+}
+
+.cardActionButton {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cardActionButton.save {
+  background: #10b981;
+  color: white;
+}
+
+.cardActionButton.save:hover {
+  background: #059669;
+}
+
+.cardActionButton.delete {
+  background: #ef4444;
+  color: white;
+}
+
+.cardActionButton.delete:hover {
+  background: #dc2626;
+}
+
+.cardActionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.expandButton {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.expandButton:hover {
+  background: #e5e7eb;
+}
+
+.expandButton.dark {
+  background: #4b5563;
+  border-color: #6b7280;
+  color: #9ca3af;
+}
+
+.expandButton.dark:hover {
+  background: #374151;
+}
+
+.expandedContent {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  display: grid;
+  gap: 12px;
+}
+
+.expandedContent.dark {
+  border-top-color: #4b5563;
+}
+
+/* ===== TABLE LAYOUT ===== */
+.tableContainer {
+  display: block;
+}
+
 /* Override CSKCBSelector height in table */
 .cskcbTableCell {
   height: 42px;
@@ -216,4 +430,194 @@
   width: 90px !important;
   min-width: 90px !important;
   max-width: 90px !important;
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* Mobile First - Card Layout */
+@media (max-width: 767px) {
+  .tableContainer {
+    display: none !important;
+  }
+
+  .mobileCardContainer {
+    display: block !important;
+  }
+
+  /* Improve form inputs for mobile */
+  .cardFieldValue input,
+  .cardFieldValue select {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+    min-height: 44px !important; /* Better touch targets */
+  }
+
+  /* Stack action buttons vertically on very small screens */
+  @media (max-width: 480px) {
+    .cardActions {
+      flex-direction: column;
+    }
+
+    .cardActionButton {
+      width: 100%;
+    }
+  }
+}
+
+/* Tablet Layout - Hybrid approach */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tableContainer {
+    display: block !important;
+  }
+
+  .mobileCardContainer {
+    display: none !important;
+  }
+
+  /* Hide less critical columns on tablet */
+  .participantTable th:nth-child(8),  /* Dân tộc */
+  .participantTable td:nth-child(8),
+  .participantTable th:nth-child(10), /* Mức lương */
+  .participantTable td:nth-child(10),
+  .participantTable th:nth-child(11), /* Tỷ lệ đóng */
+  .participantTable td:nth-child(11),
+  .participantTable th:nth-child(17), /* Ngày biên lai */
+  .participantTable td:nth-child(17),
+  .participantTable th:nth-child(21), /* Nơi nhận hồ sơ */
+  .participantTable td:nth-child(21) {
+    display: none !important;
+  }
+
+  /* Adjust remaining column widths for tablet */
+  .participantTable {
+    min-width: 1200px !important;
+  }
+
+  /* Better touch targets for tablet */
+  .participantTable input,
+  .participantTable select {
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+  }
+}
+
+/* Desktop Layout - Full table */
+@media (min-width: 1024px) {
+  .tableContainer {
+    display: block !important;
+  }
+
+  .mobileCardContainer {
+    display: none !important;
+  }
+
+  /* Show all columns on desktop */
+  .participantTable th,
+  .participantTable td {
+    display: table-cell !important;
+  }
+}
+
+/* Large Desktop - Optimize spacing */
+@media (min-width: 1440px) {
+  .participantTable {
+    min-width: 2400px !important;
+  }
+
+  /* Slightly larger inputs for better UX */
+  .participantTable input,
+  .participantTable select {
+    padding: 10px 14px !important;
+  }
+}
+
+/* ===== COLUMN PRIORITY SYSTEM ===== */
+
+/* Priority 1: Essential columns (always visible) */
+.priority-1 {
+  /* STT, Mã BHXH, Họ tên, Số tháng, Thao tác */
+}
+
+/* Priority 2: Important columns (hidden on mobile) */
+.priority-2 {
+  /* Ngày sinh, Giới tính, Số ĐT, Số thẻ BHYT, Nơi đăng ký KCB, STT hộ, Số tiền */
+}
+
+/* Priority 3: Secondary columns (hidden on mobile and tablet) */
+.priority-3 {
+  /* Dân tộc, Mức lương, Tỷ lệ đóng, Ngày biên lai, Nơi nhận hồ sơ */
+}
+
+/* Priority 4: Optional columns (hidden except on large desktop) */
+.priority-4 {
+  /* Từ ngày thẻ cũ, Đến ngày thẻ cũ, Tỉnh NKQ, Huyện NKQ, Xã NKQ */
+}
+
+/* ===== ACCESSIBILITY IMPROVEMENTS ===== */
+
+/* Focus indicators */
+.participantTable input:focus,
+.participantTable select:focus,
+.cardFieldValue input:focus,
+.cardFieldValue select:focus {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .participantCard {
+    border-width: 2px !important;
+  }
+
+  .cardFieldValue input,
+  .cardFieldValue select {
+    border-width: 2px !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .participantCard,
+  .cardActionButton,
+  .expandButton,
+  .cardFieldValue input,
+  .cardFieldValue select {
+    transition: none !important;
+  }
+}
+
+/* ===== PERFORMANCE OPTIMIZATIONS ===== */
+
+/* GPU acceleration for smooth animations */
+.participantCard,
+.cardActionButton,
+.expandButton {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Optimize scrolling performance */
+.tableContainer {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  .mobileCardContainer {
+    display: none !important;
+  }
+
+  .tableContainer {
+    display: block !important;
+  }
+
+  .participantTable {
+    font-size: 10px !important;
+  }
+
+  .cardActionButton,
+  .expandButton {
+    display: none !important;
+  }
 }

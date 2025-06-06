@@ -8,6 +8,7 @@ import { cskcbService } from '../../../../shared/services/cskcbService';
 import styles from './KeKhai603ParticipantTable.module.css';
 import { BulkInputModal } from './BulkInputModal';
 import { QuickFillModal } from './QuickFillModal';
+import { ParticipantMobileCard } from './ParticipantMobileCard';
 
 interface KeKhai603ParticipantTableProps {
   participants: KeKhai603Participant[];
@@ -41,6 +42,10 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   const [cskcbOptions, setCSKCBOptions] = useState<any[]>([]);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [loadingCSKCB, setLoadingCSKCB] = useState(false);
+
+  // Responsive state
+  const [isMobile, setIsMobile] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // State for modals
   const [showBulkInputModal, setShowBulkInputModal] = useState(false);
@@ -279,19 +284,43 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
       }
     });
   }, [participants]); // Remove huyenOptions and xaOptions from dependencies to prevent infinite loop
+
+  // Responsive detection
+  useEffect(() => {
+    const checkResponsive = () => {
+      setIsMobile(window.innerWidth < 768);
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+
+    checkResponsive();
+    window.addEventListener('resize', checkResponsive);
+
+    // Watch for dark mode changes
+    const observer = new MutationObserver(checkResponsive);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => {
+      window.removeEventListener('resize', checkResponsive);
+      observer.disconnect();
+    };
+  }, []);
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between">
+    <div className={`${styles.responsiveContainer} bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700`}>
+      <div className="px-4 md:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Nhập danh sách người tham gia BHYT
           </h2>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             {/* Quick Fill Button */}
             <button
               onClick={() => setShowQuickFillModal(true)}
               disabled={savingData || participants.length === 0}
-              className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm"
               title="Điền nhanh số tháng đóng hoặc STT hộ cho nhiều người"
             >
               <Edit3 className="h-4 w-4" />
@@ -302,7 +331,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
             <button
               onClick={() => setShowBulkInputModal(true)}
               disabled={savingData}
-              className="flex items-center space-x-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center space-x-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm"
               title="Nhập nhiều mã BHXH cùng lúc"
             >
               <Upload className="h-4 w-4" />
@@ -313,7 +342,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
             <button
               onClick={handleAddParticipant}
               disabled={savingData}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm"
             >
               <Plus className="h-4 w-4" />
               <span>Thêm người</span>
@@ -322,9 +351,46 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         </div>
       </div>
 
-      <div className="p-6">
-        <div className="overflow-x-auto">
-          <table className={`w-full min-w-max ${styles.participantTable}`}>
+      <div className="p-4 md:p-6">
+        {/* Mobile Card Layout */}
+        <div className={styles.mobileCardContainer}>
+          {participants.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 dark:text-gray-400">
+                Chưa có người tham gia nào. Nhấn "Thêm người" để bắt đầu.
+              </p>
+            </div>
+          ) : (
+            participants.map((participant, index) => (
+              <ParticipantMobileCard
+                key={participant.id || index}
+                participant={participant}
+                index={index}
+                handleParticipantChange={handleParticipantChange}
+                handleParticipantKeyPress={handleParticipantKeyPress}
+                handleSaveSingleParticipant={handleSaveSingleParticipant}
+                handleRemoveParticipant={handleRemoveParticipant}
+                participantSearchLoading={participantSearchLoading}
+                savingData={savingData}
+                doiTuongThamGia={doiTuongThamGia}
+                tinhOptions={tinhOptions}
+                huyenOptions={huyenOptions}
+                xaOptions={xaOptions}
+                cskcbOptions={cskcbOptions}
+                loadingLocation={loadingLocation}
+                loadingCSKCB={loadingCSKCB}
+                handleTinhChange={handleTinhChange}
+                handleHuyenChange={handleHuyenChange}
+                isDarkMode={isDarkMode}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table Layout */}
+        <div className={styles.tableContainer}>
+          <div className="overflow-x-auto">
+            <table className={`w-full min-w-max ${styles.participantTable}`}>
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[40px] min-w-[40px] max-w-[40px]">STT</th>
@@ -608,15 +674,16 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
               ))}
             </tbody>
           </table>
-        </div>
-
-        {participants.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500 dark:text-gray-400">
-              Chưa có người tham gia nào. Nhấn "Thêm người" để bắt đầu.
-            </p>
           </div>
-        )}
+
+          {participants.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-gray-500 dark:text-gray-400">
+                Chưa có người tham gia nào. Nhấn "Thêm người" để bắt đầu.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bulk Input Modal */}
