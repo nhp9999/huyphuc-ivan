@@ -180,9 +180,16 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
       setBulkInputData(data);
       setBulkInputStartIndex(participants.length);
 
-      // Add participants sequentially
+      // Add participants sequentially with proper error handling
       for (let i = 0; i < data.length; i++) {
-        await handleAddParticipant();
+        try {
+          await handleAddParticipant();
+          // Small delay to ensure state updates properly
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (participantError) {
+          console.error(`Error adding participant ${i + 1}:`, participantError);
+          // Continue with next participant instead of stopping the entire process
+        }
       }
     } catch (error) {
       console.error('Error in bulk input:', error);
@@ -199,28 +206,45 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
       const expectedLength = bulkInputStartIndex + bulkInputData.length;
       if (participants.length >= expectedLength) {
         // Update each participant with the bulk input data
-        bulkInputData.forEach((item, i) => {
-          const participantIndex = bulkInputStartIndex + i;
+        const updateParticipants = async () => {
+          for (let i = 0; i < bulkInputData.length; i++) {
+            const item = bulkInputData[i];
+            const participantIndex = bulkInputStartIndex + i;
 
-          // Set the data for each participant
-          setTimeout(() => {
-            handleParticipantChange(participantIndex, 'maSoBHXH', item.maSoBHXH);
+            // Ensure the participant exists before updating
+            if (participantIndex < participants.length) {
+              // Set the BHXH code first
+              handleParticipantChange(participantIndex, 'maSoBHXH', item.maSoBHXH);
 
-            // Set optional fields if provided
-            if (item.soThangDong) {
-              handleParticipantChange(participantIndex, 'soThangDong', item.soThangDong);
+              // Small delay to ensure state updates
+              await new Promise(resolve => setTimeout(resolve, 10));
+
+              // Set optional fields if provided
+              if (item.soThangDong) {
+                handleParticipantChange(participantIndex, 'soThangDong', item.soThangDong);
+                await new Promise(resolve => setTimeout(resolve, 10));
+              }
+              if (item.sttHo) {
+                // For DS type, always set to "1", otherwise use provided value
+                const sttHoValue = doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : item.sttHo;
+                handleParticipantChange(participantIndex, 'sttHo', sttHoValue);
+                await new Promise(resolve => setTimeout(resolve, 10));
+              }
             }
-            if (item.sttHo) {
-              // For DS type, always set to "1", otherwise use provided value
-              const sttHoValue = doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : item.sttHo;
-              handleParticipantChange(participantIndex, 'sttHo', sttHoValue);
-            }
-          }, 100 * (i + 1)); // Stagger updates to avoid race conditions
+          }
+        };
+
+        // Execute the updates
+        updateParticipants().then(() => {
+          // Reset bulk input state after all updates are complete
+          setBulkInputData([]);
+          setBulkInputStartIndex(-1);
+        }).catch((error) => {
+          console.error('Error updating bulk input data:', error);
+          // Reset state even on error
+          setBulkInputData([]);
+          setBulkInputStartIndex(-1);
         });
-
-        // Reset bulk input state
-        setBulkInputData([]);
-        setBulkInputStartIndex(-1);
       }
     }
   }, [participants.length, bulkInputData, bulkInputStartIndex, handleParticipantChange, doiTuongThamGia]);
@@ -240,7 +264,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
 
   // Auto-load districts and wards for existing participants
   useEffect(() => {
-    participants.forEach((participant, index) => {
+    participants.forEach((participant) => {
       // Load districts if province is selected but districts not loaded
       if (participant.maTinhNkq && !huyenOptions[participant.maTinhNkq]) {
         loadHuyenData(participant.maTinhNkq);

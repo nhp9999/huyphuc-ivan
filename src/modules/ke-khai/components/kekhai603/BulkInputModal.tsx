@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface BulkInputData {
   maSoBHXH: string;
@@ -53,6 +53,27 @@ export const BulkInputModal: React.FC<BulkInputModalProps> = ({
       setDetectedFormat(formatDetected);
     }
 
+    // Helper function to validate and process STT hộ
+    const processSttHo = (sttHoRaw: string, lineIndex: number): string | null => {
+      const trimmed = sttHoRaw.trim();
+
+      // Handle STT hộ: 1, 2, 3, 4 stay as is; 5 and above become "5+"
+      if (['1', '2', '3', '4'].includes(trimmed)) {
+        return trimmed;
+      } else if (trimmed === '5+') {
+        return '5+';
+      } else {
+        // Check if it's a number >= 5
+        const sttHoNum = parseInt(trimmed);
+        if (!isNaN(sttHoNum) && sttHoNum >= 5) {
+          return '5+'; // Convert 5, 6, 7, etc. to "5+"
+        } else {
+          errors.push(`Dòng ${lineIndex + 1}: STT hộ không hợp lệ (${trimmed}). Chỉ chấp nhận 1, 2, 3, 4, hoặc từ 5 trở lên (sẽ chuyển thành 5+)`);
+          return null; // Invalid STT hộ
+        }
+      }
+    };
+
     allLines.forEach((line, originalIndex) => {
       const trimmedLine = line.trim();
 
@@ -76,7 +97,7 @@ export const BulkInputModal: React.FC<BulkInputModalProps> = ({
       if (trimmedLine.includes('\t')) {
         // Excel tab-separated format - split by tabs and clean up
         parts = trimmedLine.split('\t').map(p => p.trim());
-        // Keep empty strings to maintain column positions, but filter them later
+        // Keep empty strings to maintain column positions
       } else {
         // Other formats (comma, space, mixed)
         parts = trimmedLine.split(/[,\s]+/).map(p => p.trim()).filter(p => p);
@@ -96,99 +117,50 @@ export const BulkInputModal: React.FC<BulkInputModalProps> = ({
       }
 
       const data: BulkInputData = { maSoBHXH };
-      let hasValidData = false; // Track if this row has sufficient data
 
-      // For tab-separated format, handle empty cells properly
-      if (trimmedLine.includes('\t')) {
-        // Parse months from second column (index 1)
-        if (parts.length > 1 && parts[1] && parts[1].trim()) {
-          const months = parts[1].trim().replace(/\D/g, '');
-          if (['3', '6', '12'].includes(months)) {
-            data.soThangDong = months;
-            hasValidData = true; // Has months data
-          } else if (months) {
-            errors.push(`Dòng ${originalIndex + 1}: Số tháng không hợp lệ (${parts[1]}). Chỉ chấp nhận 3, 6, hoặc 12`);
-            return; // Skip this row due to invalid data
-          }
+      // Parse months from second column/part
+      let monthsFound = false;
+      const monthsIndex = 1; // Second position in both formats
+
+      if (parts.length > monthsIndex && parts[monthsIndex] && parts[monthsIndex].trim()) {
+        const months = parts[monthsIndex].trim().replace(/\D/g, '');
+        if (['3', '6', '12'].includes(months)) {
+          data.soThangDong = months;
+          monthsFound = true;
+        } else if (months) {
+          errors.push(`Dòng ${originalIndex + 1}: Số tháng không hợp lệ (${parts[monthsIndex]}). Chỉ chấp nhận 3, 6, hoặc 12`);
+          return; // Skip this row due to invalid data
         }
+      }
 
-        // Parse STT hộ from third column (index 2) - only if not DS type
-        if (parts.length > 2 && parts[2] && parts[2].trim() && doiTuongThamGia && !doiTuongThamGia.includes('DS')) {
-          const sttHoRaw = parts[2].trim();
+      // Parse STT hộ from third column/part - only if not DS type
+      const isDsType = doiTuongThamGia && doiTuongThamGia.includes('DS');
 
-          // Handle STT hộ: 1, 2, 3, 4 stay as is; 5 and above become "5+"
-          if (['1', '2', '3', '4'].includes(sttHoRaw)) {
-            data.sttHo = sttHoRaw;
-            hasValidData = true; // Has STT hộ data
-          } else if (sttHoRaw === '5+') {
-            data.sttHo = '5+';
-            hasValidData = true; // Has STT hộ data
-          } else {
-            // Check if it's a number >= 5
-            const sttHoNum = parseInt(sttHoRaw);
-            if (!isNaN(sttHoNum) && sttHoNum >= 5) {
-              data.sttHo = '5+'; // Convert 5, 6, 7, etc. to "5+"
-              hasValidData = true; // Has STT hộ data
-            } else {
-              errors.push(`Dòng ${originalIndex + 1}: STT hộ không hợp lệ (${sttHoRaw}). Chỉ chấp nhận 1, 2, 3, 4, hoặc từ 5 trở lên (sẽ chuyển thành 5+)`);
-              return; // Skip this row due to invalid data
-            }
+      if (!isDsType) {
+        const sttHoIndex = 2; // Third position in both formats
+
+        if (parts.length > sttHoIndex && parts[sttHoIndex] && parts[sttHoIndex].trim()) {
+          const processedSttHo = processSttHo(parts[sttHoIndex], originalIndex);
+          if (processedSttHo === null) {
+            return; // Skip this row due to invalid STT hộ
           }
+          data.sttHo = processedSttHo;
         }
       } else {
-        // For other formats, parse sequentially from non-empty parts
-        const nonEmptyParts = parts.filter(p => p && p.trim());
-
-        // Parse months if provided
-        if (nonEmptyParts.length > 1) {
-          const months = nonEmptyParts[1].replace(/\D/g, '');
-          if (['3', '6', '12'].includes(months)) {
-            data.soThangDong = months;
-            hasValidData = true; // Has months data
-          } else if (months) {
-            errors.push(`Dòng ${originalIndex + 1}: Số tháng không hợp lệ (${nonEmptyParts[1]}). Chỉ chấp nhận 3, 6, hoặc 12`);
-            return; // Skip this row due to invalid data
-          }
-        }
-
-        // Parse STT hộ if provided (and not DS type)
-        if (nonEmptyParts.length > 2 && doiTuongThamGia && !doiTuongThamGia.includes('DS')) {
-          const sttHoRaw = nonEmptyParts[2].trim();
-
-          // Handle STT hộ: 1, 2, 3, 4 stay as is; 5 and above become "5+"
-          if (['1', '2', '3', '4'].includes(sttHoRaw)) {
-            data.sttHo = sttHoRaw;
-            hasValidData = true; // Has STT hộ data
-          } else if (sttHoRaw === '5+') {
-            data.sttHo = '5+';
-            hasValidData = true; // Has STT hộ data
-          } else {
-            // Check if it's a number >= 5
-            const sttHoNum = parseInt(sttHoRaw);
-            if (!isNaN(sttHoNum) && sttHoNum >= 5) {
-              data.sttHo = '5+'; // Convert 5, 6, 7, etc. to "5+"
-              hasValidData = true; // Has STT hộ data
-            } else {
-              errors.push(`Dòng ${originalIndex + 1}: STT hộ không hợp lệ (${sttHoRaw}). Chỉ chấp nhận 1, 2, 3, 4, hoặc từ 5 trở lên (sẽ chuyển thành 5+)`);
-              return; // Skip this row due to invalid data
-            }
-          }
-        }
+        // For DS type, auto-set STT hộ to "1"
+        data.sttHo = '1';
       }
 
-      // For DS type, only require months data (STT hộ is automatically set to "1")
-      if (doiTuongThamGia && doiTuongThamGia.includes('DS')) {
-        if (data.soThangDong) {
-          data.sttHo = '1'; // Auto-set STT hộ to "1" for DS type
-          hasValidData = true;
-        }
-      }
+      // Determine if this row has sufficient data
+      // For DS type: only need BHXH code + months
+      // For other types: need BHXH code + months (STT hộ is optional but recommended)
+      const hasValidData = monthsFound; // Months is required for all types
 
-      // Only add to results if the row has sufficient data (months and/or STT hộ)
+      // Only add to results if the row has sufficient data
       if (hasValidData) {
         results.push(data);
       }
-      // Skip rows that only have BHXH code without additional data
+      // Skip rows that only have BHXH code without months data
     });
 
     if (errors.length > 0) {
