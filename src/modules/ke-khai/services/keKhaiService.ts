@@ -270,7 +270,7 @@ class KeKhaiService {
       let query = supabase
         .from('danh_sach_ke_khai')
         .select('*')
-        .in('trang_thai', ['submitted', 'processing'])
+        .in('trang_thai', ['submitted', 'processing', 'pending_payment'])
         .order('created_at', { ascending: false });
 
       if (params?.ma_ke_khai) {
@@ -311,6 +311,14 @@ class KeKhaiService {
         console.error('Error fetching ke khai for approval:', error);
         throw new Error('Không thể lấy danh sách kê khai cần duyệt');
       }
+
+      console.log('🔍 getKeKhaiForApproval result count:', data?.length || 0);
+      console.log('🔍 getKeKhaiForApproval sample data:', data?.slice(0, 3).map(item => ({
+        id: item.id,
+        ma_ke_khai: item.ma_ke_khai,
+        trang_thai: item.trang_thai,
+        created_by: item.created_by
+      })));
 
       return data || [];
     } catch (error) {
@@ -886,7 +894,7 @@ class KeKhaiService {
       let query = supabase
         .from('danh_sach_ke_khai')
         .select('*')
-        .in('trang_thai', ['submitted', 'processing'])
+        .in('trang_thai', ['submitted', 'processing', 'pending_payment'])
         .order('created_at', { ascending: false });
 
       if (params?.ma_ke_khai) {
@@ -925,6 +933,14 @@ class KeKhaiService {
         console.error('Error fetching ke khai for approval for admin:', error);
         throw error;
       }
+
+      console.log('🔍 getKeKhaiForApprovalForAdmin result count:', data?.length || 0);
+      console.log('🔍 getKeKhaiForApprovalForAdmin sample data:', data?.slice(0, 3).map(item => ({
+        id: item.id,
+        ma_ke_khai: item.ma_ke_khai,
+        trang_thai: item.trang_thai,
+        created_by: item.created_by
+      })));
 
       return data || [];
     } catch (error) {

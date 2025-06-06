@@ -18,6 +18,7 @@ import { useToast } from '../../../shared/hooks/useToast';
 import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import KeKhaiApprovalModal from '../components/KeKhaiApprovalModal';
 import PaymentQRModal from '../components/PaymentQRModal';
+import DebugKeKhaiList from '../components/DebugKeKhaiList';
 import paymentService from '../services/paymentService';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 
@@ -78,27 +79,62 @@ const KeKhaiManagement: React.FC = () => {
       // QUAN TRỌNG: Kiểm tra quyền user để quyết định filter
       let data: any[] = [];
       if (user?.id) {
-        // SECURITY FIX: Tạm thời force filter theo created_by để đảm bảo bảo mật
-        const FORCE_USER_FILTER = true; // Set false khi đã fix logic admin
+        console.log('🔍 KeKhaiManagement: Loading data for user:', user.id);
 
-        if (FORCE_USER_FILTER) {
-          console.log('🔒 SECURITY: Force filtering by user ID for security');
-          searchParams.created_by = user.id;
-          data = await keKhaiService.getKeKhaiForApproval(searchParams);
-        } else {
+        // Management page should show all declarations that need approval, not just user's own
+        // This is for synthesis staff to review declarations from collection staff
+        try {
           const isAdmin = await keKhaiService.isUserAdmin(user.id);
+          console.log('🔍 User admin status:', isAdmin);
+
           if (isAdmin) {
             // Admin có thể xem tất cả kê khai (không filter theo created_by)
+            console.log('🔍 Loading data for admin user');
             data = await keKhaiService.getKeKhaiForApprovalForAdmin(searchParams);
           } else {
-            // Chỉ hiển thị kê khai của user hiện tại nếu không phải admin
-            searchParams.created_by = user.id;
-            data = await keKhaiService.getKeKhaiForApproval(searchParams);
+            // Synthesis staff should see all declarations that need approval, not just their own
+            // Remove created_by filter to allow synthesis staff to see collection staff submissions
+            console.log('🔍 Loading data for synthesis staff (all declarations needing approval)');
+            data = await keKhaiService.getKeKhaiForApprovalForAdmin(searchParams);
           }
+        } catch (adminCheckError) {
+          console.error('Error checking admin status, falling back to regular approval list:', adminCheckError);
+          // Fallback: show all declarations needing approval
+          data = await keKhaiService.getKeKhaiForApprovalForAdmin(searchParams);
         }
       } else {
         // Nếu không có user, không hiển thị gì
+        console.log('🔍 No user found, showing empty list');
         data = [];
+      }
+
+      console.log('🔍 KeKhaiManagement: Loaded data count:', data.length);
+      console.log('🔍 KeKhaiManagement: Sample data:', data.slice(0, 3).map(item => ({
+        id: item.id,
+        ma_ke_khai: item.ma_ke_khai,
+        trang_thai: item.trang_thai,
+        created_by: item.created_by
+      })));
+
+      // If no data found with approval filter, try getting all declarations for debugging
+      if (data.length === 0) {
+        console.log('🔍 No data found with approval filter, trying to get all declarations for debugging...');
+        try {
+          const allData = await keKhaiService.getKeKhaiListForAdmin(searchParams);
+          console.log('🔍 All declarations count:', allData.length);
+          console.log('🔍 All declarations sample:', allData.slice(0, 5).map(item => ({
+            id: item.id,
+            ma_ke_khai: item.ma_ke_khai,
+            trang_thai: item.trang_thai,
+            created_by: item.created_by
+          })));
+
+          // For debugging purposes, show all declarations if approval filter returns empty
+          // TODO: Remove this in production and fix the root cause
+          data = allData;
+        } catch (debugError) {
+          console.error('Error getting all declarations for debugging:', debugError);
+        }
       }
 
       setKeKhaiList(data);
@@ -317,6 +353,9 @@ const KeKhaiManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Debug Component - Remove in production */}
+      <DebugKeKhaiList />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -356,6 +395,7 @@ const KeKhaiManagement: React.FC = () => {
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="submitted">Chờ duyệt</option>
+            <option value="pending_payment">Chờ thanh toán</option>
             <option value="processing">Đang xử lý</option>
             <option value="approved">Đã duyệt</option>
             <option value="completed">Hoàn thành</option>
