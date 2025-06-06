@@ -175,7 +175,15 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
   // Handle participant field changes
   const handleParticipantChange = async (index: number, field: keyof KeKhai603Participant, value: string) => {
     const participant = participants[index];
-    if (!participant) return;
+    if (!participant) {
+      console.warn(`⚠️ handleParticipantChange: No participant found at index ${index}`);
+      return;
+    }
+
+    // Log the change for debugging household bulk input
+    if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
+      console.log(`📝 handleParticipantChange: Setting ${field} = "${value}" for participant ${index + 1}`);
+    }
 
     // Validate mã BHXH - chỉ cho phép số và tối đa 10 ký tự
     if (field === 'maSoBHXH') {
@@ -183,44 +191,77 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     }
 
     // Update local state first
-    setParticipants(prev => prev.map((p, i) => {
-      if (i === index) {
-        const updatedParticipant = { ...p, [field]: value };
+    setParticipants(prev => {
+      const newParticipants = prev.map((p, i) => {
+        if (i === index) {
+          const updatedParticipant = { ...p, [field]: value };
 
-        // Auto-calculate payment amount when STT or months change
-        if (field === 'sttHo' || field === 'soThangDong') {
-          const sttHo = field === 'sttHo' ? value : p.sttHo;
-          const soThangDong = field === 'soThangDong' ? value : p.soThangDong;
-
-          if (sttHo && soThangDong) {
-            // Tính tiền đóng theo công thức mới (lưu vào tien_dong)
-            const soTien = calculateKeKhai603Amount(sttHo, soThangDong);
-            updatedParticipant.soTienDong = soTien.toLocaleString('vi-VN');
-            updatedParticipant.tienDong = soTien;
-
-            // Tính tiền đóng thực tế theo công thức cũ (lưu vào tien_dong_thuc_te)
-            const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, 2340000, doiTuongThamGia);
-            updatedParticipant.tienDongThucTe = soTienThucTe;
+          // Log the specific change for debugging
+          if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
+            console.log(`📝 State update: Participant ${index + 1} ${field} changed from "${p[field]}" to "${value}"`);
           }
+
+          return updatedParticipant;
         }
+        return p;
+      });
 
-        // Auto-calculate card validity when relevant fields change
-        if (field === 'soThangDong' || field === 'ngayBienLai' || field === 'denNgayTheCu') {
-          const soThangDong = field === 'soThangDong' ? value : p.soThangDong;
-          const ngayBienLai = field === 'ngayBienLai' ? value : p.ngayBienLai;
-          const denNgayTheCu = field === 'denNgayTheCu' ? value : p.denNgayTheCu;
-
-          if (soThangDong && ngayBienLai) {
-            const cardValidity = calculateKeKhai603CardValidity(soThangDong, denNgayTheCu, ngayBienLai);
-            updatedParticipant.tuNgayTheMoi = cardValidity.tuNgay;
-            updatedParticipant.denNgayTheMoi = cardValidity.denNgay;
-          }
-        }
-
-        return updatedParticipant;
+      // Log the updated participant for debugging
+      if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
+        const updatedParticipant = newParticipants[index];
+        console.log(`📝 State updated: Participant ${index + 1} now has ${field} = "${updatedParticipant?.[field]}"`);
       }
-      return p;
-    }));
+
+      return newParticipants;
+    });
+
+    // Auto-calculate payment amount when STT or months change (separate state update)
+    if (field === 'sttHo' || field === 'soThangDong') {
+      setTimeout(() => {
+        setParticipants(prev => prev.map((p, i) => {
+          if (i === index) {
+            const updatedParticipant = { ...p };
+            const sttHo = updatedParticipant.sttHo;
+            const soThangDong = updatedParticipant.soThangDong;
+
+            if (sttHo && soThangDong) {
+              // Tính tiền đóng theo công thức mới (lưu vào tien_dong)
+              const soTien = calculateKeKhai603Amount(sttHo, soThangDong);
+              updatedParticipant.soTienDong = soTien.toLocaleString('vi-VN');
+              updatedParticipant.tienDong = soTien;
+
+              // Tính tiền đóng thực tế theo công thức cũ (lưu vào tien_dong_thuc_te)
+              const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, 2340000, doiTuongThamGia);
+              updatedParticipant.tienDongThucTe = soTienThucTe;
+            }
+            return updatedParticipant;
+          }
+          return p;
+        }));
+      }, 100);
+    }
+
+    // Auto-calculate card validity when relevant fields change (separate state update)
+    if (field === 'soThangDong' || field === 'ngayBienLai' || field === 'denNgayTheCu') {
+      setTimeout(() => {
+        setParticipants(prev => prev.map((p, i) => {
+          if (i === index) {
+            const updatedParticipant = { ...p };
+            const soThangDong = updatedParticipant.soThangDong;
+            const ngayBienLai = updatedParticipant.ngayBienLai;
+            const denNgayTheCu = updatedParticipant.denNgayTheCu;
+
+            if (soThangDong && ngayBienLai) {
+              const cardValidity = calculateKeKhai603CardValidity(soThangDong, denNgayTheCu, ngayBienLai);
+              updatedParticipant.tuNgayTheMoi = cardValidity.tuNgay;
+              updatedParticipant.denNgayTheMoi = cardValidity.denNgay;
+            }
+            return updatedParticipant;
+          }
+          return p;
+        }));
+      }, 150);
+    }
 
     // Note: Auto-save has been disabled. Data will only be saved when user clicks "Ghi dữ liệu" button.
     // The auto-save logic has been removed to prevent unwanted database updates.
@@ -440,44 +481,77 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
 
   // Update participant with API data
   const updateParticipantWithApiData = (index: number, apiData: any) => {
-    console.log('Updating participant with API data:', apiData);
-    console.log('soDienThoai:', apiData.soDienThoai);
-    console.log('soTheBHYT:', apiData.soTheBHYT);
-    console.log('danToc:', apiData.danToc);
+    console.log(`🔄 updateParticipantWithApiData: Updating participant ${index + 1} with API data`);
+
+    // Log current participant state before update
+    const currentParticipant = participants[index];
+    if (currentParticipant) {
+      console.log(`🔄 Before API update - STT hộ: "${currentParticipant.sttHo}", Months: "${currentParticipant.soThangDong}"`);
+    }
+
+    console.log('API data received:', {
+      hoTen: apiData.hoTen,
+      soDienThoai: apiData.soDienThoai,
+      soTheBHYT: apiData.soTheBHYT,
+      danToc: apiData.danToc
+    });
 
     setParticipants(prev => prev.map((p, i) =>
       i === index ? {
         ...p,
-        hoTen: apiData.hoTen,
+        // Update with API data but preserve important fields that were set manually
+        hoTen: apiData.hoTen || p.hoTen,
         maSoBHXH: apiData.maSoBHXH || p.maSoBHXH, // Keep original if API doesn't return it
-        ngaySinh: apiData.ngaySinh,
-        gioiTinh: apiData.gioiTinh,
-        soCCCD: apiData.soCCCD || '',
-        soDienThoai: apiData.soDienThoai || '',
-        soTheBHYT: apiData.soTheBHYT || '',
-        danToc: apiData.danToc || '',
-        quocTich: apiData.quocTich || 'VN',
-        noiDangKyKCB: apiData.noiDangKyKCB,
-        mucLuong: apiData.mucLuong || '',
-        tyLeDong: apiData.tyLeDong || '100', // Mặc định 100% lương cơ sở
-        soTienDong: apiData.soTienDong || '',
-        tuNgayTheCu: apiData.tuNgayTheCu || '',
-        denNgayTheCu: apiData.denNgayTheCu || '',
-        tuNgayTheMoi: apiData.tuNgayTheMoi || '',
-        denNgayTheMoi: apiData.denNgayTheMoi || '',
-        maTinhNkq: apiData.maTinhNkq || '',
-        maHuyenNkq: apiData.maHuyenNkq || '',
-        maXaNkq: apiData.maXaNkq || '',
-        noiNhanHoSo: apiData.noiNhanHoSo || '',
-        maTinhKS: apiData.maTinhKS || '',
-        maHuyenKS: apiData.maHuyenKS || '',
-        maXaKS: apiData.maXaKS || '',
-        tinhKCB: apiData.tinhKCB || '',
-        maBenhVien: apiData.maBenhVien || '',
-        maHoGiaDinh: apiData.maHoGiaDinh || '',
-        phuongAn: apiData.phuongAn || ''
+        ngaySinh: apiData.ngaySinh || p.ngaySinh,
+        gioiTinh: apiData.gioiTinh || p.gioiTinh,
+        soCCCD: apiData.soCCCD || p.soCCCD,
+        soDienThoai: apiData.soDienThoai || p.soDienThoai,
+        soTheBHYT: apiData.soTheBHYT || p.soTheBHYT,
+        danToc: apiData.danToc || p.danToc,
+        quocTich: apiData.quocTich || p.quocTich || 'VN',
+
+        // Preserve manually set fields - these should NOT be overwritten by API
+        sttHo: p.sttHo, // IMPORTANT: Always preserve STT hộ
+        soThangDong: p.soThangDong, // IMPORTANT: Always preserve number of months
+        tenBenhVien: p.tenBenhVien, // IMPORTANT: Preserve medical facility name if set manually
+
+        // Update medical facility info only if not already set manually
+        noiDangKyKCB: apiData.noiDangKyKCB || p.noiDangKyKCB,
+        maBenhVien: p.maBenhVien || apiData.maBenhVien, // Prefer manually set value
+        tinhKCB: p.tinhKCB || apiData.tinhKCB, // Prefer manually set value
+
+        // Update other API fields
+        mucLuong: apiData.mucLuong || p.mucLuong,
+        tyLeDong: apiData.tyLeDong || p.tyLeDong || '100', // Mặc định 100% lương cơ sở
+        soTienDong: apiData.soTienDong || p.soTienDong,
+        tuNgayTheCu: apiData.tuNgayTheCu || p.tuNgayTheCu,
+        denNgayTheCu: apiData.denNgayTheCu || p.denNgayTheCu,
+        tuNgayTheMoi: apiData.tuNgayTheMoi || p.tuNgayTheMoi,
+        denNgayTheMoi: apiData.denNgayTheMoi || p.denNgayTheMoi,
+
+        // Preserve manually set receipt date
+        ngayBienLai: p.ngayBienLai,
+
+        // Update address information
+        maTinhNkq: apiData.maTinhNkq || p.maTinhNkq,
+        maHuyenNkq: apiData.maHuyenNkq || p.maHuyenNkq,
+        maXaNkq: apiData.maXaNkq || p.maXaNkq,
+        noiNhanHoSo: apiData.noiNhanHoSo || p.noiNhanHoSo,
+        maTinhKS: apiData.maTinhKS || p.maTinhKS,
+        maHuyenKS: apiData.maHuyenKS || p.maHuyenKS,
+        maXaKS: apiData.maXaKS || p.maXaKS,
+        maHoGiaDinh: apiData.maHoGiaDinh || p.maHoGiaDinh,
+        phuongAn: apiData.phuongAn || p.phuongAn
       } : p
     ));
+
+    // Log the result after update
+    setTimeout(() => {
+      const updatedParticipant = participants[index];
+      if (updatedParticipant) {
+        console.log(`🔄 After API update - STT hộ: "${updatedParticipant.sttHo}", Months: "${updatedParticipant.soThangDong}"`);
+      }
+    }, 50);
   };
 
   return {

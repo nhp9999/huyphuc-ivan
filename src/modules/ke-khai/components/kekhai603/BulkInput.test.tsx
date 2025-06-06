@@ -15,6 +15,8 @@ const mockQuickFillProps = {
   isOpen: true,
   onClose: jest.fn(),
   onApply: jest.fn(),
+  onApplyAutoIncrement: jest.fn(),
+  onApplyBulkBHXH: jest.fn(),
   participantCount: 5,
   doiTuongThamGia: 'TM'
 };
@@ -100,18 +102,197 @@ describe('QuickFillModal', () => {
 
   test('renders quick fill modal when open', () => {
     render(<QuickFillModal {...mockQuickFillProps} />);
-    
+
     expect(screen.getByText('Điền nhanh dữ liệu')).toBeInTheDocument();
     expect(screen.getByText('Số tháng đóng')).toBeInTheDocument();
     expect(screen.getByText('STT hộ')).toBeInTheDocument();
+    expect(screen.getByText('Mã số BHXH')).toBeInTheDocument();
   });
 
   test('disables STT hộ for DS participant type', () => {
     render(<QuickFillModal {...mockQuickFillProps} doiTuongThamGia="DS" />);
-    
+
     const sttHoButton = screen.getByText('STT hộ').closest('button');
     expect(sttHoButton).toBeDisabled();
     expect(screen.getByText('Không áp dụng cho DS')).toBeInTheDocument();
+  });
+
+  test('shows STT hộ mode selection when STT hộ field is selected', () => {
+    render(<QuickFillModal {...mockQuickFillProps} />);
+
+    // Click STT hộ field
+    const sttHoButton = screen.getByText('STT hộ').closest('button');
+    fireEvent.click(sttHoButton!);
+
+    // Should show mode selection
+    expect(screen.getByText('Chế độ điền STT hộ')).toBeInTheDocument();
+    expect(screen.getByText('Giá trị cố định')).toBeInTheDocument();
+    expect(screen.getByText('Tự động tăng dần')).toBeInTheDocument();
+  });
+
+  test('shows auto increment preview when auto mode is selected', () => {
+    render(<QuickFillModal {...mockQuickFillProps} />);
+
+    // Click STT hộ field
+    const sttHoButton = screen.getByText('STT hộ').closest('button');
+    fireEvent.click(sttHoButton!);
+
+    // Click auto increment mode
+    const autoButton = screen.getByText('Tự động tăng dần').closest('button');
+    fireEvent.click(autoButton!);
+
+    // Should show preview
+    expect(screen.getByText('Xem trước STT hộ tự động')).toBeInTheDocument();
+    expect(screen.getByText(/STT hộ sẽ được điền tự động:/)).toBeInTheDocument();
+  });
+
+  test('calls onApplyAutoIncrement when auto mode is applied', () => {
+    const mockOnApplyAutoIncrement = jest.fn();
+    render(<QuickFillModal {...mockQuickFillProps} onApplyAutoIncrement={mockOnApplyAutoIncrement} />);
+
+    // Click STT hộ field
+    const sttHoButton = screen.getByText('STT hộ').closest('button');
+    fireEvent.click(sttHoButton!);
+
+    // Click auto increment mode
+    const autoButton = screen.getByText('Tự động tăng dần').closest('button');
+    fireEvent.click(autoButton!);
+
+    // Click apply
+    const applyButton = screen.getByText('Điền STT hộ tự động');
+    fireEvent.click(applyButton);
+
+    expect(mockOnApplyAutoIncrement).toHaveBeenCalledWith('sttHo', undefined);
+  });
+
+  test('shows BHXH input when BHXH field is selected', () => {
+    render(<QuickFillModal {...mockQuickFillProps} />);
+
+    // Click mã BHXH field
+    const bhxhButton = screen.getByText('Mã số BHXH').closest('button');
+    fireEvent.click(bhxhButton!);
+
+    // Should show BHXH input
+    expect(screen.getByText('Nhập mã số BHXH')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Nhập mã số BHXH (tối đa 10 số)')).toBeInTheDocument();
+  });
+
+  test('validates BHXH input correctly', () => {
+    render(<QuickFillModal {...mockQuickFillProps} />);
+
+    // Click mã BHXH field
+    const bhxhButton = screen.getByText('Mã số BHXH').closest('button');
+    fireEvent.click(bhxhButton!);
+
+    // Get input field
+    const input = screen.getByPlaceholderText('Nhập mã số BHXH (tối đa 10 số)');
+
+    // Type invalid characters (should be filtered out)
+    fireEvent.change(input, { target: { value: 'abc123def456ghi' } });
+
+    // Should only contain numbers and be limited to 10 characters
+    expect(input).toHaveValue('1234564');
+  });
+
+  test('calls onApply with BHXH value when applied', () => {
+    const mockOnApply = jest.fn();
+    render(<QuickFillModal {...mockQuickFillProps} onApply={mockOnApply} />);
+
+    // Click mã BHXH field
+    const bhxhButton = screen.getByText('Mã số BHXH').closest('button');
+    fireEvent.click(bhxhButton!);
+
+    // Should default to single mode, so enter BHXH value
+    const input = screen.getByPlaceholderText('Nhập mã số BHXH (tối đa 10 số)');
+    fireEvent.change(input, { target: { value: '1234567890' } });
+
+    // Click apply
+    const applyButton = screen.getByText('Điền mã BHXH');
+    fireEvent.click(applyButton);
+
+    expect(mockOnApply).toHaveBeenCalledWith('maSoBHXH', '1234567890', undefined);
+  });
+
+  test('shows BHXH mode selection when BHXH field is selected', () => {
+    render(<QuickFillModal {...mockQuickFillProps} />);
+
+    // Click mã BHXH field
+    const bhxhButton = screen.getByText('Mã số BHXH').closest('button');
+    fireEvent.click(bhxhButton!);
+
+    // Should show mode selection
+    expect(screen.getByText('Chế độ điền mã BHXH')).toBeInTheDocument();
+    expect(screen.getByText('Mã đơn lẻ')).toBeInTheDocument();
+    expect(screen.getByText('Danh sách mã')).toBeInTheDocument();
+  });
+
+  test('shows bulk input when bulk mode is selected', () => {
+    render(<QuickFillModal {...mockQuickFillProps} />);
+
+    // Click mã BHXH field
+    const bhxhButton = screen.getByText('Mã số BHXH').closest('button');
+    fireEvent.click(bhxhButton!);
+
+    // Click bulk mode
+    const bulkButton = screen.getByText('Danh sách mã').closest('button');
+    fireEvent.click(bulkButton!);
+
+    // Should show bulk input
+    expect(screen.getByText('Nhập danh sách mã số BHXH')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Nhập danh sách mã BHXH/)).toBeInTheDocument();
+  });
+
+  test('parses bulk BHXH input correctly', () => {
+    render(<QuickFillModal {...mockQuickFillProps} />);
+
+    // Click mã BHXH field and switch to bulk mode
+    const bhxhButton = screen.getByText('Mã số BHXH').closest('button');
+    fireEvent.click(bhxhButton!);
+
+    const bulkButton = screen.getByText('Danh sách mã').closest('button');
+    fireEvent.click(bulkButton!);
+
+    // Enter bulk BHXH data
+    const textarea = screen.getByPlaceholderText(/Nhập danh sách mã BHXH/);
+    fireEvent.change(textarea, {
+      target: {
+        value: `1234567890
+2345678901
+abc3456789012def
+4567890123`
+      }
+    });
+
+    // Should show parsed count
+    expect(screen.getByText('Đã phát hiện 4 mã BHXH hợp lệ')).toBeInTheDocument();
+  });
+
+  test('calls onApplyBulkBHXH when bulk mode is applied', () => {
+    const mockOnApplyBulkBHXH = jest.fn();
+    render(<QuickFillModal {...mockQuickFillProps} onApplyBulkBHXH={mockOnApplyBulkBHXH} />);
+
+    // Click mã BHXH field and switch to bulk mode
+    const bhxhButton = screen.getByText('Mã số BHXH').closest('button');
+    fireEvent.click(bhxhButton!);
+
+    const bulkButton = screen.getByText('Danh sách mã').closest('button');
+    fireEvent.click(bulkButton!);
+
+    // Enter bulk BHXH data
+    const textarea = screen.getByPlaceholderText(/Nhập danh sách mã BHXH/);
+    fireEvent.change(textarea, {
+      target: {
+        value: `1234567890
+2345678901
+3456789012`
+      }
+    });
+
+    // Click apply
+    const applyButton = screen.getByText('Điền 3 mã BHXH');
+    fireEvent.click(applyButton);
+
+    expect(mockOnApplyBulkBHXH).toHaveBeenCalledWith(['1234567890', '2345678901', '3456789012'], undefined);
   });
 
   test('handles month selection', () => {

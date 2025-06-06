@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
-import { Plus, Trash2, Loader2, Save, Upload, Edit3 } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save, Upload, Edit3, Users } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
 import { cskcbService } from '../../../../shared/services/cskcbService';
 import styles from './KeKhai603ParticipantTable.module.css';
 import { BulkInputModal } from './BulkInputModal';
+import { HouseholdBulkInputModal } from './HouseholdBulkInputModal';
 import { QuickFillModal } from './QuickFillModal';
 import { ParticipantMobileCard } from './ParticipantMobileCard';
 import ConfirmDeleteModal from '../../../../shared/components/ui/ConfirmDeleteModal';
@@ -23,6 +24,7 @@ interface KeKhai603ParticipantTableProps {
   savingData: boolean;
   doiTuongThamGia?: string; // Thêm prop để kiểm tra đối tượng tham gia
   onBulkAdd?: (participants: any[]) => void; // Thêm prop cho bulk add
+  onHouseholdBulkAdd?: (bhxhCodes: string[], soThangDong: string, medicalFacility?: { maBenhVien: string; tenBenhVien: string }, progressCallback?: (current: number, currentCode?: string) => void) => Promise<void>; // Thêm prop cho household bulk add
 }
 
 export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps> = ({
@@ -36,7 +38,8 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   participantSearchLoading,
   savingData,
   doiTuongThamGia,
-  onBulkAdd
+  onBulkAdd,
+  onHouseholdBulkAdd
 }) => {
   // State for location data
   const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
@@ -52,8 +55,17 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
 
   // State for modals
   const [showBulkInputModal, setShowBulkInputModal] = useState(false);
+  const [showHouseholdBulkInputModal, setShowHouseholdBulkInputModal] = useState(false);
   const [showQuickFillModal, setShowQuickFillModal] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // State for household bulk processing
+  const [householdProcessing, setHouseholdProcessing] = useState(false);
+  const [householdProgress, setHouseholdProgress] = useState<{
+    current: number;
+    total: number;
+    currentCode?: string;
+  } | null>(null);
 
   // State for selection
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
@@ -263,7 +275,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   }, [participants.length, bulkInputData, bulkInputStartIndex, handleParticipantChange, doiTuongThamGia]);
 
   // Handle quick fill
-  const handleQuickFill = (field: 'soThangDong' | 'sttHo', value: string, selectedIndices?: number[]) => {
+  const handleQuickFill = (field: 'soThangDong' | 'sttHo' | 'maSoBHXH', value: string, selectedIndices?: number[]) => {
     const indicesToUpdate = selectedIndices || Array.from({ length: participants.length }, (_, i) => i);
 
     indicesToUpdate.forEach(index => {
@@ -271,6 +283,40 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         handleParticipantChange(index, field, value);
       }
     });
+  };
+
+  // Handle quick fill with auto increment for STT hộ
+  const handleQuickFillAutoIncrement = (field: 'sttHo', selectedIndices?: number[]) => {
+    const indicesToUpdate = selectedIndices || Array.from({ length: participants.length }, (_, i) => i);
+
+    indicesToUpdate.forEach((index, position) => {
+      if (index < participants.length) {
+        // Auto-increment STT hộ: 1, 2, 3, 4, 5+
+        const sttHoValue = position < 4 ? (position + 1).toString() : '5+';
+
+        // For DS type, always set to "1"
+        const finalValue = doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : sttHoValue;
+
+        handleParticipantChange(index, field, finalValue);
+      }
+    });
+  };
+
+  // Handle bulk BHXH fill
+  const handleQuickFillBulkBHXH = (bhxhCodes: string[], selectedIndices?: number[]) => {
+    const indicesToUpdate = selectedIndices || Array.from({ length: participants.length }, (_, i) => i);
+
+    // Limit to available codes or participants
+    const maxUpdates = Math.min(bhxhCodes.length, indicesToUpdate.length);
+
+    for (let i = 0; i < maxUpdates; i++) {
+      const participantIndex = indicesToUpdate[i];
+      const bhxhCode = bhxhCodes[i];
+
+      if (participantIndex < participants.length && bhxhCode) {
+        handleParticipantChange(participantIndex, 'maSoBHXH', bhxhCode);
+      }
+    }
   };
 
   // Selection handlers
@@ -337,6 +383,46 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     setShowBulkDeleteConfirm(false);
   };
 
+  // Handle household bulk input
+  const handleHouseholdBulkInput = async (data: {
+    bhxhCodes: string[];
+    soThangDong: string;
+    maBenhVien?: string;
+    tenBenhVien?: string;
+  }) => {
+    if (!onHouseholdBulkAdd) return;
+
+    setHouseholdProcessing(true);
+    setHouseholdProgress({
+      current: 0,
+      total: data.bhxhCodes.length
+    });
+
+    try {
+      const medicalFacility = data.maBenhVien && data.tenBenhVien ? {
+        maBenhVien: data.maBenhVien,
+        tenBenhVien: data.tenBenhVien
+      } : undefined;
+
+      // Create a wrapper function that updates progress
+      const progressCallback = (current: number, currentCode?: string) => {
+        setHouseholdProgress({
+          current,
+          total: data.bhxhCodes.length,
+          currentCode
+        });
+      };
+
+      await onHouseholdBulkAdd(data.bhxhCodes, data.soThangDong, medicalFacility, progressCallback);
+      setShowHouseholdBulkInputModal(false);
+    } catch (error) {
+      console.error('Household bulk input error:', error);
+    } finally {
+      setHouseholdProcessing(false);
+      setHouseholdProgress(null);
+    }
+  };
+
 
 
   // Auto-load districts and wards for existing participants
@@ -399,10 +485,21 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
               <span>Điền nhanh</span>
             </button>
 
+            {/* Household Bulk Input Button */}
+            <button
+              onClick={() => setShowHouseholdBulkInputModal(true)}
+              disabled={savingData || householdProcessing}
+              className="flex items-center justify-center space-x-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm"
+              title="Nhập hộ gia đình - tự động tăng STT hộ"
+            >
+              <Users className="h-4 w-4" />
+              <span>Nhập hộ gia đình</span>
+            </button>
+
             {/* Bulk Input Button */}
             <button
               onClick={() => setShowBulkInputModal(true)}
-              disabled={savingData}
+              disabled={savingData || householdProcessing}
               className="flex items-center justify-center space-x-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm"
               title="Nhập nhiều mã BHXH cùng lúc"
             >
@@ -806,6 +903,17 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         </div>
       </div>
 
+      {/* Household Bulk Input Modal */}
+      <HouseholdBulkInputModal
+        isOpen={showHouseholdBulkInputModal}
+        onClose={() => setShowHouseholdBulkInputModal(false)}
+        onSubmit={handleHouseholdBulkInput}
+        doiTuongThamGia={doiTuongThamGia}
+        cskcbOptions={cskcbOptions}
+        processing={householdProcessing}
+        progress={householdProgress}
+      />
+
       {/* Bulk Input Modal */}
       <BulkInputModal
         isOpen={showBulkInputModal}
@@ -819,8 +927,11 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         isOpen={showQuickFillModal}
         onClose={() => setShowQuickFillModal(false)}
         onApply={handleQuickFill}
+        onApplyAutoIncrement={handleQuickFillAutoIncrement}
+        onApplyBulkBHXH={handleQuickFillBulkBHXH}
         participantCount={participants.length}
         doiTuongThamGia={doiTuongThamGia}
+        participants={participants}
       />
 
       {/* Bulk Delete Confirmation Modal */}

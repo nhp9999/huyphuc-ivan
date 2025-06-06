@@ -187,6 +187,147 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
+  // Debug function to inspect participant state (using callback to get fresh state)
+  const debugParticipantState = (label: string, participantIndex?: number) => {
+    // Use setTimeout to ensure we get the latest state after React updates
+    setTimeout(() => {
+      // Get fresh participants from the hook
+      const currentParticipants = participants;
+
+      if (participantIndex !== undefined) {
+        const participant = currentParticipants[participantIndex];
+        console.log(`🔍 ${label} - Participant ${participantIndex + 1}:`, {
+          exists: !!participant,
+          sttHo: participant?.sttHo,
+          soThangDong: participant?.soThangDong,
+          maSoBHXH: participant?.maSoBHXH,
+          hoTen: participant?.hoTen,
+          id: participant?.id
+        });
+      } else {
+        console.log(`🔍 ${label} - All participants (${currentParticipants.length}):`, currentParticipants.map((p, i) => ({
+          index: i + 1,
+          sttHo: p.sttHo,
+          soThangDong: p.soThangDong,
+          maSoBHXH: p.maSoBHXH,
+          hoTen: p.hoTen,
+          id: p.id
+        })));
+      }
+    }, 50);
+  };
+
+  // Handle household bulk input
+  const handleHouseholdBulkAdd = async (
+    bhxhCodes: string[],
+    soThangDong: string,
+    medicalFacility?: { maBenhVien: string; tenBenhVien: string },
+    progressCallback?: (current: number, currentCode?: string) => void
+  ) => {
+    try {
+      console.log(`🏠 Starting household bulk input for ${bhxhCodes.length} participants`);
+      debugParticipantState('Before bulk input');
+      const startingParticipantCount = participants.length;
+
+      // Add all participants first
+      for (let i = 0; i < bhxhCodes.length; i++) {
+        progressCallback?.(i, `Đang thêm người ${i + 1}/${bhxhCodes.length}...`);
+        console.log(`🏠 Adding participant ${i + 1}/${bhxhCodes.length}`);
+        await handleAddParticipant();
+        // Small delay to ensure state updates properly
+        await new Promise(resolve => setTimeout(resolve, 150));
+        debugParticipantState(`After adding participant ${i + 1}`);
+      }
+
+      // Wait a bit more for all participants to be added
+      console.log(`🏠 Waiting for all participants to be added...`);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      debugParticipantState('After all participants added');
+
+      // Now populate data for each participant sequentially with improved timing
+      for (let i = 0; i < bhxhCodes.length; i++) {
+        const bhxhCode = bhxhCodes[i];
+        const sttHo = (i + 1).toString(); // Auto-increment STT hộ starting from 1
+        const participantIndex = startingParticipantCount + i;
+
+        console.log(`🏠 Setting data for participant ${participantIndex + 1}: BHXH=${bhxhCode}, STT hộ=${sttHo}`);
+        debugParticipantState(`Before setting data for participant ${participantIndex + 1}`, participantIndex);
+
+        // Set mã BHXH first
+        console.log(`🏠 Setting maSoBHXH = "${bhxhCode}" for participant ${participantIndex + 1}`);
+        await handleParticipantChange(participantIndex, 'maSoBHXH', bhxhCode);
+        await new Promise(resolve => setTimeout(resolve, 200)); // Longer delay
+        debugParticipantState(`After setting maSoBHXH for participant ${participantIndex + 1}`, participantIndex);
+
+        // Set số tháng đóng
+        console.log(`🏠 Setting soThangDong = "${soThangDong}" for participant ${participantIndex + 1}`);
+        await handleParticipantChange(participantIndex, 'soThangDong', soThangDong);
+        await new Promise(resolve => setTimeout(resolve, 200)); // Longer delay
+        debugParticipantState(`After setting soThangDong for participant ${participantIndex + 1}`, participantIndex);
+
+        // Set STT hộ (auto-increment for household)
+        const finalSttHo = keKhaiInfo?.doi_tuong_tham_gia && keKhaiInfo.doi_tuong_tham_gia.includes('DS') ? '1' : sttHo;
+        console.log(`🏠 Setting STT hộ = "${finalSttHo}" for participant ${participantIndex + 1}`);
+        await handleParticipantChange(participantIndex, 'sttHo', finalSttHo);
+        await new Promise(resolve => setTimeout(resolve, 200)); // Longer delay
+        debugParticipantState(`After setting sttHo for participant ${participantIndex + 1}`, participantIndex);
+
+        // Set medical facility if provided
+        if (medicalFacility) {
+          console.log(`🏠 Setting medical facility for participant ${participantIndex + 1}: ${medicalFacility.tenBenhVien}`);
+          await handleParticipantChange(participantIndex, 'maBenhVien', medicalFacility.maBenhVien);
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          await handleParticipantChange(participantIndex, 'tenBenhVien', medicalFacility.tenBenhVien);
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          await handleParticipantChange(participantIndex, 'noiDangKyKCB', medicalFacility.tenBenhVien);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // Longer delay before processing next participant
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      // Wait for all data to be set before starting API searches
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Now try to search for participant data for each
+      for (let i = 0; i < bhxhCodes.length; i++) {
+        const bhxhCode = bhxhCodes[i];
+        const participantIndex = startingParticipantCount + i;
+
+        progressCallback?.(i + 1, `Đang tra cứu ${bhxhCode}...`);
+
+        console.log(`🔍 Starting API search for participant ${participantIndex + 1} (BHXH: ${bhxhCode})`);
+        debugParticipantState(`Before API search for participant ${participantIndex + 1}`, participantIndex);
+
+        try {
+          await handleParticipantSearch(participantIndex);
+          // Wait a bit for the API update to complete
+          await new Promise(resolve => setTimeout(resolve, 200));
+          debugParticipantState(`After API search for participant ${participantIndex + 1}`, participantIndex);
+        } catch (searchError) {
+          console.warn(`Could not auto-search for BHXH ${bhxhCode}:`, searchError);
+          // Continue with next participant even if search fails
+        }
+
+        // Delay between API calls to avoid rate limiting
+        if (i < bhxhCodes.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 600));
+        }
+      }
+
+      // Final state check
+      console.log(`🏠 Household bulk input completed successfully`);
+      debugParticipantState('Final state after household bulk input');
+      showToast(`Đã thêm thành công ${bhxhCodes.length} người vào hộ gia đình!`, 'success');
+    } catch (error) {
+      console.error('Household bulk add error:', error);
+      showToast('Có lỗi xảy ra khi thêm hộ gia đình. Vui lòng thử lại.', 'error');
+    }
+  };
+
   // Handle refresh token
   const handleRefreshToken = async () => {
     try {
@@ -425,6 +566,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 savingData={savingData}
                 doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
                 onBulkAdd={undefined}
+                onHouseholdBulkAdd={handleHouseholdBulkAdd}
               />
             )}
 
@@ -442,6 +584,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 savingData={savingData}
                 doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
                 onBulkAdd={undefined}
+                onHouseholdBulkAdd={handleHouseholdBulkAdd}
               />
             )}
 
