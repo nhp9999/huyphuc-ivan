@@ -28,6 +28,8 @@ import {
 interface SidebarProps {
   isOpen: boolean;
   toggleSidebar: () => void;
+  isMobile?: boolean;
+  onClose?: () => void;
 }
 
 interface MenuSection {
@@ -40,7 +42,7 @@ interface MenuSection {
   hidden?: boolean;
 }
 
-const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
+const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, isMobile = false, onClose }) => {
   const { currentPage, setCurrentPage } = useNavigation();
   const { user } = useAuth();
 
@@ -305,11 +307,47 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
     </div>
   );
 
+  // Handle swipe gestures on mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    const startX = touch.clientX;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const currentX = touch.clientX;
+      const diff = startX - currentX;
+
+      // If swiping left more than 50px, close sidebar
+      if (diff > 50 && isOpen) {
+        onClose?.();
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleTouchEnd);
+  };
+
   return (
     <aside
-      className={`${
-        isOpen ? 'w-72' : 'w-20'
-      } transition-all duration-300 ease-in-out bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-lg`}
+      className={`
+        ${isMobile
+          ? `fixed top-0 left-0 h-full z-50 transform transition-transform duration-300 ease-in-out ${
+              isOpen ? 'translate-x-0' : '-translate-x-full'
+            } w-72`
+          : `${isOpen ? 'w-72' : 'w-20'} transition-all duration-300 ease-in-out`
+        }
+        bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-800
+        border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-lg
+      `}
+      onTouchStart={handleTouchStart}
     >
       {/* Header với Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -331,8 +369,10 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
           </div>
         )}
         <button
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:shadow-md"
+          className="sidebar-toggle-btn p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:shadow-md"
           onClick={toggleSidebar}
+          aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          aria-expanded={isOpen}
         >
           <ChevronLeft
             size={18}
@@ -359,13 +399,21 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => 
                     <li key={itemIndex}>
                       <Tooltip content={item.label} disabled={isOpen}>
                         <button
-                          onClick={() => setCurrentPage(item.page)}
+                          onClick={() => {
+                            setCurrentPage(item.page);
+                            // Close sidebar on mobile after navigation
+                            if (isMobile) {
+                              onClose?.();
+                            }
+                          }}
                           className={`
-                            group w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all duration-200 text-left relative
+                            sidebar-nav-item group w-full flex items-center justify-between rounded-xl transition-all duration-200 text-left relative
+                            ${isMobile ? 'px-4 py-4' : 'px-3 py-3'}
                             ${currentPage === item.page
                               ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
                               : 'hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:shadow-md hover:scale-[1.02]'}
                           `}
+                          aria-current={currentPage === item.page ? 'page' : undefined}
                         >
                           <div className="flex items-center">
                             <span className={`flex-shrink-0 ${currentPage === item.page ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>

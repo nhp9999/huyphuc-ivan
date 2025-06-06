@@ -17,9 +17,10 @@ import {
 
 interface HeaderProps {
   toggleSidebar: () => void;
+  isMobile?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
+const Header: React.FC<HeaderProps> = ({ toggleSidebar, isMobile = false }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const { setCurrentPage } = useNavigation();
@@ -35,8 +36,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
     <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 flex items-center justify-between">
       <div className="flex items-center lg:hidden">
         <button
-          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
           onClick={toggleSidebar}
+          aria-label={isMobile ? "Toggle mobile menu" : "Toggle sidebar"}
         >
           <Menu size={20} className="text-gray-500 dark:text-gray-400" />
         </button>
