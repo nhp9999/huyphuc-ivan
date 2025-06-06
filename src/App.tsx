@@ -37,7 +37,8 @@ import {
   MyPayments,
   PaymentManagement,
   HoSoChuaXuLy,
-  HoSoDaXuLy
+  HoSoDaXuLy,
+  RevenueCommission
 } from './modules/ke-khai';
 import TestPaymentDisplay from './test-payment-display';
 
@@ -250,6 +251,12 @@ const AppContent: React.FC = () => {
       <Route path="/phan-quyen-management" element={
         <ProtectedRoute>
           <PhanQuyenManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/revenue-commission" element={
+        <ProtectedRoute>
+          <RevenueCommission />
         </ProtectedRoute>
       } />
 

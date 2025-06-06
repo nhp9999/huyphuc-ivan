@@ -135,6 +135,12 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, isMob
       ]
     },
     {
+      title: 'Doanh thu',
+      items: [
+        { icon: <DollarSign size={20} />, label: 'Doanh thu & Hoa hồng', page: 'revenue-commission' as const }
+      ]
+    },
+    {
       title: 'Xử lý hồ sơ',
       items: [
         { icon: <FileX size={20} />, label: 'Hồ sơ chưa xử lý', page: 'ho-so-chua-xu-ly' as const },
@@ -174,6 +180,12 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, isMob
         { icon: <FileText size={20} />, label: 'Danh mục kê khai', page: 'declaration-categories' as const },
         { icon: <History size={20} />, label: 'Lịch sử kê khai', page: 'declaration-history' as const },
         { icon: <CreditCard size={20} />, label: 'Thanh toán của tôi', page: 'my-payments' as const }
+      ]
+    },
+    {
+      title: 'Doanh thu',
+      items: [
+        { icon: <DollarSign size={20} />, label: 'Doanh thu & Hoa hồng', page: 'revenue-commission' as const }
       ]
     },
     {

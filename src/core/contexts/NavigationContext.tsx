@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-type Page = 'dashboard' | 'settings' | 'calendar' | 'messages' | 'help' | 'bhyt-lookup' | 'bhxh-lookup' | 'bhxh-id-lookup' | 'family-lookup' | 'declaration-categories' | 'ke-khai-603' | 'ke-khai-603-form' | 'declaration-history' | 'ke-khai-management' | 'my-payments' | 'payment-management' | 'ho-so-chua-xu-ly' | 'ho-so-da-xu-ly' | 'don-vi-management' | 'dai-ly-management' | 'dai-ly-don-vi-link' | 'cong-ty-management' | 'co-quan-bhxh-management' | 'nguoi-dung-management' | 'cong-tac-vien-management' | 'my-cong-tac-vien' | 'phan-quyen-management';
+type Page = 'dashboard' | 'settings' | 'calendar' | 'messages' | 'help' | 'bhyt-lookup' | 'bhxh-lookup' | 'bhxh-id-lookup' | 'family-lookup' | 'declaration-categories' | 'ke-khai-603' | 'ke-khai-603-form' | 'declaration-history' | 'ke-khai-management' | 'my-payments' | 'payment-management' | 'ho-so-chua-xu-ly' | 'ho-so-da-xu-ly' | 'don-vi-management' | 'dai-ly-management' | 'dai-ly-don-vi-link' | 'cong-ty-management' | 'co-quan-bhxh-management' | 'nguoi-dung-management' | 'cong-tac-vien-management' | 'my-cong-tac-vien' | 'phan-quyen-management' | 'revenue-commission';
 
 interface NavigationContextType {
   currentPage: Page;
@@ -37,7 +37,8 @@ const pageToRoute: Record<Page, string> = {
   'nguoi-dung-management': '/nguoi-dung-management',
   'cong-tac-vien-management': '/cong-tac-vien-management',
   'my-cong-tac-vien': '/my-cong-tac-vien',
-  'phan-quyen-management': '/phan-quyen-management'
+  'phan-quyen-management': '/phan-quyen-management',
+  'revenue-commission': '/revenue-commission'
 };
 
 // Map routes to page names

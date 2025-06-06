@@ -8,6 +8,7 @@ export { default as MyPayments } from './pages/MyPayments';
 export { default as PaymentManagement } from './pages/PaymentManagement';
 export { default as HoSoChuaXuLy } from './pages/HoSoChuaXuLy';
 export { default as HoSoDaXuLy } from './pages/HoSoDaXuLy';
+export { default as RevenueCommission } from './pages/RevenueCommission';
 export { default as DaiLyDonViSelector } from './components/DaiLyDonViSelector';
 export { default as KeKhaiDetailModal } from './components/KeKhaiDetailModal';
 export { default as KeKhaiApprovalModal } from './components/KeKhaiApprovalModal';
