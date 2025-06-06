@@ -252,11 +252,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       if (result.success) {
         showToast(result.message, 'success');
 
-        // Hiển thị QR modal nếu có payment được tạo
-        if (result.payment) {
-          setSelectedPayment(result.payment);
-          setShowPaymentModal(true);
-        }
+        // No QR modal shown immediately after submission
+        // QR code will be generated and displayed after synthesis staff approval
       } else {
         showToast(result.message, 'error');
       }

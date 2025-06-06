@@ -178,7 +178,7 @@ const KeKhaiApprovalModal: React.FC<KeKhaiApprovalModalProps> = ({
                 : 'text-red-700 dark:text-red-300'
             }`}>
               {isApprove
-                ? 'Kê khai sẽ được duyệt và yêu cầu nhân viên thu thanh toán qua mã QR.'
+                ? 'Kê khai sẽ được duyệt và mã QR thanh toán sẽ được tạo cho nhân viên thu.'
                 : 'Kê khai sẽ được chuyển sang trạng thái "Từ chối" và cần được tạo lại.'
               }
             </p>

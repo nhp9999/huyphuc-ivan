@@ -46,11 +46,20 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
                     <span>•</span>
                     <div className={`w-2 h-2 rounded-full ${
                       keKhaiInfo.trang_thai === 'submitted'
+                        ? 'bg-blue-500'
+                        : keKhaiInfo.trang_thai === 'pending_payment'
+                        ? 'bg-orange-500'
+                        : keKhaiInfo.trang_thai === 'processing'
+                        ? 'bg-purple-500'
+                        : keKhaiInfo.trang_thai === 'completed'
                         ? 'bg-green-500'
                         : 'bg-yellow-500'
                     }`}></div>
                     <span className="font-medium">
-                      {keKhaiInfo.trang_thai === 'submitted' ? 'Đã nộp' : 'Bản nháp'}
+                      {keKhaiInfo.trang_thai === 'submitted' ? 'Chờ duyệt' :
+                       keKhaiInfo.trang_thai === 'pending_payment' ? 'Chờ thanh toán' :
+                       keKhaiInfo.trang_thai === 'processing' ? 'Đang xử lý' :
+                       keKhaiInfo.trang_thai === 'completed' ? 'Hoàn thành' : 'Bản nháp'}
                     </span>
                   </span>
                 </div>

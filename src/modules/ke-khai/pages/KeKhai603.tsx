@@ -472,7 +472,7 @@ const KeKhai603: React.FC = () => {
     }
   };
 
-  // Tạo thanh toán cho kê khai
+  // Tạo thanh toán cho kê khai - DEPRECATED: QR codes are now created only after synthesis staff approval
   const handleCreatePayment = async (keKhai: DanhSachKeKhai) => {
     try {
       setCreatingPayment(keKhai.id);
@@ -674,12 +674,13 @@ const KeKhai603: React.FC = () => {
     showToast('Thanh toán đã được xác nhận!', 'success');
   };
 
-  // Kiểm tra xem kê khai có cần thanh toán không
+  // Kiểm tra xem kê khai có cần thanh toán không (chỉ sau khi được duyệt)
   const needsPayment = (keKhai: DanhSachKeKhai): boolean => {
-    return keKhai.trang_thai === 'submitted' && !keKhai.payment_status;
+    // QR code chỉ được tạo sau khi synthesis staff duyệt, không phải ngay khi collection staff submit
+    return false; // Removed automatic payment creation for submitted declarations
   };
 
-  // Kiểm tra xem kê khai có đang chờ thanh toán không
+  // Kiểm tra xem kê khai có đang chờ thanh toán không (sau khi được duyệt)
   const isPendingPayment = (keKhai: DanhSachKeKhai): boolean => {
     return keKhai.trang_thai === 'pending_payment' || keKhai.payment_status === 'pending';
   };
@@ -1143,10 +1144,19 @@ const KeKhai603: React.FC = () => {
                               ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                               : keKhai.trang_thai === 'submitted'
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                              : keKhai.trang_thai === 'pending_payment'
+                              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                              : keKhai.trang_thai === 'processing'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
+                              : keKhai.trang_thai === 'completed'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                               : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
                           }`}>
                             {keKhai.trang_thai === 'draft' ? 'Nháp' :
-                             keKhai.trang_thai === 'submitted' ? 'Đã nộp' : keKhai.trang_thai}
+                             keKhai.trang_thai === 'submitted' ? 'Chờ duyệt' :
+                             keKhai.trang_thai === 'pending_payment' ? 'Chờ thanh toán' :
+                             keKhai.trang_thai === 'processing' ? 'Đang xử lý' :
+                             keKhai.trang_thai === 'completed' ? 'Hoàn thành' : keKhai.trang_thai}
                           </span>
                         </div>
                         <div className="text-sm text-gray-900 dark:text-white">
@@ -1179,21 +1189,7 @@ const KeKhai603: React.FC = () => {
                             <span>Xem chi tiết</span>
                           </button>
 
-                          {/* Payment button for mobile */}
-                          {needsPayment(keKhai) && (
-                            <button
-                              onClick={() => handleCreatePayment(keKhai)}
-                              disabled={creatingPayment === keKhai.id}
-                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center"
-                              title="Tạo thanh toán"
-                            >
-                              {creatingPayment === keKhai.id ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CreditCard className="w-4 h-4" />
-                              )}
-                            </button>
-                          )}
+                          {/* QR code viewing for mobile - only after approval */}
 
                           {isPendingPayment(keKhai) && (
                             <button
@@ -1355,13 +1351,19 @@ const KeKhai603: React.FC = () => {
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                               : keKhai.trang_thai === 'pending_payment'
                               ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                              : keKhai.trang_thai === 'processing'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
+                              : keKhai.trang_thai === 'completed'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                               : keKhai.trang_thai === 'paid'
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                               : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
                           }`}>
                             {keKhai.trang_thai === 'draft' ? 'Nháp' :
-                             keKhai.trang_thai === 'submitted' ? 'Đã nộp' :
+                             keKhai.trang_thai === 'submitted' ? 'Chờ duyệt' :
                              keKhai.trang_thai === 'pending_payment' ? 'Chờ thanh toán' :
+                             keKhai.trang_thai === 'processing' ? 'Đang xử lý' :
+                             keKhai.trang_thai === 'completed' ? 'Hoàn thành' :
                              keKhai.trang_thai === 'paid' ? 'Đã thanh toán' : keKhai.trang_thai}
                           </span>
                         </div>
@@ -1374,9 +1376,9 @@ const KeKhai603: React.FC = () => {
                             <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
                               Chờ thanh toán
                             </span>
-                          ) : needsPayment(keKhai) ? (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                              Cần thanh toán
+                          ) : keKhai.trang_thai === 'submitted' ? (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                              Chờ duyệt
                             </span>
                           ) : (
                             <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
@@ -1407,21 +1409,7 @@ const KeKhai603: React.FC = () => {
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          {/* Payment buttons - primary when needed */}
-                          {needsPayment(keKhai) && (
-                            <button
-                              onClick={() => handleCreatePayment(keKhai)}
-                              disabled={creatingPayment === keKhai.id}
-                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
-                              title="Tạo thanh toán"
-                            >
-                              {creatingPayment === keKhai.id ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CreditCard className="w-4 h-4" />
-                              )}
-                            </button>
-                          )}
+                          {/* QR code viewing - only available after synthesis staff approval */}
 
                           {isPendingPayment(keKhai) && (
                             <button

@@ -191,53 +191,20 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
     try {
       setSubmitting(true);
 
-      // Update declaration status to submitted
-      await keKhaiService.updateKeKhai(keKhaiInfo.id, {
+      // Update declaration status to submitted - QR code will be generated after synthesis staff approval
+      const updatedKeKhai = await keKhaiService.updateKeKhai(keKhaiInfo.id, {
         trang_thai: 'submitted',
         updated_by: user?.id || 'system'
       } as any);
 
-      // Tạo thanh toán sau khi nộp kê khai thành công
-      try {
-        // Tính tổng số tiền cần thanh toán
-        const totalAmount = await paymentService.calculateTotalAmount(keKhaiInfo.id);
+      // Cập nhật state local với thông tin mới
+      setKeKhaiInfo(updatedKeKhai);
 
-        // Tạo yêu cầu thanh toán
-        const payment = await paymentService.createPayment({
-          ke_khai_id: keKhaiInfo.id,
-          so_tien: totalAmount,
-          phuong_thuc_thanh_toan: 'qr_code',
-          payment_description: `Thanh toán kê khai ${keKhaiInfo.ma_ke_khai}`,
-          created_by: user?.id
-        });
-
-        // Cập nhật payment_id và trạng thái thanh toán vào kê khai
-        const updatedKeKhai = await keKhaiService.updateKeKhai(keKhaiInfo.id, {
-          trang_thai: 'pending_payment',
-          payment_status: 'pending',
-          payment_id: payment.id,
-          total_amount: totalAmount,
-          payment_required_at: new Date().toISOString(),
-          updated_by: user?.id || 'system'
-        } as any);
-
-        // Cập nhật state local với thông tin mới
-        setKeKhaiInfo(updatedKeKhai);
-
-        return {
-          success: true,
-          message: 'Đã nộp kê khai 603 thành công!',
-          payment: payment
-        };
-      } catch (paymentError) {
-        console.error('Error creating payment after submission:', paymentError);
-        // Vẫn trả về thành công vì kê khai đã được nộp, chỉ thông báo về payment
-        return {
-          success: true,
-          message: 'Đã nộp kê khai 603 thành công! Tuy nhiên có lỗi khi tạo thanh toán, vui lòng liên hệ bộ phận hỗ trợ.',
-          payment: null
-        };
-      }
+      return {
+        success: true,
+        message: 'Đã nộp kê khai 603 thành công! Kê khai sẽ được xem xét và duyệt bởi nhân viên tổng hợp.',
+        payment: null // No payment created yet - will be created after approval
+      };
     } catch (error) {
       console.error('Error submitting declaration:', error);
       return {
