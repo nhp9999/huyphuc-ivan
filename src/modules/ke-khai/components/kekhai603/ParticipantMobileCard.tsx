@@ -22,6 +22,10 @@ interface ParticipantMobileCardProps {
   handleTinhChange: (index: number, value: string) => void;
   handleHuyenChange: (index: number, value: string) => void;
   isDarkMode?: boolean;
+  // Bulk selection props
+  isSelected?: boolean;
+  onSelectionChange?: (index: number) => void;
+  showCheckbox?: boolean;
 }
 
 export const ParticipantMobileCard: React.FC<ParticipantMobileCardProps> = ({
@@ -42,11 +46,14 @@ export const ParticipantMobileCard: React.FC<ParticipantMobileCardProps> = ({
   loadingCSKCB,
   handleTinhChange,
   handleHuyenChange,
-  isDarkMode = false
+  isDarkMode = false,
+  isSelected = false,
+  onSelectionChange,
+  showCheckbox = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const cardClasses = `${styles.participantCard} ${isDarkMode ? styles.dark : ''}`;
+  const cardClasses = `${styles.participantCard} ${isDarkMode ? styles.dark : ''} ${isSelected ? styles.selected : ''}`;
   const headerClasses = `${styles.cardHeader} ${isDarkMode ? styles.dark : ''}`;
   const titleClasses = `${styles.cardTitle} ${isDarkMode ? styles.dark : ''}`;
   const labelClasses = `${styles.cardFieldLabel} ${isDarkMode ? styles.dark : ''}`;
@@ -59,8 +66,21 @@ export const ParticipantMobileCard: React.FC<ParticipantMobileCardProps> = ({
     <div className={cardClasses}>
       {/* Card Header */}
       <div className={headerClasses}>
-        <div className={titleClasses}>
-          {participant.hoTen || `Người tham gia ${index + 1}`}
+        <div className="flex items-center space-x-3">
+          {/* Checkbox for bulk selection */}
+          {showCheckbox && onSelectionChange && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onSelectionChange(index)}
+              disabled={savingData}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+              title="Chọn người này"
+            />
+          )}
+          <div className={titleClasses}>
+            {participant.hoTen || `Người tham gia ${index + 1}`}
+          </div>
         </div>
         <div className={styles.cardIndex}>#{index + 1}</div>
       </div>

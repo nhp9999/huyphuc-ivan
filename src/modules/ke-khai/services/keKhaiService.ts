@@ -761,6 +761,24 @@ class KeKhaiService {
     }
   }
 
+  // Xóa nhiều người tham gia cùng lúc
+  async deleteMultipleNguoiThamGia(ids: number[]): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .delete()
+        .in('id', ids);
+
+      if (error) {
+        console.error('Error deleting multiple nguoi tham gia:', error);
+        throw new Error('Không thể xóa danh sách người tham gia');
+      }
+    } catch (error) {
+      console.error('Error in deleteMultipleNguoiThamGia:', error);
+      throw error;
+    }
+  }
+
   // Kiểm tra quyền admin của user
   async isUserAdmin(userId: string): Promise<boolean> {
     try {

@@ -602,6 +602,79 @@
   scroll-behavior: smooth;
 }
 
+/* ===== BULK SELECTION STYLES ===== */
+
+/* Checkbox styling for better visibility */
+.participantTable input[type="checkbox"] {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.participantTable input[type="checkbox"]:hover {
+  transform: scale(1.1);
+}
+
+.participantTable input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Selected row highlighting */
+.participantTable tr.selected {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.participantTable tr.selected:hover {
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+/* Dark mode selected row */
+.participantTable.dark tr.selected {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.participantTable.dark tr.selected:hover {
+  background-color: rgba(59, 130, 246, 0.25);
+}
+
+/* Mobile card selection styling */
+.participantCard.selected {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.participantCard.selected.dark {
+  border-color: #60a5fa;
+  background-color: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3);
+}
+
+/* Bulk action button styling */
+.bulkActionButton {
+  transition: all 0.3s ease;
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Checkbox in mobile card header */
+.cardHeader input[type="checkbox"] {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
 /* ===== PRINT STYLES ===== */
 @media print {
   .mobileCardContainer {

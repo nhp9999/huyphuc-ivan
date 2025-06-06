@@ -58,6 +58,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     handleParticipantChange,
     addParticipant,
     removeParticipant,
+    removeMultipleParticipants,
     updateParticipantWithApiData,
     saveSingleParticipant
   } = useKeKhai603Participants(keKhaiInfo?.id, keKhaiInfo?.doi_tuong_tham_gia);
@@ -293,6 +294,18 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
+  // Handle bulk remove participants
+  const handleBulkRemoveParticipants = async (indices: number[]) => {
+    try {
+      await removeMultipleParticipants(indices);
+      const count = indices.length;
+      showToast(`Đã xóa ${count} người tham gia thành công!`, 'success');
+    } catch (error) {
+      console.error('Bulk remove participants error:', error);
+      showToast('Có lỗi xảy ra khi xóa người tham gia. Vui lòng thử lại.', 'error');
+    }
+  };
+
   // Handle save single participant
   const handleSaveSingleParticipant = async (index: number) => {
     try {
@@ -409,6 +422,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleParticipantKeyPress={handleParticipantKeyPress}
                 handleAddParticipant={handleAddParticipant}
                 handleRemoveParticipant={handleRemoveParticipant}
+                handleBulkRemoveParticipants={handleBulkRemoveParticipants}
                 handleSaveSingleParticipant={handleSaveSingleParticipant}
                 participantSearchLoading={participantSearchLoading}
                 savingData={savingData}
@@ -425,6 +439,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 handleParticipantKeyPress={handleParticipantKeyPress}
                 handleAddParticipant={handleAddParticipant}
                 handleRemoveParticipant={handleRemoveParticipant}
+                handleBulkRemoveParticipants={handleBulkRemoveParticipants}
                 handleSaveSingleParticipant={handleSaveSingleParticipant}
                 participantSearchLoading={participantSearchLoading}
                 savingData={savingData}

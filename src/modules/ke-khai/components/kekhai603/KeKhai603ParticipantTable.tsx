@@ -9,6 +9,7 @@ import styles from './KeKhai603ParticipantTable.module.css';
 import { BulkInputModal } from './BulkInputModal';
 import { QuickFillModal } from './QuickFillModal';
 import { ParticipantMobileCard } from './ParticipantMobileCard';
+import ConfirmDeleteModal from '../../../../shared/components/ui/ConfirmDeleteModal';
 
 interface KeKhai603ParticipantTableProps {
   participants: KeKhai603Participant[];
@@ -16,6 +17,7 @@ interface KeKhai603ParticipantTableProps {
   handleParticipantKeyPress: (e: React.KeyboardEvent, index: number) => void;
   handleAddParticipant: () => Promise<void>;
   handleRemoveParticipant: (index: number) => void;
+  handleBulkRemoveParticipants?: (indices: number[]) => Promise<void>; // Thêm prop cho bulk delete
   handleSaveSingleParticipant: (index: number) => Promise<void>;
   participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
@@ -29,6 +31,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   handleParticipantKeyPress,
   handleAddParticipant,
   handleRemoveParticipant,
+  handleBulkRemoveParticipants,
   handleSaveSingleParticipant,
   participantSearchLoading,
   savingData,
@@ -50,6 +53,11 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   // State for modals
   const [showBulkInputModal, setShowBulkInputModal] = useState(false);
   const [showQuickFillModal, setShowQuickFillModal] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // State for selection
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
 
   // State for bulk input processing
   const [bulkInputData, setBulkInputData] = useState<any[]>([]);
@@ -265,6 +273,70 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     });
   };
 
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedIndices(new Set());
+      setSelectAll(false);
+    } else {
+      setSelectedIndices(new Set(Array.from({ length: participants.length }, (_, i) => i)));
+      setSelectAll(true);
+    }
+  };
+
+  const handleSelectRow = (index: number) => {
+    const newSelected = new Set(selectedIndices);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedIndices(newSelected);
+    setSelectAll(newSelected.size === participants.length);
+  };
+
+  // Update selectAll state when participants change
+  React.useEffect(() => {
+    if (selectedIndices.size === 0) {
+      setSelectAll(false);
+    } else if (selectedIndices.size === participants.length && participants.length > 0) {
+      setSelectAll(true);
+    } else {
+      setSelectAll(false);
+    }
+  }, [selectedIndices.size, participants.length]);
+
+  // Clear selection when participants change significantly
+  React.useEffect(() => {
+    setSelectedIndices(new Set());
+    setSelectAll(false);
+  }, [participants.length]);
+
+  // Handle bulk delete
+  const handleBulkDelete = () => {
+    if (selectedIndices.size === 0) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (!handleBulkRemoveParticipants || selectedIndices.size === 0) return;
+
+    try {
+      const indicesToDelete = Array.from(selectedIndices).sort((a, b) => b - a); // Sort descending to maintain indices
+      await handleBulkRemoveParticipants(indicesToDelete);
+      setSelectedIndices(new Set());
+      setSelectAll(false);
+      setShowBulkDeleteConfirm(false);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
+  const cancelBulkDelete = () => {
+    setShowBulkDeleteConfirm(false);
+  };
+
 
 
   // Auto-load districts and wards for existing participants
@@ -338,6 +410,19 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
               <span>Nhập hàng loạt</span>
             </button>
 
+            {/* Bulk Delete Button - Only show when items are selected */}
+            {selectedIndices.size > 0 && handleBulkRemoveParticipants && (
+              <button
+                onClick={handleBulkDelete}
+                disabled={savingData}
+                className="flex items-center justify-center space-x-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm"
+                title={`Xóa ${selectedIndices.size} người đã chọn`}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Xóa ({selectedIndices.size})</span>
+              </button>
+            )}
+
             {/* Add Single Button */}
             <button
               onClick={handleAddParticipant}
@@ -382,6 +467,10 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                 handleTinhChange={handleTinhChange}
                 handleHuyenChange={handleHuyenChange}
                 isDarkMode={isDarkMode}
+                // Bulk selection props
+                isSelected={selectedIndices.has(index)}
+                onSelectionChange={handleSelectRow}
+                showCheckbox={!!handleBulkRemoveParticipants}
               />
             ))
           )}
@@ -393,6 +482,19 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
             <table className={`w-full min-w-max ${styles.participantTable}`}>
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
+                {/* Checkbox column - only show if bulk delete is available */}
+                {handleBulkRemoveParticipants && (
+                  <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[40px] min-w-[40px] max-w-[40px]">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      disabled={savingData || participants.length === 0}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+                      title="Chọn tất cả"
+                    />
+                  </th>
+                )}
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[40px] min-w-[40px] max-w-[40px]">STT</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[100px] min-w-[100px] max-w-[100px]">Mã BHXH</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[180px] min-w-[180px] max-w-[180px]">Họ tên</th>
@@ -419,7 +521,25 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
             </thead>
             <tbody>
               {participants.map((participant, index) => (
-                <tr key={participant.id || index} className="border-b border-gray-100 dark:border-gray-700">
+                <tr
+                  key={participant.id || index}
+                  className={`border-b border-gray-100 dark:border-gray-700 ${
+                    selectedIndices.has(index) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  }`}
+                >
+                  {/* Checkbox column - only show if bulk delete is available */}
+                  {handleBulkRemoveParticipants && (
+                    <td className="py-3 px-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIndices.has(index)}
+                        onChange={() => handleSelectRow(index)}
+                        disabled={savingData}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+                        title="Chọn dòng này"
+                      />
+                    </td>
+                  )}
                   <td className="py-3 px-2">
                     <span className="text-sm text-gray-900 dark:text-white">{index + 1}</span>
                   </td>
@@ -701,6 +821,17 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         onApply={handleQuickFill}
         participantCount={participants.length}
         doiTuongThamGia={doiTuongThamGia}
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={showBulkDeleteConfirm}
+        title="Xóa nhiều người tham gia"
+        message="Bạn có chắc chắn muốn xóa những người tham gia đã chọn?"
+        itemName={`${selectedIndices.size} người tham gia`}
+        onConfirm={confirmBulkDelete}
+        onCancel={cancelBulkDelete}
+        loading={savingData}
       />
     </div>
   );

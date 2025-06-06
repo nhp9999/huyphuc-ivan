@@ -304,6 +304,36 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     }
   };
 
+  // Remove multiple participants
+  const removeMultipleParticipants = async (indices: number[]) => {
+    if (indices.length === 0) return;
+
+    try {
+      setSavingData(true);
+
+      // Get participants to delete
+      const participantsToDelete = indices.map(index => participants[index]).filter(Boolean);
+
+      // Get IDs of saved participants
+      const idsToDelete = participantsToDelete
+        .filter(p => p.id)
+        .map(p => p.id!);
+
+      // Delete from database if there are saved participants
+      if (idsToDelete.length > 0) {
+        await keKhaiService.deleteMultipleNguoiThamGia(idsToDelete);
+      }
+
+      // Update local state - remove participants at specified indices
+      setParticipants(prev => prev.filter((_, index) => !indices.includes(index)));
+    } catch (error) {
+      console.error('Error removing multiple participants:', error);
+      throw error;
+    } finally {
+      setSavingData(false);
+    }
+  };
+
   // Save single participant (only the changed one)
   const saveSingleParticipant = async (index: number) => {
     if (!keKhaiId) {
@@ -457,6 +487,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     handleParticipantChange,
     addParticipant,
     removeParticipant,
+    removeMultipleParticipants,
     updateParticipantWithApiData,
     saveSingleParticipant,
     setParticipants
