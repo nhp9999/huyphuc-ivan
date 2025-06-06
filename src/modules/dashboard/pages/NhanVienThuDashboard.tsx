@@ -1,118 +1,183 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, 
-  CreditCard, 
-  Clock, 
-  CheckCircle, 
+import {
+  FileText,
+  CreditCard,
+  Clock,
+  CheckCircle,
   AlertCircle,
   TrendingUp,
   Calendar,
-  DollarSign
+  DollarSign,
+  Users,
+  Award
 } from 'lucide-react';
 import { useAuth } from '../../auth/contexts/AuthContext';
+import { useToast } from '../../../shared/hooks/useToast';
 import StatsCard from '../../../shared/components/widgets/StatsCard';
 import RecentActivity from '../../../shared/components/widgets/RecentActivity';
 import TaskList from '../../../shared/components/widgets/TaskList';
+import dashboardService, { UserDashboardData } from '../services/dashboardService';
 // PaymentNotification is now handled globally in Layout.tsx
 import { useNavigation } from '../../../core/contexts/NavigationContext';
 
-// Mock data cho nhân viên thu
-const nhanVienThuStatsData = [
-  {
-    title: 'Kê khai của tôi',
-    value: '23',
-    change: { value: 3, type: 'increase' },
-    icon: FileText,
-    color: '#3B82F6' // Blue
-  },
-  {
-    title: 'Chờ thanh toán',
-    value: '5',
-    change: { value: 1, type: 'increase' },
-    icon: Clock,
-    color: '#F59E0B' // Amber
-  },
-  {
-    title: 'Đã hoàn thành',
-    value: '18',
-    change: { value: 2, type: 'increase' },
-    icon: CheckCircle,
-    color: '#10B981' // Green
-  },
-  {
-    title: 'Tổng thanh toán',
-    value: '12.5M',
-    change: { value: 8.5, type: 'increase' },
-    icon: DollarSign,
-    color: '#8B5CF6' // Purple
-  }
-];
 
-const nhanVienThuActivities = [
-  {
-    id: 1,
-    title: 'Kê khai BHYT mới',
-    description: 'Bạn đã tạo kê khai đăng ký BHYT cho 15 người',
-    time: '30 phút trước',
-    icon: 'file-text'
-  },
-  {
-    id: 2,
-    title: 'Thanh toán hoàn tất',
-    description: 'Thanh toán kê khai #KK2024015 - 2,500,000 VNĐ',
-    time: '2 giờ trước',
-    icon: 'credit-card'
-  },
-  {
-    id: 3,
-    title: 'Kê khai được duyệt',
-    description: 'Kê khai #KK2024014 đã được phê duyệt',
-    time: '4 giờ trước',
-    icon: 'check-circle'
-  },
-  {
-    id: 4,
-    title: 'Cập nhật thông tin',
-    description: 'Cập nhật thông tin BHYT cho 3 người tham gia',
-    time: '1 ngày trước',
-    icon: 'edit'
-  }
-];
 
-const nhanVienThuTasks = [
-  {
-    id: 1,
-    title: 'Hoàn thành thanh toán kê khai #KK2024016',
-    priority: 'high' as const,
-    dueDate: 'Hôm nay',
-    completed: false
-  },
-  {
-    id: 2,
-    title: 'Cập nhật thông tin BHYT cho nhóm ABC',
-    priority: 'medium' as const,
-    dueDate: 'Ngày mai',
-    completed: false
-  },
-  {
-    id: 3,
-    title: 'Kiểm tra trạng thái kê khai #KK2024013',
-    priority: 'low' as const,
-    dueDate: '2 ngày nữa',
-    completed: false
-  },
-  {
-    id: 4,
-    title: 'Chuẩn bị hồ sơ kê khai tháng tới',
-    priority: 'medium' as const,
-    dueDate: '1 tuần nữa',
-    completed: false
-  }
-];
+
 
 const NhanVienThuDashboard: React.FC = () => {
   const { user } = useAuth();
   const { setCurrentPage } = useNavigation();
+  const { showToast } = useToast();
+
+  // State for dashboard data
+  const [dashboardData, setDashboardData] = useState<UserDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load dashboard data
+  useEffect(() => {
+    if (user?.id) {
+      loadDashboardData();
+    }
+  }, [user?.id]);
+
+  const loadDashboardData = async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('🔄 Loading dashboard data for user:', user.id);
+
+      const data = await dashboardService.getUserDashboardData(user.id);
+      setDashboardData(data);
+      console.log('✅ Dashboard data loaded:', data);
+
+    } catch (err) {
+      console.error('❌ Error loading dashboard data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Không thể tải dữ liệu dashboard';
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate stats data from real user data
+  const statsData = dashboardData ? [
+    {
+      title: 'Kê khai của tôi',
+      value: dashboardData.totalDeclarations.toString(),
+      change: dashboardData.totalDeclarations > 0 ? { value: 12, type: 'increase' as const } : undefined,
+      icon: FileText,
+      color: '#3B82F6' // Blue
+    },
+    {
+      title: 'Chờ thanh toán',
+      value: dashboardData.pendingPaymentDeclarations.toString(),
+      change: dashboardData.pendingPaymentDeclarations > 0 ? { value: 5, type: 'increase' as const } : undefined,
+      icon: Clock,
+      color: '#F59E0B' // Amber
+    },
+    {
+      title: 'Đã hoàn thành',
+      value: dashboardData.completedDeclarations.toString(),
+      change: dashboardData.completedDeclarations > 0 ? { value: 8, type: 'increase' as const } : undefined,
+      icon: CheckCircle,
+      color: '#10B981' // Green
+    },
+    {
+      title: 'Tổng doanh thu',
+      value: dashboardService.formatCurrency(dashboardData.totalRevenue),
+      change: dashboardData.totalRevenue > 0 ? { value: 15, type: 'increase' as const } : undefined,
+      icon: DollarSign,
+      color: '#8B5CF6' // Purple
+    }
+  ] : [];
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div>
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-64 mb-2 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-96 animate-pulse"></div>
+        </div>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2 animate-pulse"></div>
+                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse"></div>
+                </div>
+                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Content Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-4 animate-pulse"></div>
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-1 animate-pulse"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-4 animate-pulse"></div>
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Chào mừng, {user?.ho_ten || 'Nhân viên thu'}!
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Đây là tổng quan về hoạt động kê khai và thanh toán của bạn.
+          </p>
+        </div>
+
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
+            Không thể tải dữ liệu dashboard
+          </h3>
+          <p className="text-red-700 dark:text-red-300 mb-4">{error}</p>
+          <button
+            onClick={loadDashboardData}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -130,7 +195,7 @@ const NhanVienThuDashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {nhanVienThuStatsData.map((stat, index) => (
+        {statsData.map((stat, index) => (
           <StatsCard
             key={index}
             title={stat.title}
@@ -185,50 +250,174 @@ const NhanVienThuDashboard: React.FC = () => {
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activities */}
-        <RecentActivity activities={nhanVienThuActivities} />
-        
-        {/* Task List */}
-        <TaskList tasks={nhanVienThuTasks} />
+        <RecentActivity activities={dashboardData?.recentActivities || []} />
+
+        {/* Personalized Tasks */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Công việc của tôi</h3>
+
+          <div className="space-y-3">
+            {dashboardData?.personalizedTasks && dashboardData.personalizedTasks.length > 0 ? (
+              dashboardData.personalizedTasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      task.priority === 'high' ? 'bg-red-500' :
+                      task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}></div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {task.dueDate}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                    task.priority === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                    task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                  }`}>
+                    {task.priority === 'high' ? 'Cao' : task.priority === 'medium' ? 'Trung bình' : 'Thấp'}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
+                <p className="text-gray-500 dark:text-gray-400">Không có công việc nào cần làm</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Performance Summary */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Hiệu suất cá nhân</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                Tổng người tham gia
+              </span>
+            </div>
+            <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              {dashboardData?.totalParticipants || 0}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <span className="text-sm font-medium text-green-900 dark:text-green-100">
+                Doanh thu tháng này
+              </span>
+            </div>
+            <span className="text-lg font-bold text-green-600 dark:text-green-400">
+              {dashboardService.formatCurrency(dashboardData?.monthlyRevenue || 0)}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <Award className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <span className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                Hoa hồng tích lũy
+              </span>
+            </div>
+            <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
+              {dashboardService.formatCurrency(dashboardData?.commission || 0)}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setCurrentPage('revenue-commission')}
+            className="w-full text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Xem chi tiết doanh thu & hoa hồng →
+          </button>
+        </div>
       </div>
 
       {/* Status Overview */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-            Tình trạng công việc
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Tình trạng kê khai của tôi
           </h3>
           <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700">
             <div className="flex items-center space-x-3">
               <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Chờ xử lý</p>
-                <p className="text-2xl font-bold text-amber-600">5</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Chờ thanh toán</p>
+                <p className="text-2xl font-bold text-amber-600">
+                  {dashboardData?.declarationsByStatus.pending_payment || 0}
+                </p>
               </div>
             </div>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700">
             <div className="flex items-center space-x-3">
               <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Đang xử lý</p>
-                <p className="text-2xl font-bold text-blue-600">3</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {dashboardData?.declarationsByStatus.processing || 0}
+                </p>
               </div>
             </div>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700">
             <div className="flex items-center space-x-3">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-white">Hoàn thành</p>
-                <p className="text-2xl font-bold text-green-600">18</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {(dashboardData?.declarationsByStatus.completed || 0) + (dashboardData?.declarationsByStatus.paid || 0)}
+                </p>
               </div>
             </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Nháp</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {dashboardData?.declarationsByStatus.draft || 0}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => setCurrentPage('declaration-history')}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              Xem lịch sử kê khai
+            </button>
+            <button
+              onClick={() => setCurrentPage('declaration-categories')}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
+            >
+              Tạo kê khai mới
+            </button>
           </div>
         </div>
       </div>
