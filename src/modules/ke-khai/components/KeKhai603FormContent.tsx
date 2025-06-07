@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigation } from '../../../core/contexts/NavigationContext';
 import Toast from '../../../shared/components/ui/Toast';
-import { useKeKhai603FormData, calculateKeKhai603Amount, calculateKeKhai603AmountThucTe } from '../hooks/useKeKhai603FormData';
+import { useKeKhai603FormData, calculateKeKhai603Amount, calculateKeKhai603AmountThucTe, calculateKeKhai603CardValidity } from '../hooks/useKeKhai603FormData';
 import { useKeKhai603Participants } from '../hooks/useKeKhai603Participants';
 import { useKeKhai603Api } from '../hooks/useKeKhai603Api';
 import { useKeKhai603 } from '../hooks/useKeKhai603';
@@ -393,6 +393,16 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
       try {
         progressCallback?.(Math.floor(bhxhCodes.length * 0.2), 'Đang lưu vào cơ sở dữ liệu...');
+
+        // Debug log the data being saved
+        console.log(`💾 Saving ${participantDataList.length} participants with data:`, participantDataList.map(p => ({
+          ma_so_bhxh: p.ma_so_bhxh,
+          ma_benh_vien: p.ma_benh_vien,
+          noi_dang_ky_kcb: p.noi_dang_ky_kcb,
+          noi_nhan_ho_so: p.noi_nhan_ho_so,
+          tinh_kcb: p.tinh_kcb
+        })));
+
         const batchSaveResult = await keKhaiService.addMultipleNguoiThamGia(participantDataList);
 
         batchSaveResult.forEach((participant, index) => {
@@ -465,24 +475,79 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
               phuong_an: directSearchResult.data.phuongAn || undefined
             };
 
+            // Handle noi_nhan_ho_so from API data (this is more accurate than modal data)
+            if (directSearchResult.data.noiNhanHoSo) {
+              apiUpdateData.noi_nhan_ho_so = directSearchResult.data.noiNhanHoSo;
+              console.log(`📋 Using API noi_nhan_ho_so: ${directSearchResult.data.noiNhanHoSo}`);
+            }
+
+            // Handle card validity dates from API data
+            if (directSearchResult.data.tuNgayTheCu) {
+              apiUpdateData.tu_ngay_the_cu = directSearchResult.data.tuNgayTheCu;
+              console.log(`📅 Using API tu_ngay_the_cu: ${directSearchResult.data.tuNgayTheCu}`);
+            }
+
+            if (directSearchResult.data.denNgayTheCu) {
+              apiUpdateData.den_ngay_the_cu = directSearchResult.data.denNgayTheCu;
+              console.log(`📅 Using API den_ngay_the_cu: ${directSearchResult.data.denNgayTheCu}`);
+            }
+
+            // Handle new card validity dates from API data
+            if (directSearchResult.data.tuNgayTheMoi) {
+              apiUpdateData.tu_ngay_the_moi = directSearchResult.data.tuNgayTheMoi;
+              console.log(`📅 Using API tu_ngay_the_moi: ${directSearchResult.data.tuNgayTheMoi}`);
+            }
+
+            if (directSearchResult.data.denNgayTheMoi) {
+              apiUpdateData.den_ngay_the_moi = directSearchResult.data.denNgayTheMoi;
+              console.log(`📅 Using API den_ngay_the_moi: ${directSearchResult.data.denNgayTheMoi}`);
+            }
+
             // Only update medical facility data if no facility was selected in modal
             // This preserves the user's choice from the household bulk input modal
             if (!medicalFacility?.maBenhVien) {
               apiUpdateData.noi_dang_ky_kcb = directSearchResult.data.noiDangKyKCB || undefined;
               apiUpdateData.tinh_kcb = directSearchResult.data.tinhKCB || undefined;
               apiUpdateData.ma_benh_vien = directSearchResult.data.maBenhVien || undefined;
+              console.log(`🏥 Using API medical facility data`);
+            } else {
+              // If medical facility was selected in modal, preserve the modal choice
+              console.log(`🏥 Preserving medical facility data from modal: ${medicalFacility.tenBenhVien}`);
             }
-            // If medical facility was selected in modal, keep the original values
-            // and don't overwrite with API data
 
-            // Clean undefined values
+            // Clean undefined values but preserve important fields that were set in initial save
             Object.keys(apiUpdateData).forEach(key => {
               if (apiUpdateData[key] === undefined || apiUpdateData[key] === '') {
                 delete apiUpdateData[key];
               }
             });
 
+            console.log(`💾 Updating participant ${id} with API data:`, apiUpdateData);
             await keKhaiService.updateNguoiThamGia(parseInt(id), apiUpdateData);
+            console.log(`✅ Successfully updated participant ${id} with API data`);
+
+            // Calculate card validity dates after API update (need denNgayTheCu from API)
+            const participantIndex = savedParticipants.findIndex(p => p.id === id);
+            if (participantIndex !== -1) {
+              const soThangDongValue = soThangDong; // Use the parameter from function scope
+              const ngayBienLai = new Date().toISOString().split('T')[0]; // Today's date
+              const denNgayTheCu = directSearchResult.data.denNgayTheCu || '';
+
+              if (soThangDongValue && ngayBienLai) {
+                const cardValidity = calculateKeKhai603CardValidity(soThangDongValue, denNgayTheCu, ngayBienLai);
+
+                // Update card validity dates
+                const cardUpdateData = {
+                  tu_ngay_the_moi: cardValidity.tuNgay,
+                  den_ngay_the_moi: cardValidity.denNgay,
+                  ngay_bien_lai: ngayBienLai
+                };
+
+                await keKhaiService.updateNguoiThamGia(parseInt(id), cardUpdateData);
+                console.log(`📅 Updated card validity for participant ${id}: ${cardValidity.tuNgay} to ${cardValidity.denNgay}`);
+              }
+            }
+
             return { success: true, bhxhCode };
           } else {
             return { success: false, bhxhCode, error: directSearchResult.message };
