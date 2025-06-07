@@ -22,8 +22,8 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
 
       <div className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-4">
-          {/* Mức lương */}
-          <div className="md:col-span-2 lg:col-span-2 xl:col-span-3">
+          {/* Mức lương - Hidden as per user preference */}
+          <div className="hidden md:col-span-2 lg:col-span-2 xl:col-span-3">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Mức lương
             </label>
@@ -36,8 +36,8 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
             />
           </div>
 
-          {/* Tỷ lệ đóng */}
-          <div className="md:col-span-1 lg:col-span-1 xl:col-span-2">
+          {/* Tỷ lệ đóng - Hidden as per user preference */}
+          <div className="hidden md:col-span-1 lg:col-span-1 xl:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Tỷ lệ đóng (% lương cơ sở)
             </label>
@@ -58,7 +58,7 @@ export const KeKhai603PaymentInfoForm: React.FC<KeKhai603PaymentInfoFormProps> =
             </label>
             <input
               type="text"
-              value={formData.soTienDong}
+              value={formData.tienDongThucTe ? formData.tienDongThucTe.toLocaleString('vi-VN') : ''}
               onChange={(e) => handleInputChange('soTienDong', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Số tiền đóng"

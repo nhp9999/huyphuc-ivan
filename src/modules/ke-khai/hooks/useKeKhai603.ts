@@ -20,7 +20,7 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
   const [keKhaiInfo, setKeKhaiInfo] = useState<DanhSachKeKhai | null>(null);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [inputMode, setInputMode] = useState<'form' | 'list'>('list'); // Mặc định là list mode
+  const [inputMode, setInputMode] = useState<'form' | 'list'>('form'); // Mặc định là form mode
   const [initialized, setInitialized] = useState(false);
 
   // Use ref to track if we've already initialized for this pageParams

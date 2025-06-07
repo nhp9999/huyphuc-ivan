@@ -510,10 +510,16 @@
     display: none !important;
   }
 
-  /* Show all columns on desktop */
-  .participantTable th,
-  .participantTable td {
+  /* Show all columns on desktop except hidden ones */
+  .participantTable th:not(.hidden),
+  .participantTable td:not(.hidden) {
     display: table-cell !important;
+  }
+
+  /* Keep hidden columns hidden even on desktop */
+  .participantTable th.hidden,
+  .participantTable td.hidden {
+    display: none !important;
   }
 }
 
@@ -544,7 +550,8 @@
 
 /* Priority 3: Secondary columns (hidden on mobile and tablet) */
 .priority-3 {
-  /* Dân tộc, Mức lương, Tỷ lệ đóng, Ngày biên lai, Nơi nhận hồ sơ */
+  /* Dân tộc, Ngày biên lai, Nơi nhận hồ sơ */
+  /* Note: Mức lương and Tỷ lệ đóng are now permanently hidden as per user preference */
 }
 
 /* Priority 4: Optional columns (hidden except on large desktop) */
@@ -667,6 +674,25 @@
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+/* GemLogin test button styling */
+.gemLoginTestButton {
+  background: linear-gradient(135deg, #ea580c, #f97316);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(234, 88, 12, 0.2);
+}
+
+.gemLoginTestButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c2410c, #ea580c);
+  box-shadow: 0 4px 8px rgba(234, 88, 12, 0.3);
+  transform: translateY(-1px);
+}
+
+.gemLoginTestButton:disabled {
+  background: #9ca3af;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Checkbox in mobile card header */

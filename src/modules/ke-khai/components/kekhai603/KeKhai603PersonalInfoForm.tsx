@@ -4,6 +4,8 @@ import { Search, Loader2 } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
+import { useCSKCBContext } from '../../contexts/CSKCBContext';
+import { DmCSKCB } from '../../../../shared/services/api/supabaseClient';
 
 interface KeKhai603PersonalInfoFormProps {
   formData: KeKhai603FormData;
@@ -31,15 +33,25 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
   const [loadingXaKS, setLoadingXaKS] = useState(false);
   const [loadingXaNKQ, setLoadingXaNKQ] = useState(false);
 
+  // CSKCB (Medical Facility) state
+  const [cskcbOptions, setCSKCBOptions] = useState<DmCSKCB[]>([]);
+  const [loadingCSKCB, setLoadingCSKCB] = useState(false);
+
+  // Get CSKCB context
+  const { getCSKCBData, isLoading: isCSKCBLoading } = useCSKCBContext();
+
   // Load province data on component mount
   useEffect(() => {
     const loadTinhData = async () => {
       try {
         setLoadingTinh(true);
+        console.log('🌍 Loading province data...');
         const options = await tinhService.getTinhOptions();
+        console.log('🌍 Province data loaded:', options.length, 'provinces');
+        console.log('🌍 Sample province data:', options.slice(0, 3));
         setTinhOptions(options);
       } catch (error) {
-        console.error('Error loading province data:', error);
+        console.error('❌ Error loading province data:', error);
       } finally {
         setLoadingTinh(false);
       }
@@ -140,6 +152,28 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
     loadXaNKQData();
   }, [formData.maHuyenNkq, formData.maTinhNkq]);
 
+  // Load all CSKCB data on component mount (no province filtering)
+  useEffect(() => {
+    const loadAllCSKCBData = async () => {
+      try {
+        setLoadingCSKCB(true);
+        console.log('🏥 Loading all CSKCB data...');
+        // Load all medical facilities without province filtering
+        const data = await getCSKCBData(); // No province parameter = load all
+        console.log('🏥 CSKCB data loaded:', data.length, 'facilities');
+        console.log('🏥 Sample CSKCB data:', data.slice(0, 3));
+        setCSKCBOptions(data);
+      } catch (error) {
+        console.error('❌ Error loading CSKCB data:', error);
+        setCSKCBOptions([]);
+      } finally {
+        setLoadingCSKCB(false);
+      }
+    };
+
+    loadAllCSKCBData();
+  }, [getCSKCBData]); // Remove formData.tinhKCB dependency
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -234,11 +268,8 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
             />
           </div>
 
-          {/* Tỉnh KCB */}
-          <div className="md:col-span-2 lg:col-span-2 xl:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Tỉnh KCB <span className="text-red-500">*</span>
-            </label>
+          {/* Tỉnh KCB - Hidden but functional */}
+          <div className="hidden">
             <select
               value={formData.tinhKCB}
               onChange={(e) => {
@@ -247,7 +278,6 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
                 handleInputChange('noiDangKyKCB', '');
               }}
               disabled={loadingTinh}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
               <option value="">
                 {loadingTinh ? 'Đang tải...' : 'Chọn tỉnh/thành phố'}
@@ -261,18 +291,51 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
           </div>
 
           {/* Nơi đăng ký KCB */}
-          <div className="md:col-span-3 lg:col-span-3 xl:col-span-3">
+          <div className="md:col-span-5 lg:col-span-5 xl:col-span-5">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Nơi đăng ký KCB <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
+            <select
               value={formData.noiDangKyKCB}
-              onChange={(e) => handleInputChange('noiDangKyKCB', e.target.value)}
+              onChange={(e) => {
+                const selectedCSKCB = cskcbOptions.find(cskcb => cskcb.ten === e.target.value);
+                handleInputChange('noiDangKyKCB', e.target.value);
+                // Also update related fields if CSKCB is found
+                if (selectedCSKCB) {
+                  handleInputChange('tinhKCB', selectedCSKCB.ma_tinh);
+                }
+              }}
+              disabled={loadingCSKCB}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="Nhập tên cơ sở khám chữa bệnh"
               required
-            />
+            >
+              <option value="">
+                {loadingCSKCB
+                  ? 'Đang tải cơ sở KCB...'
+                  : 'Chọn cơ sở khám chữa bệnh'
+                }
+              </option>
+              {cskcbOptions.map((cskcb, index) => {
+                // Find province name from tinhOptions
+                const provinceName = tinhOptions.find(tinh => tinh.value === cskcb.ma_tinh)?.label || cskcb.ma_tinh;
+
+                // Debug logging for first few options
+                if (index < 3) {
+                  console.log(`🏥 Dropdown option ${index + 1}:`, {
+                    facilityName: cskcb.ten,
+                    provinceCode: cskcb.ma_tinh,
+                    provinceName: provinceName,
+                    displayText: `${cskcb.ten} - ${provinceName}`
+                  });
+                }
+
+                return (
+                  <option key={cskcb.value} value={cskcb.ten}>
+                    {cskcb.ten} - {provinceName}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
           {/* Số điện thoại */}

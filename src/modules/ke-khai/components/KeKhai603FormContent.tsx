@@ -15,6 +15,7 @@ import { KeKhai603CardInfoForm } from './kekhai603/KeKhai603CardInfoForm';
 import { KeKhai603PaymentInfoForm } from './kekhai603/KeKhai603PaymentInfoForm';
 import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable';
 import { useCSKCBPreloader } from '../hooks/useCSKCBPreloader';
+import { useCSKCBContext } from '../contexts/CSKCBContext';
 
 interface KeKhai603FormContentProps {
   pageParams: any;
@@ -35,6 +36,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   // Custom hooks - order matters for dependencies
   const { toast, showToast, hideToast } = useToast();
   const { searchLoading, participantSearchLoading, apiSummary, searchKeKhai603, searchParticipantData } = useKeKhai603Api();
+  const { getCSKCBData } = useCSKCBContext();
 
   // Get keKhaiInfo first
   const {
@@ -70,6 +72,45 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   }, [participants, formData]);
 
+  // Helper function to find matching medical facility in CSKCB options
+  const findMatchingMedicalFacility = async (facilityName: string) => {
+    if (!facilityName) return null;
+
+    try {
+      // Get all CSKCB data
+      const cskcbData = await getCSKCBData();
+
+      // Try exact match first
+      let matchedFacility = cskcbData.find(facility =>
+        facility.ten === facilityName
+      );
+
+      // If no exact match, try partial match (case insensitive)
+      if (!matchedFacility) {
+        matchedFacility = cskcbData.find(facility =>
+          facility.ten.toLowerCase().includes(facilityName.toLowerCase()) ||
+          facilityName.toLowerCase().includes(facility.ten.toLowerCase())
+        );
+      }
+
+      // If still no match, try matching by keywords
+      if (!matchedFacility) {
+        const facilityKeywords = facilityName.toLowerCase().split(' ').filter(word => word.length > 2);
+        matchedFacility = cskcbData.find(facility => {
+          const facilityWords = facility.ten.toLowerCase().split(' ');
+          return facilityKeywords.some(keyword =>
+            facilityWords.some(word => word.includes(keyword) || keyword.includes(word))
+          );
+        });
+      }
+
+      return matchedFacility;
+    } catch (error) {
+      console.error('Error finding matching medical facility:', error);
+      return null;
+    }
+  };
+
   // Show message when participants are loaded
   React.useEffect(() => {
     if (participants.length > 0 && participants[0].id > 0) {
@@ -97,9 +138,28 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       const result = await searchKeKhai603(formData.maSoBHXH);
 
       if (result.success && result.data) {
-        // Update form data with search results
+        // Handle medical facility matching first
+        let facilityUpdated = false;
+        if (result.data.noiDangKyKCB) {
+          const matchedFacility = await findMatchingMedicalFacility(result.data.noiDangKyKCB);
+          if (matchedFacility) {
+            // Update with matched facility data
+            handleInputChange('noiDangKyKCB', matchedFacility.ten);
+            handleInputChange('tinhKCB', matchedFacility.ma_tinh);
+            facilityUpdated = true;
+            console.log('✅ Matched medical facility:', matchedFacility.ten, 'Province:', matchedFacility.ma_tinh);
+          } else {
+            // Use original facility name if no match found
+            handleInputChange('noiDangKyKCB', result.data.noiDangKyKCB);
+            console.log('⚠️ No exact match found for facility:', result.data.noiDangKyKCB);
+          }
+        }
+
+        // Update form data with search results (excluding noiDangKyKCB since we handled it above)
         Object.entries(result.data).forEach(([key, value]) => {
-          handleInputChange(key as any, value as string);
+          if (key !== 'noiDangKyKCB') { // Skip noiDangKyKCB since we handled it specially
+            handleInputChange(key as any, value as string);
+          }
         });
 
         // Also update the first participant with the same data
@@ -116,7 +176,16 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           if (result.data.gioiTinh) {
             handleParticipantChange(0, 'gioiTinh', result.data.gioiTinh);
           }
-          if (result.data.noiDangKyKCB) {
+          // Update participant medical facility with matched data
+          if (facilityUpdated && result.data.noiDangKyKCB) {
+            const matchedFacility = await findMatchingMedicalFacility(result.data.noiDangKyKCB);
+            if (matchedFacility) {
+              handleParticipantChange(0, 'noiDangKyKCB', matchedFacility.ten);
+              handleParticipantChange(0, 'tinhKCB', matchedFacility.ma_tinh);
+              handleParticipantChange(0, 'maBenhVien', matchedFacility.value);
+              handleParticipantChange(0, 'tenBenhVien', matchedFacility.ten);
+            }
+          } else if (result.data.noiDangKyKCB) {
             handleParticipantChange(0, 'noiDangKyKCB', result.data.noiDangKyKCB);
           }
         }
@@ -126,10 +195,16 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           result.data.trangThaiThe.includes('⚠️') &&
           result.data.trangThaiThe.toLowerCase().includes('không có thẻ');
 
+        // Create success message based on facility matching and card status
+        let successMessage = 'Đã tìm thấy và cập nhật thông tin BHYT!';
+        if (facilityUpdated) {
+          successMessage += ' Cơ sở KCB đã được tự động chọn.';
+        }
+
         if (hasCardWarning) {
           showToast('Đã tìm thấy thông tin cá nhân! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
         } else {
-          showToast('Đã tìm thấy và cập nhật thông tin BHYT!', 'success');
+          showToast(successMessage, 'success');
         }
       } else {
         showToast(result.message || 'Không tìm thấy thông tin BHYT', 'warning');
@@ -152,6 +227,23 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       const result = await searchParticipantData(participant.maSoBHXH, index);
 
       if (result.success && result.data) {
+        // Handle medical facility matching for participant search
+        let facilityUpdated = false;
+        if (result.data.noiDangKyKCB) {
+          const matchedFacility = await findMatchingMedicalFacility(result.data.noiDangKyKCB);
+          if (matchedFacility) {
+            // Update participant with matched facility data
+            result.data.noiDangKyKCB = matchedFacility.ten;
+            result.data.tinhKCB = matchedFacility.ma_tinh;
+            result.data.maBenhVien = matchedFacility.value;
+            result.data.tenBenhVien = matchedFacility.ten;
+            facilityUpdated = true;
+            console.log(`✅ Matched medical facility for participant ${index + 1}:`, matchedFacility.ten);
+          } else {
+            console.log(`⚠️ No exact match found for participant ${index + 1} facility:`, result.data.noiDangKyKCB);
+          }
+        }
+
         updateParticipantWithApiData(index, result.data);
 
         // Kiểm tra nếu có cảnh báo về trạng thái thẻ
@@ -159,10 +251,16 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           result.data.trangThaiThe.includes('⚠️') &&
           result.data.trangThaiThe.toLowerCase().includes('không có thẻ');
 
+        // Create success message based on facility matching and card status
+        let successMessage = 'Đã cập nhật thông tin người tham gia!';
+        if (facilityUpdated) {
+          successMessage += ' Cơ sở KCB đã được tự động chọn.';
+        }
+
         if (hasCardWarning) {
           showToast('Đã cập nhật thông tin cá nhân! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
         } else {
-          showToast('Đã cập nhật thông tin người tham gia!', 'success');
+          showToast(successMessage, 'success');
         }
       } else {
         showToast(result.message || 'Không tìm thấy thông tin BHYT', 'warning');

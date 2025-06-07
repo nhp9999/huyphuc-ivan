@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
-import { Plus, Trash2, Loader2, Save, Upload, Edit3, Users } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save, Upload, Edit3, Users, Key } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
@@ -74,6 +74,14 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   // State for bulk input processing
   const [bulkInputData, setBulkInputData] = useState<any[]>([]);
   const [bulkInputStartIndex, setBulkInputStartIndex] = useState(-1);
+
+  // State for GemLogin API test
+  const [gemLoginTesting, setGemLoginTesting] = useState(false);
+  const [gemLoginResult, setGemLoginResult] = useState<{
+    token?: string;
+    timestamp?: number;
+    error?: string;
+  } | null>(null);
 
   // Track loading states to prevent duplicate API calls
   const [loadingHuyen, setLoadingHuyen] = useState<{ [key: string]: boolean }>({});
@@ -423,6 +431,68 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     }
   };
 
+  // Handle GemLogin API test
+  const handleGemLoginTest = async () => {
+    setGemLoginTesting(true);
+    setGemLoginResult(null);
+
+    try {
+      const payload = {
+        token: "W1tRXRGrogqDKKfi2vjntmYAKwUGURDrkH7fUzxRjoM82Ee9B1mjazatTWGnPOcA",
+        device_id: "F2DEA0FC4095FCA69F6E20A06B5A0B03",
+        profile_id: "1",
+        workflow_id: "CvfYXv3KTCMKjjHmLk4ze",
+        parameter: {},
+        soft_id: "1",
+        close_browser: false
+      };
+
+      console.log('Testing GemLogin API with payload:', payload);
+
+      const response = await fetch('https://app.gemlogin.vn/api/v2/execscript', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('GemLogin API response:', data);
+
+      // Extract bearer token and timestamp from response
+      // Note: The actual structure may vary based on the API response format
+      const token = data.bearer_token || data.token || data.authorization;
+      const timestamp = data.timestamp || Date.now();
+
+      setGemLoginResult({
+        token,
+        timestamp
+      });
+
+      // Show success alert
+      alert(`GemLogin API Test Successful!\n\nBearer Token: ${token || 'Not found in response'}\nTimestamp: ${timestamp}\n\nCheck console for full response details.`);
+
+    } catch (error) {
+      console.error('GemLogin API test error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+      setGemLoginResult({
+        error: errorMessage
+      });
+
+      // Show error alert
+      alert(`GemLogin API Test Failed!\n\nError: ${errorMessage}\n\nCheck console for more details.`);
+    } finally {
+      setGemLoginTesting(false);
+    }
+  };
+
 
 
   // Auto-load districts and wards for existing participants
@@ -505,6 +575,21 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
             >
               <Upload className="h-4 w-4" />
               <span>Nhập hàng loạt</span>
+            </button>
+
+            {/* GemLogin API Test Button */}
+            <button
+              onClick={handleGemLoginTest}
+              disabled={savingData || gemLoginTesting}
+              className={`flex items-center justify-center space-x-2 px-3 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm ${styles.gemLoginTestButton}`}
+              title="Test GemLogin API để lấy bearer token và timestamp cho BHXH authentication"
+            >
+              {gemLoginTesting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Key className="h-4 w-4" />
+              )}
+              <span>{gemLoginTesting ? 'Testing...' : 'Test Token'}</span>
             </button>
 
             {/* Bulk Delete Button - Only show when items are selected */}
@@ -601,8 +686,8 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Số thẻ BHYT</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[70px] min-w-[70px] max-w-[70px]">Dân tộc</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[280px] min-w-[280px] max-w-[280px]">Nơi đăng ký KCB</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[100px] min-w-[100px] max-w-[100px]">Mức lương</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[80px] min-w-[80px] max-w-[80px]">Tỷ lệ đóng</th>
+                <th className="hidden text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[100px] min-w-[100px] max-w-[100px]">Mức lương</th>
+                <th className="hidden text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[80px] min-w-[80px] max-w-[80px]">Tỷ lệ đóng</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[70px] min-w-[70px] max-w-[70px]">STT hộ</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[80px] min-w-[80px] max-w-[80px]">Số tháng</th>
                 <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Số tiền</th>
@@ -730,7 +815,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       ))}
                     </select>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="hidden py-3 px-2">
                     <input
                       type="text"
                       value={participant.mucLuong || ''}
@@ -739,7 +824,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       placeholder="Mức lương"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="hidden py-3 px-2">
                     <input
                       type="text"
                       value={participant.tyLeDong || ''}
