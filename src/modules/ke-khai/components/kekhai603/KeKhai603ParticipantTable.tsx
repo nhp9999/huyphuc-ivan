@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
-import { Plus, Trash2, Loader2, Save, Upload, Edit3, Users, Key } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save, Edit3, Users, Settings } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
 import { cskcbService } from '../../../../shared/services/cskcbService';
 import styles from './KeKhai603ParticipantTable.module.css';
-import { BulkInputModal } from './BulkInputModal';
+
 import { HouseholdBulkInputModal } from './HouseholdBulkInputModal';
 import { QuickFillModal } from './QuickFillModal';
 import { ParticipantMobileCard } from './ParticipantMobileCard';
@@ -23,7 +23,6 @@ interface KeKhai603ParticipantTableProps {
   participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
   doiTuongThamGia?: string; // Thêm prop để kiểm tra đối tượng tham gia
-  onBulkAdd?: (participants: any[]) => void; // Thêm prop cho bulk add
   onHouseholdBulkAdd?: (bhxhCodes: string[], soThangDong: string, medicalFacility?: { maBenhVien: string; tenBenhVien: string }, progressCallback?: (current: number, currentCode?: string) => void) => Promise<void>; // Thêm prop cho household bulk add
 }
 
@@ -38,7 +37,6 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   participantSearchLoading,
   savingData,
   doiTuongThamGia,
-  onBulkAdd,
   onHouseholdBulkAdd
 }) => {
   // State for location data
@@ -54,7 +52,6 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // State for modals
-  const [showBulkInputModal, setShowBulkInputModal] = useState(false);
   const [showHouseholdBulkInputModal, setShowHouseholdBulkInputModal] = useState(false);
   const [showQuickFillModal, setShowQuickFillModal] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -71,17 +68,9 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
-  // State for bulk input processing
-  const [bulkInputData, setBulkInputData] = useState<any[]>([]);
-  const [bulkInputStartIndex, setBulkInputStartIndex] = useState(-1);
 
-  // State for GemLogin API test
-  const [gemLoginTesting, setGemLoginTesting] = useState(false);
-  const [gemLoginResult, setGemLoginResult] = useState<{
-    token?: string;
-    timestamp?: number;
-    error?: string;
-  } | null>(null);
+
+
 
   // Track loading states to prevent duplicate API calls
   const [loadingHuyen, setLoadingHuyen] = useState<{ [key: string]: boolean }>({});
@@ -206,81 +195,9 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     }
   };
 
-  // Handle bulk input
-  const handleBulkInput = async (data: any[]) => {
-    try {
-      // Store the data and starting index for processing
-      setBulkInputData(data);
-      setBulkInputStartIndex(participants.length);
 
-      // Add participants sequentially with proper error handling
-      for (let i = 0; i < data.length; i++) {
-        try {
-          await handleAddParticipant();
-          // Small delay to ensure state updates properly
-          await new Promise(resolve => setTimeout(resolve, 50));
-        } catch (participantError) {
-          console.error(`Error adding participant ${i + 1}:`, participantError);
-          // Continue with next participant instead of stopping the entire process
-        }
-      }
-    } catch (error) {
-      console.error('Error in bulk input:', error);
-      // Reset bulk input state on error
-      setBulkInputData([]);
-      setBulkInputStartIndex(-1);
-    }
-  };
 
-  // Effect to update participant data after bulk input
-  useEffect(() => {
-    if (bulkInputData.length > 0 && bulkInputStartIndex >= 0) {
-      // Check if all participants have been added
-      const expectedLength = bulkInputStartIndex + bulkInputData.length;
-      if (participants.length >= expectedLength) {
-        // Update each participant with the bulk input data
-        const updateParticipants = async () => {
-          for (let i = 0; i < bulkInputData.length; i++) {
-            const item = bulkInputData[i];
-            const participantIndex = bulkInputStartIndex + i;
 
-            // Ensure the participant exists before updating
-            if (participantIndex < participants.length) {
-              // Set the BHXH code first
-              handleParticipantChange(participantIndex, 'maSoBHXH', item.maSoBHXH);
-
-              // Small delay to ensure state updates
-              await new Promise(resolve => setTimeout(resolve, 10));
-
-              // Set optional fields if provided
-              if (item.soThangDong) {
-                handleParticipantChange(participantIndex, 'soThangDong', item.soThangDong);
-                await new Promise(resolve => setTimeout(resolve, 10));
-              }
-              if (item.sttHo) {
-                // For DS type, always set to "1", otherwise use provided value
-                const sttHoValue = doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : item.sttHo;
-                handleParticipantChange(participantIndex, 'sttHo', sttHoValue);
-                await new Promise(resolve => setTimeout(resolve, 10));
-              }
-            }
-          }
-        };
-
-        // Execute the updates
-        updateParticipants().then(() => {
-          // Reset bulk input state after all updates are complete
-          setBulkInputData([]);
-          setBulkInputStartIndex(-1);
-        }).catch((error) => {
-          console.error('Error updating bulk input data:', error);
-          // Reset state even on error
-          setBulkInputData([]);
-          setBulkInputStartIndex(-1);
-        });
-      }
-    }
-  }, [participants.length, bulkInputData, bulkInputStartIndex, handleParticipantChange, doiTuongThamGia]);
 
   // Handle quick fill
   const handleQuickFill = (field: 'soThangDong' | 'sttHo' | 'maSoBHXH', value: string, selectedIndices?: number[]) => {
@@ -431,67 +348,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     }
   };
 
-  // Handle GemLogin API test
-  const handleGemLoginTest = async () => {
-    setGemLoginTesting(true);
-    setGemLoginResult(null);
 
-    try {
-      const payload = {
-        token: "W1tRXRGrogqDKKfi2vjntmYAKwUGURDrkH7fUzxRjoM82Ee9B1mjazatTWGnPOcA",
-        device_id: "F2DEA0FC4095FCA69F6E20A06B5A0B03",
-        profile_id: "1",
-        workflow_id: "CvfYXv3KTCMKjjHmLk4ze",
-        parameter: {},
-        soft_id: "1",
-        close_browser: false
-      };
-
-      console.log('Testing GemLogin API with payload:', payload);
-
-      const response = await fetch('https://app.gemlogin.vn/api/v2/execscript', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('GemLogin API response:', data);
-
-      // Extract bearer token and timestamp from response
-      // Note: The actual structure may vary based on the API response format
-      const token = data.bearer_token || data.token || data.authorization;
-      const timestamp = data.timestamp || Date.now();
-
-      setGemLoginResult({
-        token,
-        timestamp
-      });
-
-      // Show success alert
-      alert(`GemLogin API Test Successful!\n\nBearer Token: ${token || 'Not found in response'}\nTimestamp: ${timestamp}\n\nCheck console for full response details.`);
-
-    } catch (error) {
-      console.error('GemLogin API test error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-
-      setGemLoginResult({
-        error: errorMessage
-      });
-
-      // Show error alert
-      alert(`GemLogin API Test Failed!\n\nError: ${errorMessage}\n\nCheck console for more details.`);
-    } finally {
-      setGemLoginTesting(false);
-    }
-  };
 
 
 
@@ -566,31 +423,9 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
               <span>Nhập hộ gia đình</span>
             </button>
 
-            {/* Bulk Input Button */}
-            <button
-              onClick={() => setShowBulkInputModal(true)}
-              disabled={savingData || householdProcessing}
-              className="flex items-center justify-center space-x-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm"
-              title="Nhập nhiều mã BHXH cùng lúc"
-            >
-              <Upload className="h-4 w-4" />
-              <span>Nhập hàng loạt</span>
-            </button>
 
-            {/* GemLogin API Test Button */}
-            <button
-              onClick={handleGemLoginTest}
-              disabled={savingData || gemLoginTesting}
-              className={`flex items-center justify-center space-x-2 px-3 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm ${styles.gemLoginTestButton}`}
-              title="Test GemLogin API để lấy bearer token và timestamp cho BHXH authentication"
-            >
-              {gemLoginTesting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Key className="h-4 w-4" />
-              )}
-              <span>{gemLoginTesting ? 'Testing...' : 'Test Token'}</span>
-            </button>
+
+
 
             {/* Bulk Delete Button - Only show when items are selected */}
             {selectedIndices.size > 0 && handleBulkRemoveParticipants && (
@@ -999,13 +834,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         progress={householdProgress}
       />
 
-      {/* Bulk Input Modal */}
-      <BulkInputModal
-        isOpen={showBulkInputModal}
-        onClose={() => setShowBulkInputModal(false)}
-        onSubmit={handleBulkInput}
-        doiTuongThamGia={doiTuongThamGia}
-      />
+
 
       {/* Quick Fill Modal */}
       <QuickFillModal

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { KeKhai603FormData } from '../../../hooks/useKeKhai603FormData';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, UserPlus } from 'lucide-react';
 import { tinhService, TinhOption } from '../../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../../shared/services/location/xaService';
@@ -13,6 +13,8 @@ interface KeKhai603PersonalInfoFormProps {
   handleSearch: () => void;
   handleKeyPress: (e: React.KeyboardEvent) => void;
   searchLoading: boolean;
+  onSaveParticipant?: () => Promise<void>;
+  savingParticipant?: boolean;
 }
 
 export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps> = ({
@@ -20,7 +22,9 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
   handleInputChange,
   handleSearch,
   handleKeyPress,
-  searchLoading
+  searchLoading,
+  onSaveParticipant,
+  savingParticipant = false
 }) => {
   const [tinhOptions, setTinhOptions] = useState<TinhOption[]>([]);
   const [loadingTinh, setLoadingTinh] = useState(true);
@@ -177,9 +181,33 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Thông tin cá nhân và địa chỉ
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Thông tin cá nhân và địa chỉ
+          </h2>
+
+          {/* Save Participant Button in Header */}
+          {onSaveParticipant && (
+            <button
+              onClick={onSaveParticipant}
+              disabled={savingParticipant || searchLoading || !formData.maSoBHXH || !formData.noiDangKyKCB}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-sm font-medium transition-colors shadow-sm"
+              title="Ghi dữ liệu người tham gia vào danh sách"
+            >
+              {savingParticipant ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Đang ghi...</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4" />
+                  <span>Ghi dữ liệu</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-6">
@@ -319,15 +347,15 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
                 // Find province name from tinhOptions
                 const provinceName = tinhOptions.find(tinh => tinh.value === cskcb.ma_tinh)?.label || cskcb.ma_tinh;
 
-                // Debug logging for first few options
-                if (index < 3) {
-                  console.log(`🏥 Dropdown option ${index + 1}:`, {
-                    facilityName: cskcb.ten,
-                    provinceCode: cskcb.ma_tinh,
-                    provinceName: provinceName,
-                    displayText: `${cskcb.ten} - ${provinceName}`
-                  });
-                }
+                // Debug logging disabled to prevent console spam
+                // if (index < 3) {
+                //   console.log(`🏥 Dropdown option ${index + 1}:`, {
+                //     facilityName: cskcb.ten,
+                //     provinceCode: cskcb.ma_tinh,
+                //     provinceName: provinceName,
+                //     displayText: `${cskcb.ten} - ${provinceName}`
+                //   });
+                // }
 
                 return (
                   <option key={cskcb.value} value={cskcb.ten}>

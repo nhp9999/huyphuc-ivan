@@ -99,7 +99,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
   const loadParticipants = React.useCallback(async () => {
     if (!keKhaiId) return [];
 
-    console.log(`🔄 loadParticipants called for keKhaiId: ${keKhaiId}`, new Error().stack);
+    console.log(`🔄 loadParticipants called for keKhaiId: ${keKhaiId}`);
 
     try {
       const nguoiThamGiaList = await keKhaiService.getNguoiThamGiaByKeKhai(keKhaiId);
@@ -180,10 +180,10 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       return;
     }
 
-    // Log the change for debugging household bulk input
-    if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
-      console.log(`📝 handleParticipantChange: Setting ${field} = "${value}" for participant ${index + 1}`);
-    }
+    // Debug logging disabled to reduce console spam
+    // if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
+    //   console.log(`📝 handleParticipantChange: Setting ${field} = "${value}" for participant ${index + 1}`);
+    // }
 
     // Validate mã BHXH - chỉ cho phép số và tối đa 10 ký tự
     if (field === 'maSoBHXH') {
@@ -196,21 +196,21 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         if (i === index) {
           const updatedParticipant = { ...p, [field]: value };
 
-          // Log the specific change for debugging
-          if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
-            console.log(`📝 State update: Participant ${index + 1} ${field} changed from "${p[field]}" to "${value}"`);
-          }
+          // Debug logging disabled to reduce console spam
+          // if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
+          //   console.log(`📝 State update: Participant ${index + 1} ${field} changed from "${p[field]}" to "${value}"`);
+          // }
 
           return updatedParticipant;
         }
         return p;
       });
 
-      // Log the updated participant for debugging
-      if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
-        const updatedParticipant = newParticipants[index];
-        console.log(`📝 State updated: Participant ${index + 1} now has ${field} = "${updatedParticipant?.[field]}"`);
-      }
+      // Debug logging disabled to reduce console spam
+      // if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
+      //   const updatedParticipant = newParticipants[index];
+      //   console.log(`📝 State updated: Participant ${index + 1} now has ${field} = "${updatedParticipant?.[field]}"`);
+      // }
 
       return newParticipants;
     });
@@ -269,7 +269,10 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
 
   // Add new participant
   const addParticipant = async () => {
+    console.log('🚀 addParticipant called');
+
     if (!keKhaiId) {
+      console.error('❌ No keKhaiId available');
       throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
     }
 
@@ -279,13 +282,14 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       // Get ke khai info to get organization details
       const keKhaiInfo = await keKhaiService.getKeKhaiById(keKhaiId);
       if (!keKhaiInfo) {
+        console.error('❌ No keKhaiInfo found');
         throw new Error('Không tìm thấy thông tin kê khai');
       }
 
       const newParticipantData = {
         ke_khai_id: keKhaiId,
         stt: participants.length + 1,
-        ho_ten: '',
+        ho_ten: '-', // Minimal placeholder for database constraint
         gioi_tinh: 'Nam',
         noi_dang_ky_kcb: DEFAULT_CSKCB.ten,
         tinh_kcb: DEFAULT_CSKCB.maTinh,
@@ -296,7 +300,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         tien_dong_thuc_te: 0, // Khởi tạo tien_dong_thuc_te = 0
         ngay_bien_lai: new Date().toISOString().split('T')[0],
         so_thang_dong: 0,
-        stt_ho: doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : null, // Mặc định STT hộ = 1 cho đối tượng DS
+        stt_ho: doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : undefined, // Mặc định STT hộ = 1 cho đối tượng DS
         // Add organization fields from ke khai
         cong_ty_id: keKhaiInfo.cong_ty_id,
         co_quan_bhxh_id: keKhaiInfo.co_quan_bhxh_id,
@@ -312,10 +316,15 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         id: savedParticipant.id
       };
 
-      setParticipants(prev => [...prev, newParticipant]);
+      setParticipants(prev => {
+        const newArray = [...prev, newParticipant];
+        return newArray;
+      });
+
+      console.log('✅ addParticipant completed successfully');
       return savedParticipant;
     } catch (error) {
-      console.error('Error adding participant:', error);
+      console.error('❌ Error adding participant:', error);
       throw error;
     } finally {
       setSavingData(false);
@@ -377,14 +386,28 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
 
   // Save single participant (only the changed one)
   const saveSingleParticipant = async (index: number) => {
+    console.log(`🚀 saveSingleParticipant called with index: ${index}`);
+    console.log(`📊 Current participants array length: ${participants.length}`);
+    console.log(`📋 Participants array:`, participants.map((p, i) => ({ index: i, hoTen: p.hoTen, maSoBHXH: p.maSoBHXH })));
+
     if (!keKhaiId) {
+      console.error('❌ No keKhaiId available');
       throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
+    }
+
+    // Validate index bounds
+    if (index < 0 || index >= participants.length) {
+      console.error(`❌ Invalid index: ${index}, participants length: ${participants.length}`);
+      throw new Error(`Index không hợp lệ: ${index}. Số lượng người tham gia: ${participants.length}`);
     }
 
     const participant = participants[index];
     if (!participant) {
+      console.error(`❌ No participant found at index ${index}`);
       throw new Error('Không tìm thấy thông tin người tham gia.');
     }
+
+    console.log(`👤 Found participant at index ${index}:`, { hoTen: participant.hoTen, maSoBHXH: participant.maSoBHXH });
 
     try {
       setSavingData(true);
@@ -438,12 +461,21 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         loai_to_chuc: keKhaiInfo.loai_to_chuc || 'cong_ty'
       };
 
-      // Remove null values to avoid database issues
+      // Handle required fields and clean data
       Object.keys(participantData).forEach(key => {
-        if (participantData[key] === null || participantData[key] === undefined || participantData[key] === '') {
+        if (participantData[key] === null || participantData[key] === undefined) {
+          delete participantData[key];
+        }
+        // Only remove empty strings for optional date fields
+        if (participantData[key] === '' && (key.includes('ngay') || key.includes('date') || key.includes('tu_') || key.includes('den_'))) {
           delete participantData[key];
         }
       });
+
+      // Ensure ho_ten has a value for database constraint (but use minimal placeholder)
+      if (!participantData.ho_ten || participantData.ho_ten.trim() === '') {
+        participantData.ho_ten = '-'; // Minimal placeholder that will be replaced by API
+      }
 
       if (participant.id) {
         // Update existing participant
@@ -554,6 +586,164 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     }, 50);
   };
 
+  // Save participant directly from form data (new approach)
+  const saveParticipantFromForm = async (formData: any) => {
+    console.log('🚀 saveParticipantFromForm called');
+    console.log('📋 Form data received:', formData);
+
+    if (!keKhaiId) {
+      console.error('❌ No keKhaiId available');
+      throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
+    }
+
+    // Validate required fields from the passed formData (not global form state)
+    if (!formData.maSoBHXH || !formData.maSoBHXH.trim()) {
+      console.error('❌ Missing maSoBHXH in form data');
+      throw new Error('Mã số BHXH là bắt buộc.');
+    }
+
+    try {
+      setSavingData(true);
+      console.log('💾 Setting saving data to true');
+
+      // Get ke khai info to get organization details
+      console.log('📋 Getting ke khai info...');
+      const keKhaiInfo = await keKhaiService.getKeKhaiById(keKhaiId);
+      if (!keKhaiInfo) {
+        console.error('❌ No keKhaiInfo found');
+        throw new Error('Không tìm thấy thông tin kê khai');
+      }
+      console.log('✅ KeKhai info retrieved:', keKhaiInfo.id);
+
+      // Prepare participant data from form
+      const participantData: any = {
+        ke_khai_id: keKhaiId,
+        stt: participants.length + 1,
+        ho_ten: formData.hoTen && formData.hoTen.trim() ? formData.hoTen.trim() : '', // Keep empty for now, will be handled in cleaning
+        ma_so_bhxh: formData.maSoBHXH || null,
+        ngay_sinh: formData.ngaySinh || null,
+        gioi_tinh: formData.gioiTinh || 'Nam',
+        so_cccd: formData.soCCCD || null,
+        so_dien_thoai: formData.soDienThoai || null,
+        so_the_bhyt: formData.soTheBHYT || null,
+        dan_toc: formData.danToc || null,
+        quoc_tich: formData.quocTich || 'VN',
+        noi_dang_ky_kcb: formData.noiDangKyKCB || null,
+        tinh_kcb: formData.tinhKCB || null,
+        ma_benh_vien: formData.maBenhVien || null,
+        so_thang_dong: formData.soThangDong ? parseInt(formData.soThangDong) : null,
+        stt_ho: formData.sttHo || null,
+        ngay_bien_lai: formData.ngayBienLai || new Date().toISOString().split('T')[0],
+        ma_tinh_nkq: formData.maTinhNkq || null,
+        ma_huyen_nkq: formData.maHuyenNkq || null,
+        ma_xa_nkq: formData.maXaNkq || null,
+        ma_tinh_ks: formData.maTinhKS || null,
+        ma_huyen_ks: formData.maHuyenKS || null,
+        ma_xa_ks: formData.maXaKS || null,
+        tu_ngay_the_cu: formData.tuNgayTheCu || null,
+        den_ngay_the_cu: formData.denNgayTheCu || null,
+        tu_ngay_the_moi: formData.tuNgayTheMoi || null,
+        den_ngay_the_moi: formData.denNgayTheMoi || null,
+        ma_ho_gia_dinh: formData.maHoGiaDinh || null,
+        phuong_an: formData.phuongAn || null,
+        muc_luong: 0,
+        ty_le_dong: 100,
+        tien_dong: 0,
+        tien_dong_thuc_te: 0,
+        // Add organization fields from ke khai
+        cong_ty_id: keKhaiInfo.cong_ty_id,
+        co_quan_bhxh_id: keKhaiInfo.co_quan_bhxh_id,
+        loai_to_chuc: keKhaiInfo.loai_to_chuc || 'cong_ty'
+      };
+
+      // Handle required fields and clean data
+      Object.keys(participantData).forEach(key => {
+        if (participantData[key] === null || participantData[key] === undefined) {
+          delete participantData[key];
+        }
+        // Only remove empty strings for optional date fields
+        if (participantData[key] === '' && (key.includes('ngay') || key.includes('date') || key.includes('tu_') || key.includes('den_'))) {
+          delete participantData[key];
+        }
+      });
+
+      // Ensure ho_ten has a value for database constraint (but use minimal placeholder)
+      if (!participantData.ho_ten || participantData.ho_ten.trim() === '') {
+        participantData.ho_ten = '-'; // Minimal placeholder that will be replaced by API
+      }
+
+      console.log('📝 Participant data to save:', participantData);
+
+      // Save to database
+      console.log('💾 Saving to database...');
+      const savedParticipant = await keKhaiService.addNguoiThamGia(participantData);
+      console.log('✅ Saved to database:', savedParticipant);
+
+      // Create participant object for local state
+      const newParticipant: KeKhai603Participant = {
+        id: savedParticipant.id,
+        hoTen: formData.hoTen || '',
+        maSoBHXH: formData.maSoBHXH || '',
+        ngaySinh: formData.ngaySinh || '',
+        gioiTinh: formData.gioiTinh || 'Nam',
+        soCCCD: formData.soCCCD || '',
+        soDienThoai: formData.soDienThoai || '',
+        soTheBHYT: formData.soTheBHYT || '',
+        danToc: formData.danToc || '',
+        quocTich: formData.quocTich || 'VN',
+        noiDangKyKCB: formData.noiDangKyKCB || '',
+        tinhKCB: formData.tinhKCB || '',
+        maBenhVien: formData.maBenhVien || '',
+        tenBenhVien: formData.noiDangKyKCB || '',
+        mucLuong: '',
+        tyLeDong: '100',
+        soTienDong: '',
+        tienDong: 0,
+        tienDongThucTe: 0,
+        tuNgayTheCu: formData.tuNgayTheCu || '',
+        denNgayTheCu: formData.denNgayTheCu || '',
+        tuNgayTheMoi: formData.tuNgayTheMoi || '',
+        denNgayTheMoi: formData.denNgayTheMoi || '',
+        ngayBienLai: formData.ngayBienLai || new Date().toISOString().split('T')[0],
+        sttHo: formData.sttHo || '',
+        soThangDong: formData.soThangDong || '',
+        maTinhNkq: formData.maTinhNkq || '',
+        maHuyenNkq: formData.maHuyenNkq || '',
+        maXaNkq: formData.maXaNkq || '',
+        noiNhanHoSo: '',
+        maTinhKS: formData.maTinhKS || '',
+        maHuyenKS: formData.maHuyenKS || '',
+        maXaKS: formData.maXaKS || '',
+        maHoGiaDinh: formData.maHoGiaDinh || '',
+        phuongAn: formData.phuongAn || ''
+      };
+
+      // Update local state
+      console.log('🔄 Updating local state...');
+      setParticipants(prev => {
+        const newArray = [...prev, newParticipant];
+        console.log('📊 New participants array length:', newArray.length);
+        return newArray;
+      });
+
+      console.log('✅ saveParticipantFromForm completed successfully');
+      return {
+        success: true,
+        message: `Đã lưu thành công người tham gia ${formData.hoTen || 'mới'}!`,
+        participant: savedParticipant
+      };
+    } catch (error) {
+      console.error('❌ Error saving participant from form:', error);
+      return {
+        success: false,
+        message: `Có lỗi xảy ra khi lưu người tham gia. Vui lòng thử lại.`
+      };
+    } finally {
+      setSavingData(false);
+      console.log('🔄 Setting saving data to false');
+    }
+  };
+
   return {
     participants,
     savingData,
@@ -564,6 +754,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     removeMultipleParticipants,
     updateParticipantWithApiData,
     saveSingleParticipant,
+    saveParticipantFromForm,
     setParticipants
   };
 };

@@ -3,26 +3,30 @@ import { DanhSachKeKhai } from '../../../../shared/services/api/supabaseClient';
 import { ApiSummary } from '../../../hooks/useKeKhai603Api';
 import {
   FileText,
-  Users,
-  List,
   Info,
-  RefreshCw
+  RefreshCw,
+  Settings,
+  Loader2
 } from 'lucide-react';
 
 interface KeKhai603HeaderProps {
   keKhaiInfo: DanhSachKeKhai | null;
-  inputMode: 'form' | 'list';
-  setInputMode: (mode: 'form' | 'list') => void;
   apiSummary: ApiSummary;
   onRefreshToken?: () => void;
+  onFixError?: () => void;
+  fixErrorProcessing?: boolean;
+  fixErrorPhase?: 'idle' | 'testing' | 'waiting' | 'refreshing';
+  waitingCountdown?: number;
 }
 
 export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
   keKhaiInfo,
-  inputMode,
-  setInputMode,
   apiSummary,
-  onRefreshToken
+  onRefreshToken,
+  onFixError,
+  fixErrorProcessing = false,
+  fixErrorPhase = 'idle',
+  waitingCountdown = 0
 }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
@@ -67,8 +71,34 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
             </div>
           </div>
 
-          {/* Input Mode Toggle and Refresh Token */}
+          {/* Action Buttons */}
           <div className="flex items-center space-x-4">
+            {/* Fix Error Button */}
+            {onFixError && (
+              <button
+                onClick={onFixError}
+                disabled={fixErrorProcessing}
+                className="flex items-center space-x-2 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                title="Sửa lỗi xác thực: Test token → Chờ 5 giây → Refresh token"
+              >
+                {fixErrorProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>
+                      {fixErrorPhase === 'testing' && 'Đang test token...'}
+                      {fixErrorPhase === 'waiting' && `Chờ ${waitingCountdown}s`}
+                      {fixErrorPhase === 'refreshing' && 'Đang refresh token...'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Settings className="h-4 w-4" />
+                    <span>Sửa lỗi</span>
+                  </>
+                )}
+              </button>
+            )}
+
             {/* Refresh Token Button */}
             {onRefreshToken && (
               <button
@@ -80,34 +110,6 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
                 <span>Làm mới token</span>
               </button>
             )}
-
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Chế độ nhập:</span>
-              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-              <button
-                onClick={() => setInputMode('form')}
-                className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  inputMode === 'form'
-                    ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <Users className="h-4 w-4" />
-                <span>Form</span>
-              </button>
-              <button
-                onClick={() => setInputMode('list')}
-                className={`flex items-center space-x-2 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  inputMode === 'list'
-                    ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <List className="h-4 w-4" />
-                <span>Danh sách</span>
-              </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

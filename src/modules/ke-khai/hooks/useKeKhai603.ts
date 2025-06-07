@@ -20,7 +20,6 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
   const [keKhaiInfo, setKeKhaiInfo] = useState<DanhSachKeKhai | null>(null);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [inputMode, setInputMode] = useState<'form' | 'list'>('form'); // Mặc định là form mode
   const [initialized, setInitialized] = useState(false);
 
   // Use ref to track if we've already initialized for this pageParams
@@ -224,35 +223,43 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
 
     try {
       setSaving(true);
+      console.log('🔄 Starting save process...');
+      console.log('📋 Form data received:', formData);
+      console.log('👥 Participants count:', participants.length);
 
       // 1. Update declaration information with form data if provided
       const updateData: any = {
         trang_thai: 'draft',
-        updated_by: user?.id || 'system'
+        updated_by: user?.id || 'system',
+        updated_at: new Date().toISOString()
       };
 
       // Add form data to declaration if provided
       if (formData) {
-        console.log('Form data received for saving:', formData);
+        console.log('📝 Processing form data for declaration update...');
 
         // Map KeKhai603FormData fields to DanhSachKeKhai fields
         if (formData.noiDangKyKCB && formData.noiDangKyKCB.trim()) {
           updateData.noi_dang_ky_kcb_ban_dau = formData.noiDangKyKCB;
+          console.log('✅ Mapped noiDangKyKCB:', formData.noiDangKyKCB);
         }
 
         if (formData.ngayBienLai && formData.ngayBienLai.trim()) {
           updateData.bien_lai_ngay_tham_gia = formData.ngayBienLai;
+          console.log('✅ Mapped ngayBienLai:', formData.ngayBienLai);
         }
 
         if (formData.soThangDong && formData.soThangDong.trim()) {
           const soThang = parseInt(formData.soThangDong);
           if (!isNaN(soThang) && soThang > 0) {
             updateData.so_thang = soThang;
+            console.log('✅ Mapped soThangDong:', soThang);
           }
         }
 
         if (formData.ghiChuDongPhi && formData.ghiChuDongPhi.trim()) {
           updateData.ghi_chu = formData.ghiChuDongPhi;
+          console.log('✅ Mapped ghiChuDongPhi:', formData.ghiChuDongPhi);
         }
 
         // Update luong_co_so if provided
@@ -260,6 +267,7 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
           const mucLuong = parseFloat(formData.mucLuong.replace(/[.,]/g, ''));
           if (!isNaN(mucLuong) && mucLuong > 0) {
             updateData.luong_co_so = mucLuong;
+            console.log('✅ Mapped mucLuong:', mucLuong);
           }
         }
 
@@ -268,21 +276,34 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
           const tyLe = parseFloat(formData.tyLeDong);
           if (!isNaN(tyLe) && tyLe > 0) {
             updateData.ty_le_nsnn_ho_tro = tyLe;
+            console.log('✅ Mapped tyLeDong:', tyLe);
           }
         }
 
-        console.log('Mapped update data for declaration:', updateData);
+        // Map additional form fields that might be useful for declaration
+        console.log('📝 Checking additional form fields...');
+        console.log('- hoTen:', formData.hoTen);
+        console.log('- maSoBHXH:', formData.maSoBHXH);
+        console.log('- sttHo:', formData.sttHo);
+        console.log('- phuongAn:', formData.phuongAn);
+
+        console.log('📊 Final mapped update data for declaration:', updateData);
+      } else {
+        console.log('⚠️ No form data provided for declaration update');
       }
 
+      console.log('💾 Updating declaration in database...');
       const updatedKeKhai = await keKhaiService.updateKeKhai(keKhaiInfo.id, updateData);
-      console.log('Declaration updated successfully:', updatedKeKhai);
+      console.log('✅ Declaration updated successfully:', updatedKeKhai);
 
       // 2. Save participants (if any)
       let savedCount = 0;
       let updatedCount = 0;
       let errorCount = 0;
 
+      console.log('👥 Processing participants...');
       if (participants.length === 0) {
+        console.log('ℹ️ No participants to save, declaration data saved successfully');
         return {
           success: true,
           message: 'Đã lưu thông tin kê khai 603 thành công!'
@@ -291,6 +312,7 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
 
       for (let i = 0; i < participants.length; i++) {
         const participant = participants[i];
+        console.log(`👤 Processing participant ${i + 1}/${participants.length}:`, participant.hoTen || 'Unnamed');
 
         try {
           // Prepare data to save
@@ -339,49 +361,64 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
             }
           });
 
+          console.log(`💾 Participant data to save:`, participantData);
+
           if (participant.id) {
             // Update existing participant
-            await keKhaiService.updateNguoiThamGia(participant.id, participantData);
+            console.log(`🔄 Updating existing participant ${i + 1} with ID: ${participant.id}`);
+            const updatedParticipant = await keKhaiService.updateNguoiThamGia(participant.id, participantData);
+            console.log(`✅ Updated participant ${i + 1}:`, updatedParticipant);
             updatedCount++;
           } else {
             // Add new participant
-            await keKhaiService.addNguoiThamGia(participantData);
+            console.log(`➕ Adding new participant ${i + 1}`);
+            const savedParticipant = await keKhaiService.addNguoiThamGia(participantData);
+            console.log(`✅ Saved new participant ${i + 1}:`, savedParticipant);
             savedCount++;
           }
         } catch (error) {
-          console.error(`Error saving participant ${i + 1}:`, error);
+          console.error(`❌ Error saving participant ${i + 1}:`, error);
           errorCount++;
         }
       }
 
       // Return results
+      console.log(`📊 Save summary: ${savedCount} new, ${updatedCount} updated, ${errorCount} errors`);
+
       if (errorCount === 0) {
         if (savedCount + updatedCount > 0) {
+          const message = `Đã lưu thành công kê khai 603 và ${savedCount} người mới, cập nhật ${updatedCount} người!`;
+          console.log(`✅ ${message}`);
           return {
             success: true,
-            message: `Đã lưu thành công kê khai 603 và ${savedCount} người mới, cập nhật ${updatedCount} người!`
+            message
           };
         } else {
+          const message = 'Đã lưu thông tin kê khai 603 thành công!';
+          console.log(`✅ ${message}`);
           return {
             success: true,
-            message: 'Đã lưu thông tin kê khai 603 thành công!'
+            message
           };
         }
       } else {
+        const message = `Đã lưu kê khai 603 và ${savedCount + updatedCount} người thành công, ${errorCount} người lỗi.`;
+        console.log(`⚠️ ${message}`);
         return {
           success: false,
-          message: `Đã lưu kê khai 603 và ${savedCount + updatedCount} người thành công, ${errorCount} người lỗi.`
+          message
         };
       }
 
     } catch (error) {
-      console.error('Error saving all participants:', error);
+      console.error('❌ Error saving all participants:', error);
       return {
         success: false,
         message: 'Có lỗi xảy ra khi ghi dữ liệu kê khai 603. Vui lòng thử lại.'
       };
     } finally {
       setSaving(false);
+      console.log('🔄 Save process completed');
     }
   };
 
@@ -389,8 +426,6 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
     keKhaiInfo,
     saving,
     submitting,
-    inputMode,
-    setInputMode,
     initializeKeKhai,
     createNewKeKhai,
     submitDeclaration,
