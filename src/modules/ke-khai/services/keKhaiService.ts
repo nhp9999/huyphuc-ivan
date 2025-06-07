@@ -56,6 +56,15 @@ export interface CreateNguoiThamGiaRequest {
   trang_thai_the?: string;
   tu_ngay_the_cu?: string;
   den_ngay_the_cu?: string;
+  so_thang_dong?: number; // Số tháng đóng
+  stt_ho?: string; // STT hộ gia đình
+  tu_ngay_the_moi?: string;
+  den_ngay_the_moi?: string;
+  ngay_bien_lai?: string;
+  cong_ty_id?: number;
+  co_quan_bhxh_id?: number;
+  loai_to_chuc?: string; // Loại tổ chức
+  den_ngay_the_cu?: string;
   so_thang_dong?: number;
   stt_ho?: string;
   tu_ngay_the_moi?: string;

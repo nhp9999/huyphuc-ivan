@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigation } from '../../../core/contexts/NavigationContext';
 import Toast from '../../../shared/components/ui/Toast';
-import { useKeKhai603FormData } from '../hooks/useKeKhai603FormData';
+import { useKeKhai603FormData, calculateKeKhai603Amount, calculateKeKhai603AmountThucTe } from '../hooks/useKeKhai603FormData';
 import { useKeKhai603Participants } from '../hooks/useKeKhai603Participants';
 import { useKeKhai603Api } from '../hooks/useKeKhai603Api';
 import { useKeKhai603 } from '../hooks/useKeKhai603';
@@ -325,166 +325,196 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }, 50);
   };
 
-  // Handle household bulk input (new approach using saveParticipantFromForm)
+  // Handle household bulk input (optimized batch approach)
   const handleHouseholdBulkAddNew = async (
     bhxhCodes: string[],
     soThangDong: string,
-    medicalFacility?: { maBenhVien: string; tenBenhVien: string },
+    medicalFacility?: { maBenhVien: string; tenBenhVien: string; maTinh?: string },
     progressCallback?: (current: number, currentCode?: string) => void
   ) => {
     try {
-      console.log(`🏠 Starting NEW household bulk input for ${bhxhCodes.length} participants`);
+      console.log(`🏠 Starting OPTIMIZED household bulk input for ${bhxhCodes.length} participants`);
+
+      // Validate keKhaiInfo is available
+      if (!keKhaiInfo?.id) {
+        throw new Error('Chưa có thông tin kê khai. Vui lòng tạo kê khai mới từ trang chính.');
+      }
 
       let successCount = 0;
       let errorCount = 0;
+      const errors: Array<{ code: string; error: string }> = [];
+      const savedParticipants: Array<{ id: string; bhxhCode: string }> = [];
 
-      // Process each participant individually using saveParticipantFromForm
-      for (let i = 0; i < bhxhCodes.length; i++) {
-        const bhxhCode = bhxhCodes[i];
+      // Phase 1: Batch save participants to database
+      progressCallback?.(0, 'Đang chuẩn bị dữ liệu...');
+      const participantDataList = bhxhCodes.map((bhxhCode, i) => {
         const sttHo = keKhaiInfo?.doi_tuong_tham_gia && keKhaiInfo.doi_tuong_tham_gia.includes('DS') ? '1' : (i + 1).toString();
 
-        progressCallback?.(i + 1, `Đang lưu ${bhxhCode}...`);
-        console.log(`🏠 Processing participant ${i + 1}/${bhxhCodes.length}: ${bhxhCode}`);
+        // Create clean data object matching CreateNguoiThamGiaRequest interface
+        const participantData: any = {
+          ke_khai_id: keKhaiInfo.id, // Already validated above
+          stt: participants.length + i + 1,
+          ho_ten: '', // Will be populated by API
+          ma_so_bhxh: bhxhCode,
+          gioi_tinh: 'Nam',
+          quoc_tich: 'VN',
+          so_thang_dong: parseInt(soThangDong),
+          stt_ho: sttHo,
+          loai_to_chuc: keKhaiInfo?.loai_to_chuc || 'cong_ty',
+          cong_ty_id: keKhaiInfo?.cong_ty_id,
+          co_quan_bhxh_id: keKhaiInfo?.co_quan_bhxh_id,
+          ngay_bien_lai: new Date().toISOString().split('T')[0]
+        };
 
-        let participantSaved = false;
-        let savedParticipantId: string | null = null;
+        // Calculate payment amounts using the same logic as individual entry
+        if (sttHo && soThangDong) {
+          // Calculate tien_dong (new formula)
+          const tienDong = calculateKeKhai603Amount(sttHo, soThangDong);
+          participantData.tien_dong = tienDong;
 
-        try {
-          // Create form data for this participant
-          const participantFormData = {
-            maSoBHXH: bhxhCode,
-            soThangDong: soThangDong,
-            sttHo: sttHo,
-            hoTen: '', // Will be filled by API lookup
-            ngaySinh: '',
-            gioiTinh: 'Nam',
-            soCCCD: '',
-            noiDangKyKCB: medicalFacility?.tenBenhVien || '',
-            soDienThoai: '',
-            soTheBHYT: '',
-            quocTich: 'VN',
-            danToc: '',
-            maTinhKS: '',
-            maHuyenKS: '',
-            maXaKS: '',
-            maTinhNkq: '',
-            maHuyenNkq: '',
-            maXaNkq: '',
-            tinhKCB: '',
-            maBenhVien: medicalFacility?.maBenhVien || '',
-            tenBenhVien: medicalFacility?.tenBenhVien || '',
-            tuNgayTheCu: '',
-            denNgayTheCu: '',
-            tuNgayTheMoi: '',
-            denNgayTheMoi: '',
-            ngayBienLai: new Date().toISOString().split('T')[0],
-            maHoGiaDinh: '',
-            phuongAn: ''
-          };
+          // Calculate tien_dong_thuc_te (old formula with 4.5%)
+          const tienDongThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, 2340000, keKhaiInfo?.doi_tuong_tham_gia);
+          participantData.tien_dong_thuc_te = tienDongThucTe;
 
-          console.log(`📝 Form data for participant ${i + 1}:`, participantFormData);
-
-          // Save participant using the new approach
-          const result = await saveParticipantFromForm(participantFormData);
-
-          if (result.success) {
-            console.log(`✅ Successfully saved participant ${i + 1}: ${bhxhCode}`);
-            successCount++;
-            participantSaved = true;
-            savedParticipantId = result.participant?.id?.toString() || null;
-
-            // Refresh participants list to get the newly saved participant
-            console.log(`🔄 Refreshing participants list to include newly saved participant...`);
-            await loadParticipants();
-            await new Promise(resolve => setTimeout(resolve, 500)); // Wait for state to update
-
-            // Try to lookup participant data from API to get real name and info
-            try {
-              progressCallback?.(i + 1, `Đang tra cứu thông tin ${bhxhCode}...`);
-              console.log(`🔍 Looking up data for ${bhxhCode}...`);
-
-              // Call API search directly with BHXH code
-              console.log(`🚀 Direct API search for BHXH: ${bhxhCode}`);
-              const directSearchResult = await searchParticipantData(bhxhCode, -1); // Use -1 as placeholder index
-
-              if (directSearchResult.success && directSearchResult.data) {
-                console.log(`✅ Direct API search successful for ${bhxhCode}:`, directSearchResult.data);
-
-                // Now update the participant directly in database with API data
-                if (savedParticipantId) {
-                  console.log(`💾 Updating participant ${savedParticipantId} in database with API data...`);
-
-                  try {
-                    // Prepare API data for database update
-                    const apiUpdateData: any = {
-                      ho_ten: directSearchResult.data.hoTen || '',
-                      ngay_sinh: directSearchResult.data.ngaySinh || undefined,
-                      gioi_tinh: directSearchResult.data.gioiTinh || 'Nam',
-                      so_cccd: directSearchResult.data.soCCCD || undefined,
-                      so_dien_thoai: directSearchResult.data.soDienThoai || undefined,
-                      so_the_bhyt: directSearchResult.data.soTheBHYT || undefined,
-                      dan_toc: directSearchResult.data.danToc || undefined,
-                      quoc_tich: directSearchResult.data.quocTich || 'VN',
-                      noi_dang_ky_kcb: directSearchResult.data.noiDangKyKCB || undefined,
-                      ma_tinh_ks: directSearchResult.data.maTinhKS || undefined,
-                      ma_huyen_ks: directSearchResult.data.maHuyenKS || undefined,
-                      ma_xa_ks: directSearchResult.data.maXaKS || undefined,
-                      ma_tinh_nkq: directSearchResult.data.maTinhNkq || undefined,
-                      ma_huyen_nkq: directSearchResult.data.maHuyenNkq || undefined,
-                      ma_xa_nkq: directSearchResult.data.maXaNkq || undefined,
-                      noi_nhan_ho_so: directSearchResult.data.noiNhanHoSo || undefined,
-                      ma_ho_gia_dinh: directSearchResult.data.maHoGiaDinh || undefined,
-                      phuong_an: directSearchResult.data.phuongAn || undefined,
-                      updated_at: new Date().toISOString()
-                    };
-
-                    // Clean null/undefined values
-                    Object.keys(apiUpdateData).forEach(key => {
-                      if (apiUpdateData[key] === null || apiUpdateData[key] === undefined || apiUpdateData[key] === '') {
-                        delete apiUpdateData[key];
-                      }
-                    });
-
-                    console.log(`📝 API update data:`, apiUpdateData);
-
-                    // Update participant in database using keKhaiService
-                    const updateResult = await keKhaiService.updateNguoiThamGia(parseInt(savedParticipantId), apiUpdateData);
-                    console.log(`✅ API data saved to database for ${bhxhCode}:`, updateResult);
-
-                    // Refresh participants list again to show updated data
-                    await loadParticipants();
-                  } catch (updateError) {
-                    console.error(`❌ Error updating participant ${savedParticipantId} with API data:`, updateError);
-                  }
-                } else {
-                  console.warn(`⚠️ No saved participant ID available to update with API data for ${bhxhCode}`);
-                }
-              } else {
-                console.warn(`⚠️ Direct API search failed for ${bhxhCode}:`, directSearchResult.message);
-              }
-
-              console.log(`✅ Direct API search completed for ${bhxhCode}`);
-
-              // Additional delay after API call to avoid rate limiting
-              await new Promise(resolve => setTimeout(resolve, 500));
-            } catch (searchError) {
-              console.warn(`⚠️ Could not lookup data for ${bhxhCode}:`, searchError);
-              // Continue even if API lookup fails - participant is still saved
-            }
-          } else {
-            console.error(`❌ Failed to save participant ${i + 1}: ${bhxhCode}`, result.message);
-            errorCount++;
-          }
-        } catch (error) {
-          console.error(`❌ Error processing participant ${i + 1}: ${bhxhCode}`, error);
-          errorCount++;
+          console.log(`💰 Calculated amounts for ${bhxhCode}: tien_dong=${tienDong}, tien_dong_thuc_te=${tienDongThucTe}`);
         }
 
-        // Delay between participants (longer if API lookup was performed)
-        const delayTime = participantSaved ? 1200 : 400; // Longer delay after successful save + API lookup + database save
-        console.log(`⏳ Waiting ${delayTime}ms before next participant...`);
-        await new Promise(resolve => setTimeout(resolve, delayTime));
+        // Add medical facility data if provided
+        if (medicalFacility?.maBenhVien) {
+          participantData.ma_benh_vien = medicalFacility.maBenhVien;
+          participantData.noi_dang_ky_kcb = medicalFacility.tenBenhVien;
+          participantData.noi_nhan_ho_so = medicalFacility.tenBenhVien; // Nơi nhận hồ sơ = tên bệnh viện
+          participantData.tinh_kcb = medicalFacility.maTinh; // Mã tỉnh KCB
+          console.log(`🏥 Added medical facility data: ${medicalFacility.tenBenhVien} (${medicalFacility.maBenhVien}) - Tỉnh: ${medicalFacility.maTinh}`);
+        }
+
+        return participantData;
+      });
+
+      try {
+        progressCallback?.(Math.floor(bhxhCodes.length * 0.2), 'Đang lưu vào cơ sở dữ liệu...');
+        const batchSaveResult = await keKhaiService.addMultipleNguoiThamGia(participantDataList);
+
+        batchSaveResult.forEach((participant, index) => {
+          savedParticipants.push({
+            id: participant.id.toString(),
+            bhxhCode: bhxhCodes[index]
+          });
+        });
+
+        successCount = batchSaveResult.length;
+        console.log(`✅ Batch saved ${successCount} participants to database`);
+      } catch (batchError) {
+        console.error('❌ Batch save failed, falling back to individual saves:', batchError);
+
+        // Fallback: Individual saves
+        for (let i = 0; i < bhxhCodes.length; i++) {
+          const bhxhCode = bhxhCodes[i];
+          progressCallback?.(i + 1, `Đang lưu ${bhxhCode}...`);
+
+          try {
+            const result = await saveParticipantFromForm(participantDataList[i]);
+            if (result.success && result.participant?.id) {
+              savedParticipants.push({
+                id: result.participant.id.toString(),
+                bhxhCode
+              });
+              successCount++;
+            } else {
+              errors.push({ code: bhxhCode, error: result.message || 'Lưu thất bại' });
+              errorCount++;
+            }
+          } catch (error) {
+            errors.push({ code: bhxhCode, error: error instanceof Error ? error.message : 'Lỗi không xác định' });
+            errorCount++;
+          }
+        }
       }
+
+      // Phase 2: Batch API lookup for all saved participants
+      progressCallback?.(Math.floor(bhxhCodes.length * 0.4), 'Đang tra cứu thông tin từ API...');
+
+      // Process API lookups with controlled concurrency
+      const apiPromises = savedParticipants.map(async ({ id, bhxhCode }, index) => {
+        try {
+          // Add staggered delay to avoid overwhelming the API
+          await new Promise(resolve => setTimeout(resolve, index * 200));
+
+          progressCallback?.(Math.floor(bhxhCodes.length * 0.4) + index + 1, `Tra cứu ${bhxhCode}...`);
+
+          const directSearchResult = await searchParticipantData(bhxhCode, -1);
+
+          if (directSearchResult.success && directSearchResult.data) {
+            // Update participant in database with API data
+            const apiUpdateData: any = {
+              ho_ten: directSearchResult.data.hoTen || '',
+              ngay_sinh: directSearchResult.data.ngaySinh || undefined,
+              gioi_tinh: directSearchResult.data.gioiTinh || 'Nam',
+              so_cccd: directSearchResult.data.soCCCD || undefined,
+              so_dien_thoai: directSearchResult.data.soDienThoai || undefined,
+              so_the_bhyt: directSearchResult.data.soTheBHYT || undefined,
+              dan_toc: directSearchResult.data.danToc || undefined,
+              quoc_tich: directSearchResult.data.quocTich || 'VN',
+              ma_tinh_ks: directSearchResult.data.maTinhKS || undefined,
+              ma_huyen_ks: directSearchResult.data.maHuyenKS || undefined,
+              ma_xa_ks: directSearchResult.data.maXaKS || undefined,
+              ma_tinh_nkq: directSearchResult.data.maTinhNkq || directSearchResult.data.maTinhKS || undefined,
+              ma_huyen_nkq: directSearchResult.data.maHuyenNkq || directSearchResult.data.maHuyenKS || undefined,
+              ma_xa_nkq: directSearchResult.data.maXaNkq || directSearchResult.data.maXaKS || undefined,
+              ma_ho_gia_dinh: directSearchResult.data.maHoGiaDinh || undefined,
+              phuong_an: directSearchResult.data.phuongAn || undefined
+            };
+
+            // Only update medical facility data if no facility was selected in modal
+            // This preserves the user's choice from the household bulk input modal
+            if (!medicalFacility?.maBenhVien) {
+              apiUpdateData.noi_dang_ky_kcb = directSearchResult.data.noiDangKyKCB || undefined;
+              apiUpdateData.tinh_kcb = directSearchResult.data.tinhKCB || undefined;
+              apiUpdateData.ma_benh_vien = directSearchResult.data.maBenhVien || undefined;
+            }
+            // If medical facility was selected in modal, keep the original values
+            // and don't overwrite with API data
+
+            // Clean undefined values
+            Object.keys(apiUpdateData).forEach(key => {
+              if (apiUpdateData[key] === undefined || apiUpdateData[key] === '') {
+                delete apiUpdateData[key];
+              }
+            });
+
+            await keKhaiService.updateNguoiThamGia(parseInt(id), apiUpdateData);
+            return { success: true, bhxhCode };
+          } else {
+            return { success: false, bhxhCode, error: directSearchResult.message };
+          }
+        } catch (error) {
+          return {
+            success: false,
+            bhxhCode,
+            error: error instanceof Error ? error.message : 'Lỗi không xác định'
+          };
+        }
+      });
+
+      // Wait for all API lookups to complete
+      const apiResults = await Promise.allSettled(apiPromises);
+
+      // Count API successes and failures
+      let apiSuccessCount = 0;
+      let apiErrorCount = 0;
+
+      apiResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          apiSuccessCount++;
+        } else {
+          apiErrorCount++;
+          const bhxhCode = savedParticipants[index]?.bhxhCode || 'Unknown';
+          const errorMsg = result.status === 'fulfilled' ? result.value.error : 'Promise rejected';
+          errors.push({ code: bhxhCode, error: `API lookup failed: ${errorMsg}` });
+        }
+      });
+
+      console.log(`🔍 API lookup completed: ${apiSuccessCount} success, ${apiErrorCount} errors`);
 
       // Final refresh to ensure all data is up to date
       console.log(`🔄 Final refresh of participants list...`);

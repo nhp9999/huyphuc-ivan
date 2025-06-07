@@ -147,6 +147,16 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       // Set participants (can be empty array)
       setParticipants(convertedParticipants);
       setInitialized(true);
+
+      // Debug log to check loaded data
+      console.log(`🔍 Loaded ${convertedParticipants.length} participants:`, convertedParticipants.map(p => ({
+        id: p.id,
+        hoTen: p.hoTen,
+        maBenhVien: p.maBenhVien,
+        noiDangKyKCB: p.noiDangKyKCB,
+        noiNhanHoSo: p.noiNhanHoSo
+      })));
+
       return convertedParticipants;
     } catch (error) {
       console.error('Error loading participants:', error);

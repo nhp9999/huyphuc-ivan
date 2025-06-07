@@ -6,6 +6,7 @@ interface HouseholdBulkInputData {
   soThangDong: string;
   maBenhVien?: string;
   tenBenhVien?: string;
+  maTinh?: string;
 }
 
 interface HouseholdBulkInputModalProps {
@@ -101,7 +102,8 @@ export const HouseholdBulkInputModal: React.FC<HouseholdBulkInputModalProps> = (
       bhxhCodes: parsedCodes,
       soThangDong,
       maBenhVien: selectedFacility?.value,
-      tenBenhVien: selectedFacility?.ten
+      tenBenhVien: selectedFacility?.ten,
+      maTinh: selectedFacility?.ma_tinh
     };
 
     onSubmit(data);

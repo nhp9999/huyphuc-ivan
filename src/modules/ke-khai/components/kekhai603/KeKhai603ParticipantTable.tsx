@@ -326,7 +326,8 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     try {
       const medicalFacility = data.maBenhVien && data.tenBenhVien ? {
         maBenhVien: data.maBenhVien,
-        tenBenhVien: data.tenBenhVien
+        tenBenhVien: data.tenBenhVien,
+        maTinh: data.maTinh
       } : undefined;
 
       // Create a wrapper function that updates progress
