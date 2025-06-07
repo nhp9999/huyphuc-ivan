@@ -1,12 +1,11 @@
 import React from 'react';
-import { useNavigation } from '../../../core/contexts/NavigationContext';
 import Toast from '../../../shared/components/ui/Toast';
 import { useKeKhai603FormData, calculateKeKhai603Amount, calculateKeKhai603AmountThucTe, calculateKeKhai603CardValidity } from '../hooks/useKeKhai603FormData';
 import { useKeKhai603Participants } from '../hooks/useKeKhai603Participants';
 import { useKeKhai603Api } from '../hooks/useKeKhai603Api';
 import { useKeKhai603 } from '../hooks/useKeKhai603';
 import { useToast } from '../../../shared/hooks/useToast';
-import { ThanhToan, supabase } from '../../../shared/services/api/supabaseClient';
+import { ThanhToan } from '../../../shared/services/api/supabaseClient';
 import PaymentQRModal from './PaymentQRModal';
 import vnpostTokenService from '../../../shared/services/api/vnpostTokenService';
 import { KeKhai603Header } from './kekhai603/KeKhai603Header';
@@ -26,9 +25,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   // Preload CSKCB data for better performance
   useCSKCBPreloader();
 
-  // State for tracking save status
-  const [lastSavedTime, setLastSavedTime] = React.useState<Date | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false);
+
 
   // State for payment modal
   const [showPaymentModal, setShowPaymentModal] = React.useState(false);
@@ -74,12 +71,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     saveParticipantFromForm
   } = useKeKhai603Participants(keKhaiInfo?.id, keKhaiInfo?.doi_tuong_tham_gia);
 
-  // Track changes to mark as unsaved
-  React.useEffect(() => {
-    if (participants.length > 0 || Object.values(formData).some(value => value !== '')) {
-      setHasUnsavedChanges(true);
-    }
-  }, [participants, formData]);
+
 
   // Helper function to find matching medical facility in CSKCB options
   const findMatchingMedicalFacility = async (facilityName: string) => {
@@ -120,21 +112,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
-  // Show message when participants are loaded
-  React.useEffect(() => {
-    if (participants.length > 0 && participants[0].id > 0) {
-      showToast(`Đã tải ${participants.length} người tham gia từ database`, 'success');
-      setHasUnsavedChanges(false); // Data loaded from DB is considered saved
-    }
-  }, [participants.length]);
 
-  // Show success message when keKhaiInfo is loaded
-  React.useEffect(() => {
-    if (keKhaiInfo) {
-      showToast(`Kê khai ${keKhaiInfo.ma_ke_khai} đã sẵn sàng`, 'success');
-      setHasUnsavedChanges(false); // Initial load is considered saved
-    }
-  }, [keKhaiInfo]);
 
   // Handle search for main form
   const handleSearch = async () => {
@@ -295,35 +273,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
-  // Debug function to inspect participant state (using callback to get fresh state)
-  const debugParticipantState = (label: string, participantIndex?: number) => {
-    // Use setTimeout to ensure we get the latest state after React updates
-    setTimeout(() => {
-      // Get fresh participants from the hook
-      const currentParticipants = participants;
 
-      if (participantIndex !== undefined) {
-        const participant = currentParticipants[participantIndex];
-        console.log(`🔍 ${label} - Participant ${participantIndex + 1}:`, {
-          exists: !!participant,
-          sttHo: participant?.sttHo,
-          soThangDong: participant?.soThangDong,
-          maSoBHXH: participant?.maSoBHXH,
-          hoTen: participant?.hoTen,
-          id: participant?.id
-        });
-      } else {
-        console.log(`🔍 ${label} - All participants (${currentParticipants.length}):`, currentParticipants.map((p, i) => ({
-          index: i + 1,
-          sttHo: p.sttHo,
-          soThangDong: p.soThangDong,
-          maSoBHXH: p.maSoBHXH,
-          hoTen: p.hoTen,
-          id: p.id
-        })));
-      }
-    }, 50);
-  };
 
   // Handle household bulk input (optimized batch approach)
   const handleHouseholdBulkAddNew = async (
@@ -492,16 +442,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
               console.log(`📅 Using API den_ngay_the_cu: ${directSearchResult.data.denNgayTheCu}`);
             }
 
-            // Handle new card validity dates from API data
-            if (directSearchResult.data.tuNgayTheMoi) {
-              apiUpdateData.tu_ngay_the_moi = directSearchResult.data.tuNgayTheMoi;
-              console.log(`📅 Using API tu_ngay_the_moi: ${directSearchResult.data.tuNgayTheMoi}`);
-            }
 
-            if (directSearchResult.data.denNgayTheMoi) {
-              apiUpdateData.den_ngay_the_moi = directSearchResult.data.denNgayTheMoi;
-              console.log(`📅 Using API den_ngay_the_moi: ${directSearchResult.data.denNgayTheMoi}`);
-            }
 
             // Only update medical facility data if no facility was selected in modal
             // This preserves the user's choice from the household bulk input modal
@@ -599,116 +540,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
-  // Handle household bulk input (old approach - keep for backup)
-  const handleHouseholdBulkAdd = async (
-    bhxhCodes: string[],
-    soThangDong: string,
-    medicalFacility?: { maBenhVien: string; tenBenhVien: string },
-    progressCallback?: (current: number, currentCode?: string) => void
-  ) => {
-    try {
-      console.log(`🏠 Starting household bulk input for ${bhxhCodes.length} participants`);
-      debugParticipantState('Before bulk input');
-      const startingParticipantCount = participants.length;
 
-      // Add all participants first
-      for (let i = 0; i < bhxhCodes.length; i++) {
-        progressCallback?.(i, `Đang thêm người ${i + 1}/${bhxhCodes.length}...`);
-        console.log(`🏠 Adding participant ${i + 1}/${bhxhCodes.length}`);
-        await handleAddParticipant();
-        // Small delay to ensure state updates properly
-        await new Promise(resolve => setTimeout(resolve, 150));
-        debugParticipantState(`After adding participant ${i + 1}`);
-      }
-
-      // Wait a bit more for all participants to be added
-      console.log(`🏠 Waiting for all participants to be added...`);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      debugParticipantState('After all participants added');
-
-      // Now populate data for each participant sequentially with improved timing
-      for (let i = 0; i < bhxhCodes.length; i++) {
-        const bhxhCode = bhxhCodes[i];
-        const sttHo = (i + 1).toString(); // Auto-increment STT hộ starting from 1
-        const participantIndex = startingParticipantCount + i;
-
-        console.log(`🏠 Setting data for participant ${participantIndex + 1}: BHXH=${bhxhCode}, STT hộ=${sttHo}`);
-        debugParticipantState(`Before setting data for participant ${participantIndex + 1}`, participantIndex);
-
-        // Set mã BHXH first
-        console.log(`🏠 Setting maSoBHXH = "${bhxhCode}" for participant ${participantIndex + 1}`);
-        await handleParticipantChange(participantIndex, 'maSoBHXH', bhxhCode);
-        await new Promise(resolve => setTimeout(resolve, 200)); // Longer delay
-        debugParticipantState(`After setting maSoBHXH for participant ${participantIndex + 1}`, participantIndex);
-
-        // Set số tháng đóng
-        console.log(`🏠 Setting soThangDong = "${soThangDong}" for participant ${participantIndex + 1}`);
-        await handleParticipantChange(participantIndex, 'soThangDong', soThangDong);
-        await new Promise(resolve => setTimeout(resolve, 200)); // Longer delay
-        debugParticipantState(`After setting soThangDong for participant ${participantIndex + 1}`, participantIndex);
-
-        // Set STT hộ (auto-increment for household)
-        const finalSttHo = keKhaiInfo?.doi_tuong_tham_gia && keKhaiInfo.doi_tuong_tham_gia.includes('DS') ? '1' : sttHo;
-        console.log(`🏠 Setting STT hộ = "${finalSttHo}" for participant ${participantIndex + 1}`);
-        await handleParticipantChange(participantIndex, 'sttHo', finalSttHo);
-        await new Promise(resolve => setTimeout(resolve, 200)); // Longer delay
-        debugParticipantState(`After setting sttHo for participant ${participantIndex + 1}`, participantIndex);
-
-        // Set medical facility if provided
-        if (medicalFacility) {
-          console.log(`🏠 Setting medical facility for participant ${participantIndex + 1}: ${medicalFacility.tenBenhVien}`);
-          await handleParticipantChange(participantIndex, 'maBenhVien', medicalFacility.maBenhVien);
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-          await handleParticipantChange(participantIndex, 'tenBenhVien', medicalFacility.tenBenhVien);
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-          await handleParticipantChange(participantIndex, 'noiDangKyKCB', medicalFacility.tenBenhVien);
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        // Longer delay before processing next participant
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-
-      // Wait for all data to be set before starting API searches
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Now try to search for participant data for each
-      for (let i = 0; i < bhxhCodes.length; i++) {
-        const bhxhCode = bhxhCodes[i];
-        const participantIndex = startingParticipantCount + i;
-
-        progressCallback?.(i + 1, `Đang tra cứu ${bhxhCode}...`);
-
-        console.log(`🔍 Starting API search for participant ${participantIndex + 1} (BHXH: ${bhxhCode})`);
-        debugParticipantState(`Before API search for participant ${participantIndex + 1}`, participantIndex);
-
-        try {
-          await handleParticipantSearch(participantIndex);
-          // Wait a bit for the API update to complete
-          await new Promise(resolve => setTimeout(resolve, 200));
-          debugParticipantState(`After API search for participant ${participantIndex + 1}`, participantIndex);
-        } catch (searchError) {
-          console.warn(`Could not auto-search for BHXH ${bhxhCode}:`, searchError);
-          // Continue with next participant even if search fails
-        }
-
-        // Delay between API calls to avoid rate limiting
-        if (i < bhxhCodes.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 600));
-        }
-      }
-
-      // Final state check
-      console.log(`🏠 Household bulk input completed successfully`);
-      debugParticipantState('Final state after household bulk input');
-      showToast(`Đã thêm thành công ${bhxhCodes.length} người vào hộ gia đình!`, 'success');
-    } catch (error) {
-      console.error('Household bulk add error:', error);
-      showToast('Có lỗi xảy ra khi thêm hộ gia đình. Vui lòng thử lại.', 'error');
-    }
-  };
 
   // Handle Fix Error - Sequential GemLogin Test + 5 second wait + Refresh Token
   const handleFixError = async () => {
@@ -859,106 +691,9 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  // Test database connection
-  const handleTestDatabase = async () => {
-    console.log('🧪 Testing database connection...');
 
-    try {
-      // Test 1: Check if we can read from database
-      console.log('📖 Test 1: Reading from database...');
-      const { data: testRead, error: readError } = await supabase
-        .from('danh_sach_ke_khai')
-        .select('id, ma_ke_khai, ten_ke_khai')
-        .limit(1);
 
-      if (readError) {
-        console.error('❌ Database read failed:', readError);
-        showToast(`Database read error: ${readError.message}`, 'error');
-        return;
-      }
 
-      console.log('✅ Database read successful:', testRead);
-
-      // Test 2: Check user authentication
-      console.log('👤 Test 2: Checking user authentication...');
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-
-      if (authError) {
-        console.error('❌ Auth check failed:', authError);
-      } else {
-        console.log('👤 Auth user:', authUser);
-      }
-
-      // Test 3: Try a simple update if keKhaiInfo exists
-      if (keKhaiInfo) {
-        console.log('💾 Test 3: Testing database write...');
-        const testUpdateData = {
-          updated_at: new Date().toISOString(),
-          updated_by: 'test_user'
-        };
-
-        const { data: updateResult, error: updateError } = await supabase
-          .from('danh_sach_ke_khai')
-          .update(testUpdateData)
-          .eq('id', keKhaiInfo.id)
-          .select();
-
-        if (updateError) {
-          console.error('❌ Database write failed:', updateError);
-          showToast(`Database write error: ${updateError.message}`, 'error');
-        } else {
-          console.log('✅ Database write successful:', updateResult);
-          showToast('Database connection test passed!', 'success');
-        }
-      } else {
-        showToast('Database read test passed, but no keKhaiInfo to test write', 'warning');
-      }
-
-    } catch (error) {
-      console.error('❌ Database test failed:', error);
-      showToast(`Database test failed: ${error}`, 'error');
-    }
-  };
-
-  // Simple test save function
-  const handleSimpleTestSave = async () => {
-    console.log('🧪 Simple test save...');
-
-    if (!keKhaiInfo) {
-      showToast('No keKhaiInfo available for test', 'error');
-      return;
-    }
-
-    try {
-      // Direct database call to test
-      const testData = {
-        ghi_chu: `Test save at ${new Date().toISOString()}`,
-        updated_at: new Date().toISOString(),
-        updated_by: 'test_user'
-      };
-
-      console.log('💾 Testing direct database update...');
-      console.log('📊 Test data:', testData);
-      console.log('🎯 Target ID:', keKhaiInfo.id);
-
-      const { data: result, error } = await supabase
-        .from('danh_sach_ke_khai')
-        .update(testData)
-        .eq('id', keKhaiInfo.id)
-        .select();
-
-      if (error) {
-        console.error('❌ Direct save failed:', error);
-        showToast(`Direct save error: ${error.message}`, 'error');
-      } else {
-        console.log('✅ Direct save successful:', result);
-        showToast('Direct database save test passed!', 'success');
-      }
-    } catch (error) {
-      console.error('❌ Simple test save failed:', error);
-      showToast(`Simple test save failed: ${error}`, 'error');
-    }
-  };
 
   // Handle save all data
   const handleSaveAll = async () => {
@@ -988,9 +723,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
       if (result.success) {
         showToast(result.message, 'success');
-        // Mark as saved
-        setHasUnsavedChanges(false);
-        setLastSavedTime(new Date());
+
         console.log('✅ Save completed successfully');
       } else {
         showToast(result.message, 'error');
@@ -1080,147 +813,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
-  // Handle save participant from form (old approach - keep for backup)
-  const handleSaveParticipant = async () => {
-    // Check if keKhaiInfo is available
-    if (!keKhaiInfo) {
-      showToast('Chưa có thông tin kê khai. Vui lòng tạo kê khai mới từ trang chính.', 'error');
-      return;
-    }
 
-    // Validate required fields
-    if (!formData.maSoBHXH.trim()) {
-      showToast('Vui lòng nhập mã số BHXH', 'warning');
-      return;
-    }
-
-    if (!formData.noiDangKyKCB.trim()) {
-      showToast('Vui lòng chọn nơi đăng ký KCB', 'warning');
-      return;
-    }
-
-    if (!formData.hoTen.trim()) {
-      showToast('Vui lòng nhập họ tên', 'warning');
-      return;
-    }
-
-    try {
-      setSavingParticipant(true);
-      console.log('🚀 Starting save participant process...');
-      console.log('📊 Current participants count:', participants.length);
-
-      // Add a new participant first
-      console.log('➕ Adding new participant...');
-      const savedParticipant = await addParticipant();
-      console.log('✅ New participant added to database:', savedParticipant);
-
-      // Wait for state to update and get the correct index
-      console.log('⏳ Waiting for state to update...');
-
-      // Use multiple attempts to get the updated state
-      let newParticipantIndex = -1;
-      let attempts = 0;
-      const maxAttempts = 10;
-
-      while (newParticipantIndex === -1 && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-
-        console.log(`🔄 Attempt ${attempts}/${maxAttempts} - participants count:`, participants.length);
-
-        // Find the participant by ID to get the correct index
-        for (let i = 0; i < participants.length; i++) {
-          if (participants[i].id === savedParticipant.id) {
-            newParticipantIndex = i;
-            console.log(`✅ Found participant by ID at index ${i} on attempt ${attempts}`);
-            break;
-          }
-        }
-
-        // If still not found and we have participants, use the last one
-        if (newParticipantIndex === -1 && participants.length > 0) {
-          newParticipantIndex = participants.length - 1;
-          console.log(`⚠️ Using last index as fallback: ${newParticipantIndex}`);
-          break;
-        }
-      }
-
-      console.log('📍 Final participant index:', newParticipantIndex);
-      console.log('📊 Final participants count:', participants.length);
-      console.log('📋 Final participants:', participants.map(p => ({ id: p.id, hoTen: p.hoTen })));
-
-      // Validate the index
-      if (newParticipantIndex < 0) {
-        console.error('❌ No participants found in array after adding');
-        console.error('📊 Participants length:', participants.length);
-        console.error('🆔 Saved participant ID:', savedParticipant.id);
-        console.error('🔄 Attempts made:', attempts);
-        throw new Error(`Không thể tìm thấy người tham gia vừa thêm sau ${attempts} lần thử. Participants length: ${participants.length}`);
-      }
-
-      if (newParticipantIndex >= participants.length) {
-        console.error('❌ Index out of bounds');
-        throw new Error(`Invalid participant index: ${newParticipantIndex}. Participants length: ${participants.length}`);
-      }
-
-      // Update the new participant with form data
-      const participantData = {
-        maSoBHXH: formData.maSoBHXH,
-        hoTen: formData.hoTen,
-        ngaySinh: formData.ngaySinh,
-        gioiTinh: formData.gioiTinh,
-        soCCCD: formData.soCCCD,
-        noiDangKyKCB: formData.noiDangKyKCB,
-        soDienThoai: formData.soDienThoai,
-        soTheBHYT: formData.soTheBHYT,
-        quocTich: formData.quocTich,
-        danToc: formData.danToc,
-        maTinhKS: formData.maTinhKS,
-        maHuyenKS: formData.maHuyenKS,
-        maXaKS: formData.maXaKS,
-        maTinhNkq: formData.maTinhNkq,
-        maHuyenNkq: formData.maHuyenNkq,
-        maXaNkq: formData.maXaNkq,
-        tinhKCB: formData.tinhKCB,
-        soThangDong: formData.soThangDong,
-        sttHo: formData.sttHo,
-        tuNgayTheCu: formData.tuNgayTheCu,
-        denNgayTheCu: formData.denNgayTheCu,
-        tuNgayTheMoi: formData.tuNgayTheMoi,
-        denNgayTheMoi: formData.denNgayTheMoi,
-        ngayBienLai: formData.ngayBienLai,
-        ghiChuDongPhi: formData.ghiChuDongPhi,
-        maHoGiaDinh: formData.maHoGiaDinh,
-        phuongAn: formData.phuongAn
-      };
-
-      console.log('📝 Updating participant with form data...');
-      // Update each field for the new participant
-      for (const [key, value] of Object.entries(participantData)) {
-        if (value && value.toString().trim()) {
-          await handleParticipantChange(newParticipantIndex, key as any, value.toString());
-          await new Promise(resolve => setTimeout(resolve, 50)); // Small delay between updates
-        }
-      }
-
-      console.log('💾 Saving participant to database...');
-      // Save the participant to database
-      await handleSaveSingleParticipant(newParticipantIndex);
-
-      // Reset the form for next entry
-      console.log('🔄 Resetting form...');
-      resetForm();
-
-      console.log('✅ Save participant process completed successfully');
-      showToast('Đã lưu người tham gia thành công! Form đã được làm mới để nhập người tiếp theo.', 'success');
-    } catch (error) {
-      console.error('❌ Save participant error:', error);
-      showToast('Có lỗi xảy ra khi lưu người tham gia. Vui lòng thử lại.', 'error');
-    } finally {
-      setSavingParticipant(false);
-      console.log('🔄 Save participant process finished');
-    }
-  };
 
   // Handle add participant
   const handleAddParticipant = async () => {
@@ -1389,54 +982,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
             {/* Action Buttons */}
             <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-              {/* Test Buttons - Temporary for debugging */}
-              <button
-                onClick={() => {
-                  console.log('🧪 TEST: Current form state:', formData);
-                  console.log('🧪 TEST: Has form data:', Object.values(formData).some(v => v && v.toString().trim()));
-                  console.log('🧪 TEST: Participants:', participants);
-                  console.log('🧪 TEST: KeKhai info:', keKhaiInfo);
-                }}
-                className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
-              >
-                Debug
-              </button>
-
-              <button
-                onClick={handleTestDatabase}
-                className="px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 text-sm"
-              >
-                Test DB
-              </button>
-
-              <button
-                onClick={handleSimpleTestSave}
-                className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm"
-              >
-                Test Save
-              </button>
-
-              <button
-                onClick={handleSaveParticipantNew}
-                disabled={savingParticipant}
-                className="px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm disabled:opacity-50"
-              >
-                {savingParticipant ? 'Saving...' : 'Test New Save'}
-              </button>
-
-              <button
-                onClick={() => {
-                  const testCodes = ['0123456789', '0123456788'];
-                  handleHouseholdBulkAddNew(testCodes, '12', undefined, (current, code) => {
-                    console.log(`Progress: ${current}/${testCodes.length} - ${code}`);
-                  });
-                }}
-                disabled={savingData}
-                className="px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 text-sm disabled:opacity-50"
-              >
-                {savingData ? 'Processing...' : 'Test Household'}
-              </button>
-
               <button
                 onClick={handleSaveAll}
                 disabled={submitting || saving || savingData}

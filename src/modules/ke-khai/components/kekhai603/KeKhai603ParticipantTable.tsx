@@ -497,12 +497,12 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         {/* Desktop Table Layout */}
         <div className={styles.tableContainer}>
           <div className="overflow-x-auto">
-            <table className={`w-full min-w-max ${styles.participantTable}`}>
+            <table className={`w-full min-w-max ${styles.participantTable} ${isDarkMode ? 'dark' : ''}`}>
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
                 {/* Checkbox column - only show if bulk delete is available */}
                 {handleBulkRemoveParticipants && (
-                  <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[40px] min-w-[40px] max-w-[40px]">
+                  <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`}>
                     <input
                       type="checkbox"
                       checked={selectAll}
@@ -513,28 +513,28 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     />
                   </th>
                 )}
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[40px] min-w-[40px] max-w-[40px]">STT</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[100px] min-w-[100px] max-w-[100px]">Mã BHXH</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[180px] min-w-[180px] max-w-[180px]">Họ tên</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[90px] min-w-[90px] max-w-[90px]">Ngày sinh</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[65px] min-w-[65px] max-w-[65px]">Giới tính</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[110px] min-w-[110px] max-w-[110px]">Số ĐT</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Số thẻ BHYT</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[70px] min-w-[70px] max-w-[70px]">Dân tộc</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[280px] min-w-[280px] max-w-[280px]">Nơi đăng ký KCB</th>
-                <th className="hidden text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[100px] min-w-[100px] max-w-[100px]">Mức lương</th>
-                <th className="hidden text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[80px] min-w-[80px] max-w-[80px]">Tỷ lệ đóng</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[70px] min-w-[70px] max-w-[70px]">STT hộ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[80px] min-w-[80px] max-w-[80px]">Số tháng</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Số tiền</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Từ ngày thẻ cũ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Đến ngày thẻ cũ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[130px] min-w-[130px] max-w-[130px]">Ngày biên lai</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Tỉnh NKQ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Huyện NKQ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[120px] min-w-[120px] max-w-[120px]">Xã NKQ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[200px] min-w-[200px] max-w-[200px]">Nơi nhận hồ sơ</th>
-                <th className="text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-[90px] min-w-[90px] max-w-[90px]">Thao tác</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thứ tự">STT</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Mã số bảo hiểm xã hội">Mã BHXH</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Họ và tên">Họ tên</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Ngày sinh">Ngày sinh</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Giới tính">Giới tính</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số điện thoại">Số ĐT</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thẻ bảo hiểm y tế">Số thẻ BHYT</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Dân tộc">Dân tộc</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Nơi đăng ký khám chữa bệnh">Nơi KCB</th>
+                <th className={`hidden text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Mức lương">Mức lương</th>
+                <th className={`hidden text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Tỷ lệ đóng">Tỷ lệ đóng</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thứ tự hộ">STT hộ</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số tháng đóng">Số tháng</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số tiền đóng">Số tiền</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Từ ngày thẻ cũ">Từ ngày thẻ cũ</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Đến ngày thẻ cũ">Đến ngày thẻ cũ</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Ngày biên lai">Ngày biên lai</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Tỉnh nơi khai sinh">Tỉnh NKQ</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Huyện nơi khai sinh">Huyện NKQ</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Xã nơi khai sinh">Xã NKQ</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Nơi nhận hồ sơ">Nơi nhận hồ sơ</th>
+                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Thao tác">Thao tác</th>
               </tr>
             </thead>
             <tbody>

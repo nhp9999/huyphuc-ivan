@@ -274,127 +274,180 @@
   word-wrap: break-word !important;
   overflow-wrap: break-word !important;
   white-space: normal !important;
+  vertical-align: middle !important;
+  position: relative !important;
 }
 
-/* Specific column width enforcement */
+/* Header-specific styling - prevent wrapping but allow full text visibility */
+.participantTable th {
+  white-space: nowrap !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  padding: 8px 4px !important;
+  background-color: #f8fafc !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  /* Allow text to be visible - no overflow hidden */
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* Dark mode header styling */
+.participantTable.dark th {
+  background-color: #1e293b !important;
+  border-bottom-color: #475569 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Ensure table cells don't clip content */
+.participantTable td {
+  overflow: visible !important;
+  padding: 6px 4px !important;
+}
+
+/* Optimized column width enforcement - Better text accommodation */
+
+/* Checkbox column */
 .participantTable th:nth-child(1),
 .participantTable td:nth-child(1) {
-  width: 40px !important;
-  min-width: 40px !important;
-  max-width: 40px !important;
+  width: 45px !important;
+  min-width: 45px !important;
+  max-width: 45px !important;
   text-align: center !important;
 }
 
+/* STT column */
 .participantTable th:nth-child(2),
 .participantTable td:nth-child(2) {
-  width: 100px !important;
-  min-width: 100px !important;
-  max-width: 100px !important;
+  width: 50px !important;
+  min-width: 50px !important;
+  max-width: 50px !important;
+  text-align: center !important;
 }
 
+/* Mã BHXH - Increased for header text */
 .participantTable th:nth-child(3),
 .participantTable td:nth-child(3) {
-  width: 180px !important;
-  min-width: 180px !important;
-  max-width: 180px !important;
-}
-
-.participantTable th:nth-child(4),
-.participantTable td:nth-child(4) {
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
-}
-
-.participantTable th:nth-child(5),
-.participantTable td:nth-child(5) {
-  width: 65px !important;
-  min-width: 65px !important;
-  max-width: 65px !important;
-}
-
-.participantTable th:nth-child(6),
-.participantTable td:nth-child(6) {
   width: 110px !important;
   min-width: 110px !important;
   max-width: 110px !important;
 }
 
-.participantTable th:nth-child(7),
-.participantTable td:nth-child(7) {
-  width: 130px !important;
-  min-width: 130px !important;
-  max-width: 130px !important;
+/* Họ tên - Increased for Vietnamese names */
+.participantTable th:nth-child(4),
+.participantTable td:nth-child(4) {
+  width: 180px !important;
+  min-width: 180px !important;
+  max-width: 180px !important;
 }
 
-.participantTable th:nth-child(8),
-.participantTable td:nth-child(8) {
-  width: 70px !important;
-  min-width: 70px !important;
-  max-width: 70px !important;
-}
-
-.participantTable th:nth-child(9),
-.participantTable td:nth-child(9) {
-  width: 280px !important;
-  min-width: 280px !important;
-  max-width: 280px !important;
-}
-
-.participantTable th:nth-child(10),
-.participantTable td:nth-child(10) {
+/* Ngày sinh - Increased for header text */
+.participantTable th:nth-child(5),
+.participantTable td:nth-child(5) {
   width: 100px !important;
   min-width: 100px !important;
   max-width: 100px !important;
 }
 
-.participantTable th:nth-child(11),
-.participantTable td:nth-child(11) {
+/* Giới tính - Compact but readable */
+.participantTable th:nth-child(6),
+.participantTable td:nth-child(6) {
   width: 80px !important;
   min-width: 80px !important;
   max-width: 80px !important;
+  text-align: center !important;
+}
+
+/* Số ĐT */
+.participantTable th:nth-child(7),
+.participantTable td:nth-child(7) {
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+}
+
+/* Số thẻ BHYT - Increased for header text */
+.participantTable th:nth-child(8),
+.participantTable td:nth-child(8) {
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+}
+
+/* Dân tộc */
+.participantTable th:nth-child(9),
+.participantTable td:nth-child(9) {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+}
+
+/* Nơi đăng ký KCB - Increased for facility names */
+.participantTable th:nth-child(10),
+.participantTable td:nth-child(10) {
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+}
+
+/* Hidden columns (Mức lương, Tỷ lệ đóng) */
+.participantTable th:nth-child(11),
+.participantTable td:nth-child(11) {
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
 }
 
 .participantTable th:nth-child(12),
 .participantTable td:nth-child(12) {
-  width: 70px !important;
-  min-width: 70px !important;
-  max-width: 70px !important;
-}
-
-.participantTable th:nth-child(13),
-.participantTable td:nth-child(13) {
   width: 80px !important;
   min-width: 80px !important;
   max-width: 80px !important;
 }
 
+/* STT hộ */
+.participantTable th:nth-child(13),
+.participantTable td:nth-child(13) {
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+  text-align: center !important;
+}
+
+/* Số tháng */
 .participantTable th:nth-child(14),
 .participantTable td:nth-child(14) {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  text-align: center !important;
+}
+
+/* Số tiền - Increased for currency display */
+.participantTable th:nth-child(15),
+.participantTable td:nth-child(15) {
   width: 120px !important;
   min-width: 120px !important;
   max-width: 120px !important;
+  text-align: right !important;
 }
 
-.participantTable th:nth-child(15),
-.participantTable td:nth-child(15) {
-  width: 130px !important;
-  min-width: 130px !important;
-  max-width: 130px !important;
-}
-
+/* Date columns - Increased for header text */
 .participantTable th:nth-child(16),
 .participantTable td:nth-child(16) {
-  width: 130px !important;
-  min-width: 130px !important;
-  max-width: 130px !important;
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
 }
 
 .participantTable th:nth-child(17),
 .participantTable td:nth-child(17) {
-  width: 130px !important;
-  min-width: 130px !important;
-  max-width: 130px !important;
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
 }
 
 .participantTable th:nth-child(18),
@@ -404,32 +457,43 @@
   max-width: 120px !important;
 }
 
+/* Location columns - Increased for Vietnamese location names */
 .participantTable th:nth-child(19),
 .participantTable td:nth-child(19) {
-  width: 120px !important;
-  min-width: 120px !important;
-  max-width: 120px !important;
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
 }
 
 .participantTable th:nth-child(20),
 .participantTable td:nth-child(20) {
-  width: 120px !important;
-  min-width: 120px !important;
-  max-width: 120px !important;
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
 }
 
 .participantTable th:nth-child(21),
 .participantTable td:nth-child(21) {
-  width: 200px !important;
-  min-width: 200px !important;
-  max-width: 200px !important;
+  width: 100px !important;
+  min-width: 100px !important;
+  max-width: 100px !important;
 }
 
+/* Nơi nhận hồ sơ - Increased for header text */
 .participantTable th:nth-child(22),
 .participantTable td:nth-child(22) {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+}
+
+/* Thao tác - Actions column */
+.participantTable th:nth-child(23),
+.participantTable td:nth-child(23) {
   width: 90px !important;
   min-width: 90px !important;
   max-width: 90px !important;
+  text-align: center !important;
 }
 
 /* ===== RESPONSIVE BREAKPOINTS ===== */
@@ -473,23 +537,29 @@
     display: none !important;
   }
 
-  /* Hide less critical columns on tablet */
-  .participantTable th:nth-child(8),  /* Dân tộc */
-  .participantTable td:nth-child(8),
-  .participantTable th:nth-child(10), /* Mức lương */
-  .participantTable td:nth-child(10),
-  .participantTable th:nth-child(11), /* Tỷ lệ đóng */
+  /* Hide less critical columns on tablet - Updated column numbers */
+  .participantTable th:nth-child(9),  /* Dân tộc */
+  .participantTable td:nth-child(9),
+  .participantTable th:nth-child(11), /* Mức lương */
   .participantTable td:nth-child(11),
-  .participantTable th:nth-child(17), /* Ngày biên lai */
-  .participantTable td:nth-child(17),
-  .participantTable th:nth-child(21), /* Nơi nhận hồ sơ */
-  .participantTable td:nth-child(21) {
+  .participantTable th:nth-child(12), /* Tỷ lệ đóng */
+  .participantTable td:nth-child(12),
+  .participantTable th:nth-child(18), /* Ngày biên lai */
+  .participantTable td:nth-child(18),
+  .participantTable th:nth-child(19), /* Tỉnh NKQ */
+  .participantTable td:nth-child(19),
+  .participantTable th:nth-child(20), /* Huyện NKQ */
+  .participantTable td:nth-child(20),
+  .participantTable th:nth-child(21), /* Xã NKQ */
+  .participantTable td:nth-child(21),
+  .participantTable th:nth-child(22), /* Nơi nhận hồ sơ */
+  .participantTable td:nth-child(22) {
     display: none !important;
   }
 
   /* Adjust remaining column widths for tablet */
   .participantTable {
-    min-width: 1200px !important;
+    min-width: 1300px !important;
   }
 
   /* Better touch targets for tablet */
@@ -497,6 +567,12 @@
   .participantTable select {
     min-height: 40px !important;
     padding: 8px 12px !important;
+  }
+
+  /* Tablet header adjustments - smaller font for better fit */
+  .participantTable th {
+    font-size: 11px !important;
+    padding: 6px 3px !important;
   }
 }
 
@@ -510,29 +586,53 @@
     display: none !important;
   }
 
-  /* Show all columns on desktop except hidden ones */
-  .participantTable th:not(.hidden),
-  .participantTable td:not(.hidden) {
+  /* Show all columns on desktop */
+  .participantTable th,
+  .participantTable td {
     display: table-cell !important;
-  }
-
-  /* Keep hidden columns hidden even on desktop */
-  .participantTable th.hidden,
-  .participantTable td.hidden {
-    display: none !important;
   }
 }
 
-/* Large Desktop - Optimize spacing */
+/* Large Desktop - Optimize spacing and layout */
 @media (min-width: 1440px) {
   .participantTable {
-    min-width: 2400px !important;
+    min-width: 2600px !important;
   }
 
-  /* Slightly larger inputs for better UX */
+  /* Enhanced inputs for better UX on large screens */
   .participantTable input,
   .participantTable select {
     padding: 10px 14px !important;
+    font-size: 14px !important;
+  }
+
+  /* Large desktop header improvements */
+  .participantTable th {
+    font-size: 13px !important;
+    padding: 10px 6px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Increase some column widths for better readability */
+  .participantTable th:nth-child(4), /* Họ tên */
+  .participantTable td:nth-child(4) {
+    width: 200px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+  }
+
+  .participantTable th:nth-child(10), /* Nơi đăng ký KCB */
+  .participantTable td:nth-child(10) {
+    width: 320px !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
+  }
+
+  .participantTable th:nth-child(22), /* Nơi nhận hồ sơ */
+  .participantTable td:nth-child(22) {
+    width: 180px !important;
+    min-width: 180px !important;
+    max-width: 180px !important;
   }
 }
 
@@ -550,8 +650,7 @@
 
 /* Priority 3: Secondary columns (hidden on mobile and tablet) */
 .priority-3 {
-  /* Dân tộc, Ngày biên lai, Nơi nhận hồ sơ */
-  /* Note: Mức lương and Tỷ lệ đóng are now permanently hidden as per user preference */
+  /* Dân tộc, Mức lương, Tỷ lệ đóng, Ngày biên lai, Nơi nhận hồ sơ */
 }
 
 /* Priority 4: Optional columns (hidden except on large desktop) */
