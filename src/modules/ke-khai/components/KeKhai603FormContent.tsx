@@ -9,13 +9,19 @@ import { ThanhToan } from '../../../shared/services/api/supabaseClient';
 import PaymentQRModal from './PaymentQRModal';
 import vnpostTokenService from '../../../shared/services/api/vnpostTokenService';
 import { KeKhai603Header } from './kekhai603/KeKhai603Header';
-import { KeKhai603PersonalInfoForm } from './kekhai603/KeKhai603PersonalInfoForm';
-import { KeKhai603CardInfoForm } from './kekhai603/KeKhai603CardInfoForm';
-import { KeKhai603PaymentInfoForm } from './kekhai603/KeKhai603PaymentInfoForm';
 import { HouseholdBulkInputModal } from './kekhai603/HouseholdBulkInputModal';
+import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable';
+import { AutoErrorCorrection } from '../../../shared/components/AutoErrorCorrection';
+import { TokenReadinessIndicator } from '../../../shared/components/TokenReadinessIndicator';
 import { useCSKCBPreloader } from '../hooks/useCSKCBPreloader';
 import { useCSKCBContext } from '../contexts/CSKCBContext';
 import { keKhaiService } from '../services/keKhaiService';
+import { tinhService, TinhOption } from '../../../shared/services/location/tinhService';
+import { huyenService, HuyenOption } from '../../../shared/services/location/huyenService';
+import { xaService, XaOption } from '../../../shared/services/location/xaService';
+import cskcbService from '../../../shared/services/cskcbService';
+import { DmCSKCB } from '../../../shared/services/api/supabaseClient';
+import SearchableDropdown, { DropdownOption } from './SearchableDropdown';
 
 interface KeKhai603FormContentProps {
   pageParams: any;
@@ -39,6 +45,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   const [fixErrorPhase, setFixErrorPhase] = React.useState<'idle' | 'testing' | 'waiting' | 'refreshing'>('idle');
   const [waitingCountdown, setWaitingCountdown] = React.useState(0);
 
+
+
   // State for household bulk input modal
   const [showHouseholdBulkInputModal, setShowHouseholdBulkInputModal] = React.useState(false);
   const [householdProcessing, setHouseholdProcessing] = React.useState(false);
@@ -48,10 +56,43 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     currentCode?: string;
   } | null>(null);
 
-  // Custom hooks - order matters for dependencies
-  const { toast, showToast, hideToast } = useToast();
-  const { searchLoading, participantSearchLoading, apiSummary, searchKeKhai603, searchParticipantData } = useKeKhai603Api();
+  // Optimized state for location data with Maps for O(1) lookup
+  const [locationData, setLocationData] = React.useState({
+    // Shared province data for both Nkq and KS
+    tinhOptions: [] as TinhOption[],
+    tinhMap: new Map<string, string>(), // code -> name mapping for O(1) lookup
+
+    // Nkq location data
+    huyenNkqOptions: [] as HuyenOption[],
+    huyenNkqMap: new Map<string, string>(),
+    xaNkqOptions: [] as XaOption[],
+    xaNkqMap: new Map<string, string>(),
+
+    // KS location data
+    huyenKSOptions: [] as HuyenOption[],
+    huyenKSMap: new Map<string, string>(),
+    xaKSOptions: [] as XaOption[],
+    xaKSMap: new Map<string, string>(),
+
+    // CSKCB (Medical facility) data
+    cskcbOptions: [] as DmCSKCB[],
+    cskcbMap: new Map<string, string>(), // value -> name mapping
+  });
+
+  // Consolidated loading states
+  const [loadingStates, setLoadingStates] = React.useState({
+    tinh: false,
+    huyenNkq: false,
+    xaNkq: false,
+    huyenKS: false,
+    xaKS: false,
+    cskcb: false,
+  });
+
+  // Custom hooks - order matters for dependenciesệu
+  const { searchLoading, participantSearchLoading, searchKeKhai603, searchParticipantData } = useKeKhai603Api();
   const { getCSKCBData } = useCSKCBContext();
+  const { toast, showToast, hideToast } = useToast();
 
   // Get keKhaiInfo first
   const {
@@ -65,7 +106,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   } = useKeKhai603(pageParams);
 
   // Then use keKhaiInfo in dependent hooks
-  const { formData, handleInputChange, resetForm } = useKeKhai603FormData(keKhaiInfo?.doi_tuong_tham_gia);
+  const { formData, handleInputChange, resetForm, forceRecalculate } = useKeKhai603FormData(keKhaiInfo?.doi_tuong_tham_gia);
 
   const {
     participants,
@@ -79,6 +120,425 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     saveSingleParticipant,
     saveParticipantFromForm
   } = useKeKhai603Participants(keKhaiInfo?.id, keKhaiInfo?.doi_tuong_tham_gia);
+
+  // DEBUG: Monitor participants state changes
+  React.useEffect(() => {
+    console.log('🔍 DEBUG: Participants state changed:', {
+      length: participants.length,
+      participants: participants.map(p => ({ id: p.id, hoTen: p.hoTen, maSoBHXH: p.maSoBHXH }))
+    });
+  }, [participants]);
+
+  // DEBUG: Monitor keKhaiInfo changes
+  React.useEffect(() => {
+    console.log('🔍 DEBUG: keKhaiInfo changed:', {
+      id: keKhaiInfo?.id,
+      doi_tuong_tham_gia: keKhaiInfo?.doi_tuong_tham_gia,
+      hasKeKhaiInfo: !!keKhaiInfo
+    });
+  }, [keKhaiInfo]);
+
+  // Optimized: Load province data once for both Nkq and KS
+  React.useEffect(() => {
+    const loadTinhData = async () => {
+      try {
+        setLoadingStates(prev => ({ ...prev, tinh: true }));
+        console.log('🌍 Loading optimized province data...');
+        const options = await tinhService.getTinhOptions();
+        console.log('🌍 Province data loaded:', options.length, 'provinces');
+
+        // Create Map for O(1) lookup
+        const tinhMap = new Map<string, string>();
+        options.forEach(option => {
+          tinhMap.set(option.value, option.label);
+        });
+
+        setLocationData(prev => ({
+          ...prev,
+          tinhOptions: options,
+          tinhMap
+        }));
+      } catch (error) {
+        console.error('❌ Error loading province data:', error);
+      } finally {
+        setLoadingStates(prev => ({ ...prev, tinh: false }));
+      }
+    };
+
+    loadTinhData();
+  }, []);
+
+  // Optimized: Load Nkq district data when province changes
+  React.useEffect(() => {
+    const loadHuyenNkqData = async () => {
+      if (!formData.tinhKCB) {
+        setLocationData(prev => ({
+          ...prev,
+          huyenNkqOptions: [],
+          huyenNkqMap: new Map()
+        }));
+        return;
+      }
+
+      try {
+        setLoadingStates(prev => ({ ...prev, huyenNkq: true }));
+        console.log('🏘️ Loading Nkq district data for province:', formData.tinhKCB);
+        const options = await huyenService.getHuyenOptionsByTinh(formData.tinhKCB);
+        console.log('🏘️ Nkq District data loaded:', options.length, 'districts');
+
+        // Create Map for O(1) lookup
+        const huyenNkqMap = new Map<string, string>();
+        options.forEach(option => {
+          huyenNkqMap.set(option.value, option.label);
+        });
+
+        setLocationData(prev => ({
+          ...prev,
+          huyenNkqOptions: options,
+          huyenNkqMap
+        }));
+      } catch (error) {
+        console.error('❌ Error loading Nkq district data:', error);
+        setLocationData(prev => ({
+          ...prev,
+          huyenNkqOptions: [],
+          huyenNkqMap: new Map()
+        }));
+      } finally {
+        setLoadingStates(prev => ({ ...prev, huyenNkq: false }));
+      }
+    };
+
+    loadHuyenNkqData();
+  }, [formData.tinhKCB]);
+
+  // Optimized: Load Nkq ward data when district changes
+  React.useEffect(() => {
+    const loadXaNkqData = async () => {
+      if (!formData.maHuyenNkq || !formData.tinhKCB) {
+        setLocationData(prev => ({
+          ...prev,
+          xaNkqOptions: [],
+          xaNkqMap: new Map()
+        }));
+        return;
+      }
+
+      try {
+        setLoadingStates(prev => ({ ...prev, xaNkq: true }));
+        console.log('🏠 Loading Nkq ward data for district:', formData.maHuyenNkq, 'in province:', formData.tinhKCB);
+        const options = await xaService.getXaOptionsByHuyen(formData.maHuyenNkq, formData.tinhKCB);
+        console.log('🏠 Nkq Ward data loaded:', options.length, 'wards');
+
+        // Create Map for O(1) lookup
+        const xaNkqMap = new Map<string, string>();
+        options.forEach(option => {
+          xaNkqMap.set(option.value, option.label);
+        });
+
+        setLocationData(prev => ({
+          ...prev,
+          xaNkqOptions: options,
+          xaNkqMap
+        }));
+      } catch (error) {
+        console.error('❌ Error loading Nkq ward data:', error);
+        setLocationData(prev => ({
+          ...prev,
+          xaNkqOptions: [],
+          xaNkqMap: new Map()
+        }));
+      } finally {
+        setLoadingStates(prev => ({ ...prev, xaNkq: false }));
+      }
+    };
+
+    loadXaNkqData();
+  }, [formData.maHuyenNkq, formData.tinhKCB]);
+
+  // Optimized: Load KS district data when KS province changes
+  React.useEffect(() => {
+    const loadHuyenKSData = async () => {
+      if (!formData.maTinhKS) {
+        setLocationData(prev => ({
+          ...prev,
+          huyenKSOptions: [],
+          huyenKSMap: new Map()
+        }));
+        return;
+      }
+
+      try {
+        setLoadingStates(prev => ({ ...prev, huyenKS: true }));
+        console.log('🏘️ Loading KS district data for province:', formData.maTinhKS);
+        const options = await huyenService.getHuyenOptionsByTinh(formData.maTinhKS);
+        console.log('🏘️ KS District data loaded:', options.length, 'districts');
+
+        // Create Map for O(1) lookup
+        const huyenKSMap = new Map<string, string>();
+        options.forEach(option => {
+          huyenKSMap.set(option.value, option.label);
+        });
+
+        setLocationData(prev => ({
+          ...prev,
+          huyenKSOptions: options,
+          huyenKSMap
+        }));
+      } catch (error) {
+        console.error('❌ Error loading KS district data:', error);
+        setLocationData(prev => ({
+          ...prev,
+          huyenKSOptions: [],
+          huyenKSMap: new Map()
+        }));
+      } finally {
+        setLoadingStates(prev => ({ ...prev, huyenKS: false }));
+      }
+    };
+
+    loadHuyenKSData();
+  }, [formData.maTinhKS]);
+
+  // Optimized: Load KS ward data when KS district changes
+  React.useEffect(() => {
+    const loadXaKSData = async () => {
+      if (!formData.maHuyenKS || !formData.maTinhKS) {
+        setLocationData(prev => ({
+          ...prev,
+          xaKSOptions: [],
+          xaKSMap: new Map()
+        }));
+        return;
+      }
+
+      try {
+        setLoadingStates(prev => ({ ...prev, xaKS: true }));
+        console.log('🏠 Loading KS ward data for district:', formData.maHuyenKS, 'in province:', formData.maTinhKS);
+        const options = await xaService.getXaOptionsByHuyen(formData.maHuyenKS, formData.maTinhKS);
+        console.log('🏠 KS Ward data loaded:', options.length, 'wards');
+
+        // Create Map for O(1) lookup
+        const xaKSMap = new Map<string, string>();
+        options.forEach(option => {
+          xaKSMap.set(option.value, option.label);
+        });
+
+        setLocationData(prev => ({
+          ...prev,
+          xaKSOptions: options,
+          xaKSMap
+        }));
+      } catch (error) {
+        console.error('❌ Error loading KS ward data:', error);
+        setLocationData(prev => ({
+          ...prev,
+          xaKSOptions: [],
+          xaKSMap: new Map()
+        }));
+      } finally {
+        setLoadingStates(prev => ({ ...prev, xaKS: false }));
+      }
+    };
+
+    loadXaKSData();
+  }, [formData.maHuyenKS, formData.maTinhKS]);
+
+  // Load CSKCB data when Nkq province changes
+  React.useEffect(() => {
+    const loadCSKCBData = async () => {
+      if (!formData.tinhKCB) {
+        setLocationData(prev => ({
+          ...prev,
+          cskcbOptions: [],
+          cskcbMap: new Map()
+        }));
+        return;
+      }
+
+      try {
+        setLoadingStates(prev => ({ ...prev, cskcb: true }));
+        console.log('🏥 Loading CSKCB data for province:', formData.tinhKCB);
+        const options = await cskcbService.getCSKCBList({ ma_tinh: formData.tinhKCB });
+        console.log('🏥 CSKCB data loaded:', options.length, 'facilities');
+
+        // Create Map for O(1) lookup
+        const cskcbMap = new Map<string, string>();
+        options.forEach(option => {
+          cskcbMap.set(option.value, option.ten);
+        });
+
+        setLocationData(prev => ({
+          ...prev,
+          cskcbOptions: options,
+          cskcbMap
+        }));
+      } catch (error) {
+        console.error('❌ Error loading CSKCB data:', error);
+        setLocationData(prev => ({
+          ...prev,
+          cskcbOptions: [],
+          cskcbMap: new Map()
+        }));
+      } finally {
+        setLoadingStates(prev => ({ ...prev, cskcb: false }));
+      }
+    };
+
+    loadCSKCBData();
+  }, [formData.tinhKCB]);
+
+  // Note: Removed individual helper functions as they're replaced by dropdown options
+
+  // Helper function to clean label (remove duplicate codes if present)
+  const cleanLabel = React.useCallback((value: string, label: string): string => {
+    if (!value || !label) return label || value || '';
+
+    // Escape special regex characters in value
+    const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Case 1: Label already has perfect "code - name" format
+    const perfectPattern = new RegExp(`^${escapedValue}\\s*-\\s*(.+)$`, 'i');
+    if (perfectPattern.test(label)) {
+      return label;
+    }
+
+    // Case 2: Label has "code code name" (duplicate code) - most common issue
+    const duplicatePattern = new RegExp(`^${escapedValue}\\s+${escapedValue}\\s+(.+)$`, 'i');
+    const duplicateMatch = label.match(duplicatePattern);
+    if (duplicateMatch) {
+      return `${value} - ${duplicateMatch[1]}`;
+    }
+
+    // Case 3: Label starts with "code name" (no dash)
+    const codeSpacePattern = new RegExp(`^${escapedValue}\\s+(.+)$`, 'i');
+    const codeSpaceMatch = label.match(codeSpacePattern);
+    if (codeSpaceMatch) {
+      return `${value} - ${codeSpaceMatch[1]}`;
+    }
+
+    // Case 4: Label already contains the code somewhere (don't add again)
+    const codeAnywherePattern = new RegExp(`\\b${escapedValue}\\b`, 'i');
+    if (codeAnywherePattern.test(label)) {
+      return label;
+    }
+
+    // Case 5: Label doesn't contain code, add it
+    return `${value} - ${label}`;
+  }, []);
+
+  // Helper functions to convert location data to DropdownOption format
+  const getTinhDropdownOptions = React.useMemo((): DropdownOption[] => {
+    return locationData.tinhOptions.map(option => ({
+      value: option.value,
+      label: cleanLabel(option.value, option.label),
+      searchText: `${option.value} ${option.label}` // For better search matching
+    })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+  }, [locationData.tinhOptions, cleanLabel]);
+
+  const getHuyenNkqDropdownOptions = React.useMemo((): DropdownOption[] => {
+    return locationData.huyenNkqOptions.map(option => ({
+      value: option.value,
+      label: cleanLabel(option.value, option.label),
+      searchText: `${option.value} ${option.label}`
+    })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+  }, [locationData.huyenNkqOptions, cleanLabel]);
+
+  const getXaNkqDropdownOptions = React.useMemo((): DropdownOption[] => {
+    return locationData.xaNkqOptions.map(option => ({
+      value: option.value,
+      label: cleanLabel(option.value, option.label),
+      searchText: `${option.value} ${option.label}`
+    })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+  }, [locationData.xaNkqOptions, cleanLabel]);
+
+  // KS dropdown options - COMMENTED OUT (fields are hidden)
+  // const getHuyenKSDropdownOptions = React.useMemo((): DropdownOption[] => {
+  //   return locationData.huyenKSOptions.map(option => ({
+  //     value: option.value,
+  //     label: cleanLabel(option.value, option.label),
+  //     searchText: `${option.value} ${option.label}`
+  //   })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+  // }, [locationData.huyenKSOptions, cleanLabel]);
+
+  // const getXaKSDropdownOptions = React.useMemo((): DropdownOption[] => {
+  //   return locationData.xaKSOptions.map(option => ({
+  //     value: option.value,
+  //     label: cleanLabel(option.value, option.label),
+  //     searchText: `${option.value} ${option.label}`
+  //   })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+  // }, [locationData.xaKSOptions, cleanLabel]);
+
+  // Helper function for CSKCB (Medical facility) dropdown
+  const getCSKCBDropdownOptions = React.useMemo((): DropdownOption[] => {
+    return locationData.cskcbOptions.map(option => ({
+      value: option.value,
+      label: cleanLabel(option.value, option.ten),
+      searchText: `${option.value} ${option.ten} ${option.ma}` // Include ma for search
+    })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+  }, [locationData.cskcbOptions, cleanLabel]);
+
+  // Helper function for Số tháng đóng dropdown (only 3, 6, 12 months)
+  const getSoThangDongDropdownOptions = React.useMemo((): DropdownOption[] => {
+    return [
+      {
+        value: '3',
+        label: '3 tháng',
+        searchText: '3 tháng ba month'
+      },
+      {
+        value: '6',
+        label: '6 tháng',
+        searchText: '6 tháng sáu month'
+      },
+      {
+        value: '12',
+        label: '12 tháng',
+        searchText: '12 tháng mười hai năm year month'
+      }
+    ];
+  }, []);
+
+  // Handle cascading dropdown changes with reset
+  const handleTinhNkqChange = React.useCallback((value: string) => {
+    handleInputChange('tinhKCB', value);
+    // Reset dependent dropdowns
+    handleInputChange('maHuyenNkq', '');
+    handleInputChange('maXaNkq', '');
+  }, [handleInputChange]);
+
+  const handleHuyenNkqChange = React.useCallback((value: string) => {
+    handleInputChange('maHuyenNkq', value);
+    // Reset dependent dropdown
+    handleInputChange('maXaNkq', '');
+  }, [handleInputChange]);
+
+  const handleTinhKSChange = React.useCallback((value: string) => {
+    handleInputChange('maTinhKS', value);
+    // Reset dependent dropdowns
+    handleInputChange('maHuyenKS', '');
+    handleInputChange('maXaKS', '');
+  }, [handleInputChange]);
+
+  const handleHuyenKSChange = React.useCallback((value: string) => {
+    handleInputChange('maHuyenKS', value);
+    // Reset dependent dropdown
+    handleInputChange('maXaKS', '');
+  }, [handleInputChange]);
+
+  // Handle CSKCB (Medical facility) change
+  const handleCSKCBChange = React.useCallback((value: string) => {
+    // Find the selected facility to get its name
+    const selectedFacility = locationData.cskcbOptions.find(option => option.value === value);
+    if (selectedFacility) {
+      // Update both the value and the display name
+      handleInputChange('noiDangKyKCB', selectedFacility.ten);
+      // Store the facility code separately if needed
+      // handleInputChange('maBenhVien', selectedFacility.value);
+    } else {
+      handleInputChange('noiDangKyKCB', '');
+    }
+  }, [handleInputChange, locationData.cskcbOptions]);
 
 
 
@@ -198,7 +658,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         }
 
         if (hasCardWarning) {
-          showToast('Đã tìm thấy thông tin cá nhân! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
+          showToast('Đã tìm thấy Thông tin cơ bản! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
         } else {
           showToast(successMessage, 'success');
         }
@@ -255,7 +715,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         }
 
         if (hasCardWarning) {
-          showToast('Đã cập nhật thông tin cá nhân! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
+          showToast('Đã cập nhật Thông tin cơ bản! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
         } else {
           showToast(successMessage, 'success');
         }
@@ -343,7 +803,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           participantData.ma_benh_vien = medicalFacility.maBenhVien;
           participantData.noi_dang_ky_kcb = medicalFacility.tenBenhVien;
           participantData.noi_nhan_ho_so = medicalFacility.tenBenhVien; // Nơi nhận hồ sơ = tên bệnh viện
-          participantData.tinh_kcb = medicalFacility.maTinh; // Mã tỉnh KCB
+          participantData.tinh_kcb = medicalFacility.maTinh; // Mã tỉnh Nkq
           console.log(`🏥 Added medical facility data: ${medicalFacility.tenBenhVien} (${medicalFacility.maBenhVien}) - Tỉnh: ${medicalFacility.maTinh}`);
         }
 
@@ -418,7 +878,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
             const apiUpdateData: any = {
               ho_ten: directSearchResult.data.hoTen || '',
               ngay_sinh: directSearchResult.data.ngaySinh || undefined,
-              gioi_tinh: directSearchResult.data.gioiTinh || 'Nam',
+              gioi_tinh: directSearchResult.data.gioiTinh || '',
               so_cccd: directSearchResult.data.soCCCD || undefined,
               so_dien_thoai: directSearchResult.data.soDienThoai || undefined,
               so_the_bhyt: directSearchResult.data.soTheBHYT || undefined,
@@ -552,9 +1012,15 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
 
   // Handle Fix Error - Sequential GemLogin Test + 5 second wait + Refresh Token
-  const handleFixError = async () => {
-    if (fixErrorProcessing) return;
+  const handleFixError = React.useCallback(async () => {
+    console.log('🔧🔧🔧 handleFixError called! Processing:', fixErrorProcessing);
 
+    if (fixErrorProcessing) {
+      console.log('🔧 Fix error already processing, skipping...');
+      return;
+    }
+
+    console.log('🔧 Starting fix error process...');
     setFixErrorProcessing(true);
     setFixErrorPhase('testing');
 
@@ -671,7 +1137,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       setFixErrorPhase('idle');
       setWaitingCountdown(0);
     }
-  };
+  }, [fixErrorProcessing, fixErrorPhase, showToast]);
 
   // Handle refresh token
   const handleRefreshToken = async () => {
@@ -702,46 +1168,10 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
 
 
-
-
-  // Handle save all data
+  // Handle save all data (now redirects to combined save)
   const handleSaveAll = async () => {
-    console.log('🚀 handleSaveAll triggered');
-
-    // Check if keKhaiInfo is available
-    if (!keKhaiInfo) {
-      console.log('❌ No keKhaiInfo available');
-      showToast('Chưa có thông tin kê khai để lưu. Vui lòng tạo kê khai mới từ trang chính.', 'error');
-      return;
-    }
-
-    console.log('📋 Current form data:', formData);
-    console.log('👥 Current participants:', participants);
-    console.log('🏢 KeKhai info:', keKhaiInfo);
-
-    // Test: Add some sample data to form if empty
-    if (!formData.hoTen && !formData.maSoBHXH) {
-      console.log('🧪 Form is empty, this is expected for testing declaration-only save');
-    }
-
-    try {
-      // Pass both participants and form data to save function
-      console.log('💾 Calling saveAllParticipants...');
-      const result = await saveAllParticipants(participants, formData);
-      console.log('📊 Save result:', result);
-
-      if (result.success) {
-        showToast(result.message, 'success');
-
-        console.log('✅ Save completed successfully');
-      } else {
-        showToast(result.message, 'error');
-        console.log('⚠️ Save completed with errors');
-      }
-    } catch (error) {
-      console.error('❌ Save error:', error);
-      showToast('Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại.', 'error');
-    }
+    console.log('🚀 handleSaveAll triggered - redirecting to handleCombinedSave');
+    await handleCombinedSave();
   };
 
   // Handle submit declaration
@@ -768,9 +1198,12 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
-  // Handle save participant from form (new approach)
-  const handleSaveParticipantNew = async () => {
-    console.log('🚀 handleSaveParticipantNew called');
+  // Handle combined save: Save participant + Save all data
+  const handleCombinedSave = async () => {
+    console.log('🚀 handleCombinedSave called - Combined save function');
+    console.log('🔍 DEBUG: keKhaiInfo:', keKhaiInfo);
+    console.log('🔍 DEBUG: formData:', formData);
+    console.log('🔍 DEBUG: participants length before save:', participants.length);
 
     // Check if keKhaiInfo is available
     if (!keKhaiInfo) {
@@ -779,46 +1212,61 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       return;
     }
 
-    // Validate required fields
-    if (!formData.maSoBHXH.trim()) {
-      showToast('Vui lòng nhập mã số BHXH', 'warning');
-      return;
-    }
-
-    if (!formData.noiDangKyKCB.trim()) {
-      showToast('Vui lòng chọn nơi đăng ký KCB', 'warning');
-      return;
-    }
-
-    if (!formData.hoTen.trim()) {
-      showToast('Vui lòng nhập họ tên', 'warning');
-      return;
-    }
-
     try {
       setSavingParticipant(true);
-      console.log('📋 Current form data:', formData);
 
-      // Save participant directly from form data
-      const result = await saveParticipantFromForm(formData);
+      // Step 1: If form has participant data, save as new participant first
+      const hasParticipantData = formData.maSoBHXH.trim() && formData.hoTen.trim() && formData.noiDangKyKCB.trim();
 
-      if (result.success) {
-        console.log('✅ Save successful:', result);
-        showToast(result.message, 'success');
+      if (hasParticipantData) {
+        console.log('📋 Step 1: Saving new participant from form data...');
 
-        // Reset the form for next entry
-        console.log('🔄 Resetting form...');
-        resetForm();
+        const participantResult = await saveParticipantFromForm(formData);
+        console.log('📊 saveParticipantFromForm result:', participantResult);
+
+        if (participantResult.success) {
+          console.log('✅ Participant saved successfully:', participantResult);
+          showToast(participantResult.message, 'success');
+
+          // Refresh participants list to show the new participant
+          console.log('🔄 Refreshing participants list...');
+          await loadParticipants();
+
+          // Reset the form for next entry
+          console.log('🔄 Resetting form...');
+          resetForm();
+        } else {
+          console.log('❌ Participant save failed:', participantResult);
+          showToast(participantResult.message, 'error');
+          return; // Don't proceed to save all if participant save failed
+        }
       } else {
-        console.log('❌ Save failed:', result);
-        showToast(result.message, 'error');
+        console.log('ℹ️ No participant data to save, proceeding to save declaration only');
       }
+
+      // Step 2: Save all data (declaration + existing participants)
+      console.log('📋 Step 2: Saving all data (declaration + participants)...');
+      const saveAllResult = await saveAllParticipants(participants, formData);
+      console.log('📊 saveAllParticipants result:', saveAllResult);
+
+      if (saveAllResult.success) {
+        console.log('✅ All data saved successfully');
+        showToast(saveAllResult.message, 'success');
+
+        // Final refresh to ensure everything is up to date
+        await loadParticipants();
+      } else {
+        console.log('❌ Save all failed:', saveAllResult);
+        showToast(saveAllResult.message, 'error');
+      }
+
     } catch (error) {
-      console.error('❌ Save participant error:', error);
-      showToast('Có lỗi xảy ra khi lưu người tham gia. Vui lòng thử lại.', 'error');
+      console.error('❌ Combined save error:', error);
+      showToast('Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại.', 'error');
     } finally {
       setSavingParticipant(false);
-      console.log('🔄 Save participant process finished');
+      console.log('🔄 Combined save process finished');
+      console.log('🔍 DEBUG: Final participants length:', participants.length);
     }
   };
 
@@ -870,6 +1318,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       const result = await saveSingleParticipant(index);
       if (result.success) {
         showToast(result.message, 'success');
+        // Refresh participants list to ensure data is up to date
+        await loadParticipants();
       } else {
         showToast(result.message, 'error');
       }
@@ -953,13 +1403,36 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         {/* Header */}
         <KeKhai603Header
           keKhaiInfo={keKhaiInfo}
-          apiSummary={apiSummary}
           onRefreshToken={handleRefreshToken}
           onFixError={handleFixError}
           fixErrorProcessing={fixErrorProcessing}
           fixErrorPhase={fixErrorPhase}
           waitingCountdown={waitingCountdown}
+          onSaveAll={handleSaveAll}
+          onSubmit={handleSubmit}
+          saving={saving}
+          submitting={submitting}
+          savingData={savingData}
+          onHouseholdBulkInput={() => setShowHouseholdBulkInputModal(true)}
+          householdProcessing={householdProcessing}
         />
+
+        {/* Token Readiness and Auto Error Correction Panels */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <TokenReadinessIndicator
+            autoInitialize={true}
+            onReadinessChange={(isReady) => {
+              console.log('🔑 Token readiness changed:', isReady);
+            }}
+          />
+
+          <AutoErrorCorrection
+            showDetails={true}
+            onStatusChange={(status) => {
+              console.log('🤖 Auto-fix status changed:', status);
+            }}
+          />
+        </div>
 
       {/* Main Content */}
       <div className="space-y-6">
@@ -993,32 +1466,14 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           <>
             {/* Main Form - Matching the image layout */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-              {/* Form Header with Household Input */}
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    Thông tin người tham gia
-                  </h3>
-                  <button
-                    onClick={() => setShowHouseholdBulkInputModal(true)}
-                    disabled={saving || savingData || householdProcessing}
-                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    title="Nhập hộ gia đình - tự động tăng STT hộ"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <span>Nhập hộ gia đình</span>
-                  </button>
-                </div>
-              </div>
+             
 
               {/* Form Content */}
               <div className="p-6">
-                {/* Section 1: Thông tin cá nhân */}
+                {/* Section 1: Thông tin cơ bản */}
                 <div className="mb-8">
                   <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4 pb-2 border-b border-gray-200 dark:border-gray-600">
-                    Thông tin cá nhân
+                    Thông tin cơ bản
                   </h4>
                   <div className="space-y-4">
                     {/* Row 1: Basic Information */}
@@ -1102,22 +1557,23 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                           onChange={(e) => handleInputChange('gioiTinh', e.target.value)}
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         >
+                          <option value="">Chọn giới tính</option>
                           <option value="Nam">Nam</option>
                           <option value="Nữ">Nữ</option>
                         </select>
                       </div>
 
-                      {/* Quốc tịch */}
+                      {/* Số điện thoại */}
                       <div className="col-span-1">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Quốc tịch <span className="text-red-500">*</span>
+                          Số điện thoại
                         </label>
                         <input
                           type="text"
-                          value={formData.quocTich}
-                          onChange={(e) => handleInputChange('quocTich', e.target.value)}
+                          value={formData.soDienThoai}
+                          onChange={(e) => handleInputChange('soDienThoai', e.target.value)}
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="VN"
+                          placeholder="0123456789"
                         />
                       </div>
 
@@ -1138,118 +1594,68 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
                     {/* Row 2: Location Information */}
                     <div className="grid grid-cols-12 gap-4 mt-4">
-                      {/* Tỉnh KCB */}
+                      {/* Tỉnh Nkq */}
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Tỉnh KCB <span className="text-red-500">*</span>
+                          Tỉnh Nkq <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="text"
+                        <SearchableDropdown
+                          options={getTinhDropdownOptions}
                           value={formData.tinhKCB}
-                          onChange={(e) => handleInputChange('tinhKCB', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="01 - Thành phố Hà Nội"
+                          onChange={handleTinhNkqChange}
+                          placeholder="Chọn hoặc tìm tỉnh..."
+                          loading={loadingStates.tinh}
+                          disabled={false}
+                          maxResults={15}
+                          allowClear={true}
                         />
                       </div>
 
-                      {/* Huyện KCB */}
+                      {/* Huyện Nkq */}
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Huyện KCB <span className="text-red-500">*</span>
+                          Huyện Nkq <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="text"
+                        <SearchableDropdown
+                          options={getHuyenNkqDropdownOptions}
                           value={formData.maHuyenNkq}
-                          onChange={(e) => handleInputChange('maHuyenNkq', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="001 - Quận Ba Đình"
+                          onChange={handleHuyenNkqChange}
+                          placeholder="Chọn hoặc tìm huyện..."
+                          loading={loadingStates.huyenNkq}
+                          disabled={false}
+                          maxResults={15}
+                          allowClear={true}
                         />
                       </div>
 
-                      {/* Xã KCB */}
+                      {/* Xã Nkq */}
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Xã KCB <span className="text-red-500">*</span>
+                          Xã Nkq <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="text"
+                        <SearchableDropdown
+                          options={getXaNkqDropdownOptions}
                           value={formData.maXaNkq}
-                          onChange={(e) => handleInputChange('maXaNkq', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="00028 - Phường Kim Mã"
+                          onChange={(value) => handleInputChange('maXaNkq', value)}
+                          placeholder="Chọn hoặc tìm xã/phường..."
+                          loading={loadingStates.xaNkq}
+                          disabled={false}
+                          maxResults={15}
+                          allowClear={true}
                         />
                       </div>
 
-                      {/* Tỉnh KS */}
+                      {/* Nơi nhận hồ sơ */}
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Tỉnh KS <span className="text-red-500">*</span>
+                          Nơi nhận hồ sơ
                         </label>
                         <input
                           type="text"
-                          value={formData.maTinhKS}
-                          onChange={(e) => handleInputChange('maTinhKS', e.target.value)}
+                          value={formData.noiNhanHoSo}
+                          onChange={(e) => handleInputChange('noiNhanHoSo', e.target.value)}
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="01 - Thành phố Hà Nội"
-                        />
-                      </div>
-
-                      {/* Huyện KS */}
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Huyện KS <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.maHuyenKS}
-                          onChange={(e) => handleInputChange('maHuyenKS', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="001 - Quận Ba Đình"
-                        />
-                      </div>
-
-                      {/* Xã KS */}
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Xã KS
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.maXaKS}
-                          onChange={(e) => handleInputChange('maXaKS', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="00028 - Phường Kim Mã"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Row 3: Contact and Medical Information */}
-                    <div className="grid grid-cols-12 gap-4 mt-4">
-                      {/* Số điện thoại */}
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Số điện thoại
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.soDienThoai}
-                          onChange={(e) => handleInputChange('soDienThoai', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="09/78656646"
-                        />
-                      </div>
-
-                      {/* Email */}
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Email
-                        </label>
-                        <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => handleInputChange('email', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="example@email.com"
+                          placeholder="Nơi nhận hồ sơ"
                         />
                       </div>
 
@@ -1258,40 +1664,118 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Bệnh viện <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="text"
-                          value={formData.noiDangKyKCB}
-                          onChange={(e) => handleInputChange('noiDangKyKCB', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="075 - Bệnh viện tim Hà Nội (cơ sở 2)"
+                        <SearchableDropdown
+                          options={getCSKCBDropdownOptions}
+                          value={locationData.cskcbOptions.find(option => option.ten === formData.noiDangKyKCB)?.value || ''}
+                          onChange={handleCSKCBChange}
+                          placeholder="Chọn hoặc tìm bệnh viện..."
+                          loading={loadingStates.cskcb}
+                          disabled={false}
+                          maxResults={15}
+                          allowClear={true}
                         />
                       </div>
 
-                      {/* Mã số hộ gia đình */}
-                      <div className="col-span-4">
+                      {/* Tỉnh KS - HIDDEN */}
+                      {/* <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Mã số hộ gia đình
+                          Tỉnh KS <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="text"
-                          value={formData.maHoGiaDinh}
-                          onChange={(e) => handleInputChange('maHoGiaDinh', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="309911370"
+                        <SearchableDropdown
+                          options={getTinhDropdownOptions}
+                          value={formData.maTinhKS}
+                          onChange={handleTinhKSChange}
+                          placeholder="Chọn hoặc tìm tỉnh..."
+                          loading={loadingStates.tinh}
+                          disabled={false}
+                          maxResults={15}
+                          allowClear={true}
                         />
-                      </div>
+                      </div> */}
+
+                      {/* Huyện KS - HIDDEN */}
+                      {/* <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Huyện KS <span className="text-red-500">*</span>
+                        </label>
+                        <SearchableDropdown
+                          options={getHuyenKSDropdownOptions}
+                          value={formData.maHuyenKS}
+                          onChange={handleHuyenKSChange}
+                          placeholder="Chọn hoặc tìm huyện..."
+                          loading={loadingStates.huyenKS}
+                          disabled={false}
+                          maxResults={15}
+                          allowClear={true}
+                        />
+                      </div> */}
+
+                      {/* Xã KS - HIDDEN */}
+                      {/* <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Xã KS
+                        </label>
+                        <SearchableDropdown
+                          options={getXaKSDropdownOptions}
+                          value={formData.maXaKS}
+                          onChange={(value) => handleInputChange('maXaKS', value)}
+                          placeholder="Chọn hoặc tìm xã/phường..."
+                          loading={loadingStates.xaKS}
+                          disabled={false}
+                          maxResults={15}
+                          allowClear={true}
+                        />
+                      </div> */}
                     </div>
+
+                    {/* Row 3 - REMOVED: Số điện thoại đã chuyển lên Row 1, Nơi nhận hồ sơ và Bệnh viện đã chuyển lên Row 2 */}
                   </div>
                 </div>
 
-                {/* Section 2: Thông tin đóng */}
+                {/* Section 2: Thông tin đóng BHYT */}
                 <div className="mb-8">
                   <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4 pb-2 border-b border-gray-200 dark:border-gray-600">
-                    Thông tin đóng
+                    Thông tin đóng BHYT
                   </h4>
                   <div className="space-y-4">
-                    {/* Row 1: Card Information */}
+                    {/* Row 1: Payment and Card Information */}
                     <div className="grid grid-cols-12 gap-4">
+                      {/* Số tháng đóng */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Số tháng đóng <span className="text-red-500">*</span>
+                        </label>
+                        <SearchableDropdown
+                          options={getSoThangDongDropdownOptions}
+                          value={formData.soThangDong}
+                          onChange={(value) => handleInputChange('soThangDong', value)}
+                          placeholder="Chọn số tháng..."
+                          loading={false}
+                          disabled={false}
+                          maxResults={3}
+                          allowClear={true}
+                        />
+                      </div>
+
+                      {/* STT hộ */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          STT hộ <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={formData.sttHo}
+                          onChange={(e) => handleInputChange('sttHo', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        >
+                          <option value="">Chọn</option>
+                          <option value="1">1</option>
+                          <option value="2">2</option>
+                          <option value="3">3</option>
+                          <option value="4">4</option>
+                          <option value="5">5</option>
+                        </select>
+                      </div>
+
                       {/* Số thẻ BHYT */}
                       <div className="col-span-3">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1320,7 +1804,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                       </div>
 
                       {/* Đến ngày thẻ cũ */}
-                      <div className="col-span-2">
+                      <div className="col-span-3">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Đến ngày thẻ cũ
                         </label>
@@ -1330,41 +1814,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                           onChange={(e) => handleInputChange('denNgayTheCu', e.target.value)}
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                         />
-                      </div>
-
-                      {/* Số tháng đóng */}
-                      <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Số tháng đóng <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.soThangDong}
-                          onChange={(e) => handleInputChange('soThangDong', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="12"
-                          min="1"
-                          max="12"
-                        />
-                      </div>
-
-                      {/* STT hộ */}
-                      <div className="col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          STT hộ <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={formData.sttHo}
-                          onChange={(e) => handleInputChange('sttHo', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        >
-                          <option value="">Chọn</option>
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                          <option value="3">3</option>
-                          <option value="4">4</option>
-                          <option value="5">5</option>
-                        </select>
                       </div>
                     </div>
 
@@ -1433,7 +1882,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                           value={formData.mucLuong}
                           onChange={(e) => handleInputChange('mucLuong', e.target.value)}
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="2,340,000"
                         />
                       </div>
 
@@ -1444,82 +1892,53 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                         </label>
                         <input
                           type="text"
-                          value={formData.soTienDong}
-                          onChange={(e) => handleInputChange('soTienDong', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="Ngành sách thành phố Hà Nội"
+                          value={formData.tienDongThucTe ? formData.tienDongThucTe.toLocaleString('vi-VN') : ''}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-gray-50 dark:bg-gray-600"
+                          placeholder="Tự động tính toán"
+                          readOnly
                         />
                       </div>
                     </div>
 
                     {/* Row 3: Additional Information */}
                     <div className="grid grid-cols-12 gap-4 mt-4">
-                      {/* Nơi đăng ký đối với cũ */}
-                      <div className="col-span-6">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Nơi đăng ký đối với cũ
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.noiNhanHoSo}
-                          onChange={(e) => handleInputChange('noiNhanHoSo', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="Ngành sách thành phố Hà Nội, có trụ sở tại số 1 trần hưng đạo"
-                        />
-                      </div>
-
                       {/* Ghi chú đóng phí */}
-                      <div className="col-span-6">
+                      <div className="col-span-12">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Ghi chú đóng phí
+                          Ghi chú
                         </label>
                         <input
                           type="text"
                           value={formData.ghiChuDongPhi}
                           onChange={(e) => handleInputChange('ghiChuDongPhi', e.target.value)}
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                          placeholder="Ngành sách thành phố Hà Nội, có trụ sở tại số 1 trần hưng đạo"
+                          placeholder="Ghi chú thêm (nếu có)"
                         />
                       </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Save Participant Button - REMOVED (merged with header button) */}
               </div>
             </div>
 
+            {/* Participant Table */}
+            {/* DEBUG: Participants length = {participants.length} */}
+            <KeKhai603ParticipantTable
+              participants={participants}
+              onParticipantChange={handleParticipantChange}
+              onParticipantSearch={handleParticipantSearch}
+              onSaveSingleParticipant={handleSaveSingleParticipant}
+              onRemoveParticipant={handleRemoveParticipant}
+              onAddParticipant={handleAddParticipant}
+              onBulkRemoveParticipants={handleBulkRemoveParticipants}
+              participantSearchLoading={participantSearchLoading}
+              savingData={savingData}
+              doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
+            />
 
 
-            {/* Action Buttons */}
-            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={handleSaveAll}
-                disabled={submitting || saving || savingData}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Đang lưu...</span>
-                  </>
-                ) : (
-                  <span>Ghi dữ liệu</span>
-                )}
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting || saving || savingData}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {submitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Đang nộp...</span>
-                  </>
-                ) : (
-                  <span>Nộp kê khai</span>
-                )}
-              </button>
-            </div>
           </>
         )}
       </div>
@@ -1549,7 +1968,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
         cskcbOptions={[]} // Will be populated by the modal itself
         processing={householdProcessing}
-        progress={householdProgress}
+        progress={householdProgress || undefined}
       />
     </div>
   );

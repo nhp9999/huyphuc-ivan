@@ -6,32 +6,53 @@ export class BhytService {
   protected baseURL = 'https://ssm.vnpost.vn';
   protected authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiODg0MDAwX3hhX3RsaV9waHVvY2x0IiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoidXNlciIsInN1YiI6IjEwMDkxNyIsInNpZCI6IkthMkZWQUR0T0F0Qnp3QVVsaWI2N1N3N01IdVRzVW5CbUFmVFVGbC14dTgiLCJuYW1lIjoiTMOqIFRo4buLIFBoxrDhu5tjIiwibmlja25hbWUiOiI4ODQwMDBfeGFfdGxpX3BodW9jbHQiLCJjbGllbnRfaWQiOiJZamcyTldVd01XRXRORFZtWlMwME1UZGhMVGc1TTJNdE56ZGtabUUzTmpVNE56VXoiLCJtYW5nTHVvaSI6Ijc2MjU1IiwiZG9uVmlDb25nVGFjIjoixJBp4buDbSB0aHUgeMOjIFTDom4gTOG7o2kiLCJjaHVjRGFuaCI6IkPhu5luZyB0w6FjIHZpw6puIHRodSIsImVtYWlsIjoibmd1eWVudGFuZHVuZzI3MTE4OUBnbWFpbC5jb20iLCJzb0RpZW5UaG9haSI6IiIsImlzU3VwZXJBZG1pbiI6IkZhbHNlIiwiaXNDYXMiOiJGYWxzZSIsIm5iZiI6MTc0ODgyNTk1MiwiZXhwIjoxNzQ4ODQzOTUyLCJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjUwMDAiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjQyMDAifQ.6aRuO_8h4K0KcFqee7zLGXiPWEq-psMda7wNoyC8zGo';
 
-  // Generic method to make API calls with auto-retry on auth errors
+  // Enhanced method to make API calls with intelligent auto-retry
   protected async makeApiCall(url: string, options: RequestInit): Promise<Response> {
+    const startTime = Date.now();
     const response = await fetch(url, options);
 
-    // If authentication error, report it and retry once
-    if (!response.ok && (response.status === 401 || response.status === 403)) {
-      console.log('Authentication error detected, reporting and retrying...');
-      vnpostTokenService.reportAuthError();
-
-      // Update headers with fresh token for retry
-      const freshHeaders = await this.getHeaders();
-      const retryOptions = {
-        ...options,
-        headers: freshHeaders
+    // Enhanced error detection and reporting
+    if (!response.ok) {
+      const errorDetails = {
+        statusCode: response.status,
+        message: response.statusText,
+        endpoint: url,
+        timestamp: startTime
       };
 
-      // Retry with fresh token
-      const retryResponse = await fetch(url, retryOptions);
+      // Report error with enhanced details
+      if (response.status === 401 || response.status === 403 || response.status === 406) {
+        console.log('🚨 Authentication error detected, reporting with details...');
+        await vnpostTokenService.reportAuthError(errorDetails);
 
-      if (!retryResponse.ok) {
-        vnpostTokenService.reportAuthError(); // Report retry failure
-        throw new Error(`HTTP error! status: ${retryResponse.status} (after retry)`);
+        // Wait a moment for potential auto-fix to complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Update headers with fresh token for retry
+        const freshHeaders = await this.getHeaders();
+        const retryOptions = {
+          ...options,
+          headers: freshHeaders
+        };
+
+        // Retry with fresh token
+        console.log('🔄 Retrying request with fresh token...');
+        const retryResponse = await fetch(url, retryOptions);
+
+        if (!retryResponse.ok) {
+          // Report retry failure with details
+          await vnpostTokenService.reportAuthError({
+            ...errorDetails,
+            statusCode: retryResponse.status,
+            message: `Retry failed: ${retryResponse.statusText}`,
+            timestamp: Date.now()
+          });
+          throw new Error(`HTTP error! status: ${retryResponse.status} (after retry)`);
+        }
+
+        vnpostTokenService.reportAuthSuccess(); // Report retry success
+        return retryResponse;
       }
-
-      vnpostTokenService.reportAuthSuccess(); // Report retry success
-      return retryResponse;
     }
 
     if (!response.ok) {
@@ -43,8 +64,20 @@ export class BhytService {
 
   protected async getHeaders(): Promise<Record<string, string>> {
     try {
-      // Get fresh token from database
-      const tokenInfo = await vnpostTokenService.getLatestToken();
+      // Ensure token is ready before proceeding
+      console.log('🔑 Ensuring token is ready for API call...');
+      const tokenInfo = await vnpostTokenService.ensureTokenReady();
+
+      // Validate token before using
+      if (!tokenInfo.authorization || tokenInfo.authorization === 'Bearer undefined') {
+        throw new Error('Invalid token - token service not properly initialized');
+      }
+
+      console.log('✅ Token ready for API call:', {
+        hasToken: !!tokenInfo.authorization,
+        timestamp: tokenInfo.timestamp,
+        isValid: tokenInfo.isValid
+      });
 
       return {
         'accept': 'application/json, text/plain, */*',
@@ -64,21 +97,8 @@ export class BhytService {
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
       };
     } catch (error) {
-      console.error('Error getting token, using fallback:', error);
-      // Fallback to original headers if token service fails
-      return {
-        'accept': 'application/json, text/plain, */*',
-        'authorization': `Bearer ${this.authToken}`,
-        'content-type': 'application/json',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-fetch-site': 'same-origin',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-dest': 'empty',
-        'timestamp': Date.now().toString()
-      };
+      console.error('❌ Failed to get headers:', error);
+      throw new Error(`Không thể lấy token xác thực: ${error instanceof Error ? error.message : 'Unknown error'}. Vui lòng đảm bảo token đã được tạo và lưu trong database.`);
     }
   }
 
@@ -457,13 +477,22 @@ export class BhytService {
 
       console.log('BHYT Declaration API Response:', apiResponse); // Debug log
 
-      // Check for authentication errors in response body
-      if (!apiResponse.success && apiResponse.message &&
-          (apiResponse.message.includes('token') ||
-           apiResponse.message.includes('unauthorized') ||
-           apiResponse.message.includes('authentication'))) {
-        console.log('Authentication error in response body, reporting error...');
-        vnpostTokenService.reportAuthError();
+      // Enhanced authentication error detection in response body
+      if (!apiResponse.success && apiResponse.message) {
+        const message = apiResponse.message.toLowerCase();
+        if (message.includes('token') ||
+            message.includes('unauthorized') ||
+            message.includes('authentication') ||
+            message.includes('secretid') ||
+            message.includes('secretpass')) {
+          console.log('🚨 Authentication error in response body, reporting with details...');
+          await vnpostTokenService.reportAuthError({
+            statusCode: response.status,
+            message: apiResponse.message,
+            endpoint: 'BHYT Declaration API',
+            timestamp: Date.now()
+          });
+        }
       } else if (apiResponse.success) {
         vnpostTokenService.reportAuthSuccess();
       }

@@ -55,7 +55,7 @@ const createInitialParticipant = (doiTuongThamGia?: string): KeKhai603Participan
   hoTen: '',
   maSoBHXH: '',
   ngaySinh: '',
-  gioiTinh: 'Nam',
+  gioiTinh: '',
   soCCCD: '',
   soDienThoai: '',
   soTheBHYT: '',
@@ -110,7 +110,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         hoTen: item.ho_ten || '',
         maSoBHXH: item.ma_so_bhxh || '',
         ngaySinh: item.ngay_sinh || '',
-        gioiTinh: item.gioi_tinh || 'Nam',
+        gioiTinh: item.gioi_tinh || '',
         soCCCD: item.so_cccd || '',
         soDienThoai: item.so_dien_thoai || '',
         soTheBHYT: item.so_the_bhyt || '',
@@ -300,7 +300,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         ke_khai_id: keKhaiId,
         stt: participants.length + 1,
         ho_ten: '-', // Minimal placeholder for database constraint
-        gioi_tinh: 'Nam',
+        gioi_tinh: '',
         noi_dang_ky_kcb: DEFAULT_CSKCB.ten,
         tinh_kcb: DEFAULT_CSKCB.maTinh,
         ma_benh_vien: DEFAULT_CSKCB.value,
@@ -435,7 +435,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         ho_ten: participant.hoTen || '',
         ma_so_bhxh: participant.maSoBHXH || null,
         ngay_sinh: participant.ngaySinh || null,
-        gioi_tinh: participant.gioiTinh || 'Nam',
+        gioi_tinh: participant.gioiTinh || '',
         so_cccd: participant.soCCCD || null,
         so_dien_thoai: participant.soDienThoai || null,
         so_the_bhyt: participant.soTheBHYT || null,
@@ -632,7 +632,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         ho_ten: formData.hoTen && formData.hoTen.trim() ? formData.hoTen.trim() : '', // Keep empty for now, will be handled in cleaning
         ma_so_bhxh: formData.maSoBHXH || null,
         ngay_sinh: formData.ngaySinh || null,
-        gioi_tinh: formData.gioiTinh || 'Nam',
+        gioi_tinh: formData.gioiTinh || '',
         so_cccd: formData.soCCCD || null,
         so_dien_thoai: formData.soDienThoai || null,
         so_the_bhyt: formData.soTheBHYT || null,
@@ -695,7 +695,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         hoTen: formData.hoTen || '',
         maSoBHXH: formData.maSoBHXH || '',
         ngaySinh: formData.ngaySinh || '',
-        gioiTinh: formData.gioiTinh || 'Nam',
+        gioiTinh: formData.gioiTinh || '',
         soCCCD: formData.soCCCD || '',
         soDienThoai: formData.soDienThoai || '',
         soTheBHYT: formData.soTheBHYT || '',
@@ -730,11 +730,18 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
 
       // Update local state
       console.log('🔄 Updating local state...');
+      console.log('🔍 DEBUG: Current participants before update:', participants.length);
+      console.log('🔍 DEBUG: New participant to add:', { id: newParticipant.id, hoTen: newParticipant.hoTen, maSoBHXH: newParticipant.maSoBHXH });
+
       setParticipants(prev => {
+        console.log('🔍 DEBUG: setParticipants callback - prev length:', prev.length);
         const newArray = [...prev, newParticipant];
         console.log('📊 New participants array length:', newArray.length);
+        console.log('🔍 DEBUG: New array contents:', newArray.map(p => ({ id: p.id, hoTen: p.hoTen, maSoBHXH: p.maSoBHXH })));
         return newArray;
       });
+
+      console.log('🔍 DEBUG: After setParticipants call completed');
 
       console.log('✅ saveParticipantFromForm completed successfully');
       return {

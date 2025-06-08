@@ -3,31 +3,50 @@ import { DanhSachKeKhai } from '../../../../shared/services/api/supabaseClient';
 import { ApiSummary } from '../../../hooks/useKeKhai603Api';
 import {
   FileText,
-  Info,
   RefreshCw,
   Settings,
-  Loader2
+  Loader2,
+  Save,
+  Send,
+  Users,
+  Clock
 } from 'lucide-react';
 
 interface KeKhai603HeaderProps {
   keKhaiInfo: DanhSachKeKhai | null;
-  apiSummary: ApiSummary;
   onRefreshToken?: () => void;
   onFixError?: () => void;
   fixErrorProcessing?: boolean;
   fixErrorPhase?: 'idle' | 'testing' | 'waiting' | 'refreshing';
   waitingCountdown?: number;
+  // New props for save and submit actions
+  onSaveAll?: () => void;
+  onSubmit?: () => void;
+  saving?: boolean;
+  submitting?: boolean;
+  savingData?: boolean;
+  // Household bulk input props
+  onHouseholdBulkInput?: () => void;
+  householdProcessing?: boolean;
+
 }
 
 export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
   keKhaiInfo,
-  apiSummary,
   onRefreshToken,
   onFixError,
   fixErrorProcessing = false,
   fixErrorPhase = 'idle',
-  waitingCountdown = 0
+  waitingCountdown = 0,
+  onSaveAll,
+  onSubmit,
+  saving = false,
+  submitting = false,
+  savingData = false,
+  onHouseholdBulkInput,
+  householdProcessing = false
 }) => {
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -72,7 +91,73 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
+            {/* Household Bulk Input Button */}
+            {onHouseholdBulkInput && keKhaiInfo && (
+              <button
+                onClick={onHouseholdBulkInput}
+                disabled={saving || savingData || householdProcessing || submitting}
+                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                title="Nhập hộ gia đình - tự động tăng STT hộ"
+              >
+                {householdProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Đang xử lý...</span>
+                  </>
+                ) : (
+                  <>
+                    <Users className="h-4 w-4" />
+                    <span>Nhập hộ gia đình</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Save All Button */}
+            {onSaveAll && keKhaiInfo && (
+              <button
+                onClick={onSaveAll}
+                disabled={submitting || saving || savingData || householdProcessing}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Đang lưu...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Ghi dữ liệu</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Submit Button */}
+            {onSubmit && keKhaiInfo && (
+              <button
+                onClick={onSubmit}
+                disabled={submitting || saving || savingData || householdProcessing}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Đang nộp...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    <span>Nộp kê khai</span>
+                  </>
+                )}
+              </button>
+            )}
+
+
+
             {/* Fix Error Button */}
             {onFixError && (
               <button
@@ -114,20 +199,7 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
         </div>
       </div>
 
-      {/* API Summary */}
-      {apiSummary.isLoaded && (
-        <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-2">
-            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <span className="text-sm text-blue-800 dark:text-blue-200">
-              Đã tải dữ liệu từ {apiSummary.source}
-              {apiSummary.lastUpdated && (
-                <span className="ml-2">• Cập nhật lúc {apiSummary.lastUpdated}</span>
-              )}
-            </span>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };

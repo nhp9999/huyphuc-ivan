@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 // Interface for form data
 export interface KeKhai603FormData {
@@ -56,7 +56,7 @@ const initialFormData: KeKhai603FormData = {
   hoTen: '',
   maSoBHXH: '',
   ngaySinh: '',
-  gioiTinh: 'Nam',
+  gioiTinh: '',
   soCCCD: '',
   noiDangKyKCB: '',
   soDienThoai: '',
@@ -74,7 +74,7 @@ const initialFormData: KeKhai603FormData = {
   maXaNkq: '',
 
   // Thông tin BHYT
-  mucLuong: '',
+  mucLuong: '2,340,000', // Lương cơ sở hiện tại theo quy định
   tyLeDong: '100', // Mặc định 100% lương cơ sở
   soTienDong: '',
   tienDong: 0, // Khởi tạo giá trị từ database = 0
@@ -232,6 +232,33 @@ export const calculateKeKhai603CardValidity = (soThangDong: string, denNgayTheCu
 export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
   const [formData, setFormData] = useState<KeKhai603FormData>(initialFormData);
 
+  // Tính toán lại khi component mount hoặc doiTuongThamGia thay đổi
+  React.useEffect(() => {
+    if (formData.sttHo && formData.soThangDong) {
+      console.log('🔄 Recalculating on mount/doiTuongThamGia change');
+
+      const mucLuongNumber = formData.mucLuong ? parseFloat(formData.mucLuong.replace(/[.,]/g, '')) : 2340000;
+
+      // Tính tiền đóng theo công thức mới
+      const soTien = calculateKeKhai603Amount(formData.sttHo, formData.soThangDong, mucLuongNumber);
+
+      // Tính tiền đóng thực tế theo công thức cũ
+      const soTienThucTe = calculateKeKhai603AmountThucTe(formData.sttHo, formData.soThangDong, mucLuongNumber, doiTuongThamGia);
+
+      setFormData(prev => ({
+        ...prev,
+        soTienDong: soTien.toLocaleString('vi-VN'),
+        tienDong: soTien,
+        tienDongThucTe: soTienThucTe
+      }));
+
+      console.log('✅ Recalculated on mount:', {
+        soTien: soTien.toLocaleString('vi-VN'),
+        soTienThucTe: soTienThucTe.toLocaleString('vi-VN')
+      });
+    }
+  }, [doiTuongThamGia]); // Chỉ chạy khi doiTuongThamGia thay đổi
+
   const handleInputChange = (field: keyof KeKhai603FormData, value: string) => {
     setFormData(prev => {
       const newData = {
@@ -239,10 +266,13 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
         [field]: value
       };
 
-      // Tự động tính toán số tiền đóng khi thay đổi STT hộ hoặc số tháng
-      if (field === 'sttHo' || field === 'soThangDong') {
+      // Tự động tính toán số tiền đóng khi thay đổi STT hộ, số tháng, lương cơ sở, hoặc tỷ lệ đóng
+      if (field === 'sttHo' || field === 'soThangDong' || field === 'mucLuong' || field === 'tyLeDong') {
         const sttHo = field === 'sttHo' ? value : prev.sttHo;
         const soThangDong = field === 'soThangDong' ? value : prev.soThangDong;
+        const mucLuong = field === 'mucLuong' ? value : prev.mucLuong;
+
+        console.log('🔄 Triggering calculation:', { field, value, sttHo, soThangDong, mucLuong });
 
         // Cập nhật tỷ lệ đóng theo STT hộ (% của lương cơ sở)
         if (field === 'sttHo') {
@@ -265,17 +295,30 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
               break;
           }
           newData.tyLeDong = tyLeDong;
+          console.log('📊 Updated tyLeDong:', tyLeDong);
         }
 
         if (sttHo && soThangDong) {
+          // Parse lương cơ sở từ string (loại bỏ dấu phẩy)
+          const mucLuongNumber = mucLuong ? parseFloat(mucLuong.replace(/[.,]/g, '')) : 2340000;
+
+          console.log('💰 Calculating with:', { sttHo, soThangDong, mucLuongNumber, doiTuongThamGia });
+
           // Tính tiền đóng theo công thức mới (lưu vào tien_dong)
-          const soTien = calculateKeKhai603Amount(sttHo, soThangDong);
+          const soTien = calculateKeKhai603Amount(sttHo, soThangDong, mucLuongNumber);
           newData.soTienDong = soTien.toLocaleString('vi-VN');
           newData.tienDong = soTien;
 
           // Tính tiền đóng thực tế theo công thức cũ (lưu vào tien_dong_thuc_te)
-          const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, 2340000, doiTuongThamGia);
+          const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, mucLuongNumber, doiTuongThamGia);
           newData.tienDongThucTe = soTienThucTe;
+
+          console.log('✅ Calculated amounts:', {
+            soTien: soTien.toLocaleString('vi-VN'),
+            soTienThucTe: soTienThucTe.toLocaleString('vi-VN')
+          });
+        } else {
+          console.log('⚠️ Missing required fields for calculation:', { sttHo, soThangDong });
         }
       }
 
@@ -304,10 +347,34 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
     setFormData(prev => ({ ...prev, ...data }));
   };
 
+  // Force recalculate amounts
+  const forceRecalculate = () => {
+    console.log('🔄 Force recalculating amounts...');
+    if (formData.sttHo && formData.soThangDong) {
+      const mucLuongNumber = formData.mucLuong ? parseFloat(formData.mucLuong.replace(/[.,]/g, '')) : 2340000;
+
+      const soTien = calculateKeKhai603Amount(formData.sttHo, formData.soThangDong, mucLuongNumber);
+      const soTienThucTe = calculateKeKhai603AmountThucTe(formData.sttHo, formData.soThangDong, mucLuongNumber, doiTuongThamGia);
+
+      setFormData(prev => ({
+        ...prev,
+        soTienDong: soTien.toLocaleString('vi-VN'),
+        tienDong: soTien,
+        tienDongThucTe: soTienThucTe
+      }));
+
+      console.log('✅ Force recalculated:', {
+        soTien: soTien.toLocaleString('vi-VN'),
+        soTienThucTe: soTienThucTe.toLocaleString('vi-VN')
+      });
+    }
+  };
+
   return {
     formData,
     handleInputChange,
     resetForm,
-    updateFormData
+    updateFormData,
+    forceRecalculate
   };
 };

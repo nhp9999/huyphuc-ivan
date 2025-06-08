@@ -277,6 +277,7 @@ export const KeKhai603PersonalInfoForm: React.FC<KeKhai603PersonalInfoFormProps>
               onChange={(e) => handleInputChange('gioiTinh', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             >
+              <option value="">Chọn giới tính</option>
               <option value="Nam">Nam</option>
               <option value="Nữ">Nữ</option>
             </select>

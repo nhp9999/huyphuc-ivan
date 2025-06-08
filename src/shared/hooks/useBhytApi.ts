@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { bhytService } from '../services/bhytService';
 import { BhytDeclarationRequest } from '../types/bhyt';
+import vnpostTokenService from '../services/api/vnpostTokenService';
 
 // Helper function to convert from DD/MM/YYYY to YYYY-MM-DD for date input
 export const convertDisplayDateToInputDate = (displayDate: string): string => {
@@ -46,6 +47,18 @@ export const useBhytApi = () => {
     }
 
     setSearchLoading(true);
+    try {
+      // Ensure token is ready before making API call
+      console.log('🔑 Ensuring token is ready for BHYT search...');
+      await vnpostTokenService.ensureTokenReady();
+      console.log('✅ Token ready, proceeding with BHYT search');
+
+    } catch (tokenError) {
+      console.error('❌ Token not ready:', tokenError);
+      setSearchLoading(false);
+      throw new Error('Không thể tra cứu thông tin BHYT cho kê khai 603. Token chưa sẵn sàng. Vui lòng đảm bảo token đã được tạo và thử lại.');
+    }
+
     try {
       const request: BhytDeclarationRequest = {
         maSoBHXH: maSoBHXH.trim(),
@@ -130,6 +143,18 @@ export const useBhytApi = () => {
     }
 
     setSearchLoading(true);
+    try {
+      // Ensure token is ready before making API call
+      console.log('🔑 Ensuring token is ready for participant search...');
+      await vnpostTokenService.ensureTokenReady();
+      console.log('✅ Token ready, proceeding with participant search');
+
+    } catch (tokenError) {
+      console.error('❌ Token not ready:', tokenError);
+      setSearchLoading(false);
+      throw new Error('Không thể tra cứu thông tin BHYT cho người tham gia. Token chưa sẵn sàng. Vui lòng đảm bảo token đã được tạo và thử lại.');
+    }
+
     try {
       const request: BhytDeclarationRequest = {
         maSoBHXH: maSoBHXH.trim(),
