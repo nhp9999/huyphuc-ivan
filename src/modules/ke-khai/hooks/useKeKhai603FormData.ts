@@ -10,6 +10,7 @@ export interface KeKhai603FormData {
   soCCCD: string;
   noiDangKyKCB: string;
   soDienThoai: string;
+  email: string;
   soTheBHYT: string;
   quocTich: string;
   danToc: string;
@@ -59,6 +60,7 @@ const initialFormData: KeKhai603FormData = {
   soCCCD: '',
   noiDangKyKCB: '',
   soDienThoai: '',
+  email: '',
   soTheBHYT: '',
   quocTich: 'VN',
   danToc: '',

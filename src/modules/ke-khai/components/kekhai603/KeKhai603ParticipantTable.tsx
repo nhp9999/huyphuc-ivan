@@ -497,12 +497,12 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         {/* Desktop Table Layout */}
         <div className={styles.tableContainer}>
           <div className="overflow-x-auto">
-            <table className={`w-full min-w-max ${styles.participantTable} ${isDarkMode ? 'dark' : ''}`}>
+            <table className={`w-full ${styles.participantTable} ${isDarkMode ? 'dark' : ''}`} style={{ minWidth: '2400px' }}>
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
                 {/* Checkbox column - only show if bulk delete is available */}
                 {handleBulkRemoveParticipants && (
-                  <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`}>
+                  <th className={`w-[50px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`}>
                     <input
                       type="checkbox"
                       checked={selectAll}
@@ -513,28 +513,28 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     />
                   </th>
                 )}
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thứ tự">STT</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Mã số bảo hiểm xã hội">Mã BHXH</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Họ và tên">Họ tên</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Ngày sinh">Ngày sinh</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Giới tính">Giới tính</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số điện thoại">Số ĐT</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thẻ bảo hiểm y tế">Số thẻ BHYT</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Dân tộc">Dân tộc</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Nơi đăng ký khám chữa bệnh">Nơi KCB</th>
-                <th className={`hidden text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Mức lương">Mức lương</th>
-                <th className={`hidden text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Tỷ lệ đóng">Tỷ lệ đóng</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thứ tự hộ">STT hộ</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số tháng đóng">Số tháng</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số tiền đóng">Số tiền</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Từ ngày thẻ cũ">Từ ngày thẻ cũ</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Đến ngày thẻ cũ">Đến ngày thẻ cũ</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Ngày biên lai">Ngày biên lai</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Tỉnh nơi khai sinh">Tỉnh NKQ</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Huyện nơi khai sinh">Huyện NKQ</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Xã nơi khai sinh">Xã NKQ</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Nơi nhận hồ sơ">Nơi nhận hồ sơ</th>
-                <th className={`text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Thao tác">Thao tác</th>
+                <th className={`w-[60px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thứ tự">STT</th>
+                <th className={`w-[140px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Mã số bảo hiểm xã hội">Mã BHXH</th>
+                <th className={`min-w-[100px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Họ và tên">Họ tên</th>
+                <th className={`w-[120px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Ngày sinh">Ngày sinh</th>
+                <th className={`w-[80px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Giới tính">Giới tính</th>
+                <th className={`w-[120px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số điện thoại">Số ĐT</th>
+                <th className={`w-[140px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thẻ bảo hiểm y tế">Số thẻ BHYT</th>
+                <th className={`w-[100px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Dân tộc">Dân tộc</th>
+                <th className={`min-w-[200px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Nơi đăng ký khám chữa bệnh">Nơi KCB</th>
+                <th className={`hidden w-[120px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Mức lương">Mức lương</th>
+                <th className={`hidden w-[100px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Tỷ lệ đóng">Tỷ lệ đóng</th>
+                <th className={`w-[80px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số thứ tự hộ">STT hộ</th>
+                <th className={`w-[90px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số tháng đóng">Số tháng</th>
+                <th className={`w-[120px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Số tiền đóng">Số tiền</th>
+                <th className={`w-[130px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Từ ngày thẻ cũ">Từ ngày thẻ cũ</th>
+                <th className={`w-[130px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Đến ngày thẻ cũ">Đến ngày thẻ cũ</th>
+                <th className={`w-[130px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Ngày biên lai">Ngày biên lai</th>
+                <th className={`w-[140px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Tỉnh nơi khai sinh">Tỉnh NKQ</th>
+                <th className={`w-[140px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Huyện nơi khai sinh">Huyện NKQ</th>
+                <th className={`w-[140px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Xã nơi khai sinh">Xã NKQ</th>
+                <th className={`min-w-[150px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Nơi nhận hồ sơ">Nơi nhận hồ sơ</th>
+                <th className={`w-[100px] text-left py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 ${isDarkMode ? 'dark' : ''}`} title="Thao tác">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -547,7 +547,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                 >
                   {/* Checkbox column - only show if bulk delete is available */}
                   {handleBulkRemoveParticipants && (
-                    <td className="py-3 px-2">
+                    <td className="w-[50px] py-3 px-2">
                       <input
                         type="checkbox"
                         checked={selectedIndices.has(index)}
@@ -558,10 +558,10 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       />
                     </td>
                   )}
-                  <td className="py-3 px-2">
-                    <span className="text-sm text-gray-900 dark:text-white">{index + 1}</span>
+                  <td className="w-[60px] py-3 px-2">
+                    <span className="text-sm text-gray-900 dark:text-white whitespace-nowrap">{index + 1}</span>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[140px] py-3 px-2">
                     <div className="relative">
                       <input
                         type="text"
@@ -569,14 +569,14 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                         onChange={(e) => handleParticipantChange(index, 'maSoBHXH', e.target.value)}
                         onKeyDown={(e) => handleParticipantKeyPress(e, index)}
                         className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        placeholder="Mã BHXH (Enter để tìm)"
+                        placeholder="Mã BHXH"
                       />
                       {participantSearchLoading[index] && (
                         <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
                       )}
                     </div>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="min-w-[180px] py-3 px-2">
                     <input
                       type="text"
                       value={participant.hoTen || ''}
@@ -585,16 +585,16 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       placeholder="Họ tên"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[120px] py-3 px-2">
                     <input
                       type={participant.ngaySinh && participant.ngaySinh.includes('-') && participant.ngaySinh.length === 10 ? "date" : "text"}
                       value={participant.ngaySinh || ''}
                       onChange={(e) => handleParticipantChange(index, 'ngaySinh', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      placeholder="Ngày sinh (dd/mm/yyyy hoặc yyyy)"
+                      placeholder="Ngày sinh"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[80px] py-3 px-2">
                     <select
                       value={participant.gioiTinh || 'Nam'}
                       onChange={(e) => handleParticipantChange(index, 'gioiTinh', e.target.value)}
@@ -604,16 +604,16 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       <option value="Nữ">Nữ</option>
                     </select>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[120px] py-3 px-2">
                     <input
                       type="text"
                       value={participant.soDienThoai || ''}
                       onChange={(e) => handleParticipantChange(index, 'soDienThoai', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      placeholder="Số điện thoại"
+                      placeholder="Số ĐT"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[140px] py-3 px-2">
                     <input
                       type="text"
                       value={participant.soTheBHYT || ''}
@@ -622,7 +622,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       placeholder="Số thẻ BHYT"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[100px] py-3 px-2">
                     <input
                       type="text"
                       value={participant.danToc || ''}
@@ -631,7 +631,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       placeholder="Dân tộc"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="min-w-[200px] py-3 px-2">
                     <select
                       value={participant.maBenhVien || ''}
                       onChange={(e) => {
@@ -651,7 +651,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       ))}
                     </select>
                   </td>
-                  <td className="hidden py-3 px-2">
+                  <td className="hidden w-[120px] py-3 px-2">
                     <input
                       type="text"
                       value={participant.mucLuong || ''}
@@ -660,7 +660,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       placeholder="Mức lương"
                     />
                   </td>
-                  <td className="hidden py-3 px-2">
+                  <td className="hidden w-[100px] py-3 px-2">
                     <input
                       type="text"
                       value={participant.tyLeDong || ''}
@@ -669,7 +669,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       placeholder="Tỷ lệ đóng"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[80px] py-3 px-2">
                     <select
                       value={participant.sttHo || ''}
                       onChange={(e) => handleParticipantChange(index, 'sttHo', e.target.value)}
@@ -688,7 +688,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       <option value="5+">5+</option>
                     </select>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[90px] py-3 px-2">
                     <select
                       value={participant.soThangDong || ''}
                       onChange={(e) => handleParticipantChange(index, 'soThangDong', e.target.value)}
@@ -700,7 +700,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       <option value="12">12</option>
                     </select>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[120px] py-3 px-2">
                     <input
                       type="text"
                       value={participant.tienDongThucTe ? participant.tienDongThucTe.toLocaleString('vi-VN') : ''}
@@ -709,7 +709,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       placeholder="Tự động tính"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[130px] py-3 px-2">
                     <input
                       type="date"
                       value={participant.tuNgayTheCu || ''}
@@ -717,7 +717,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[130px] py-3 px-2">
                     <input
                       type="date"
                       value={participant.denNgayTheCu || ''}
@@ -725,7 +725,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[130px] py-3 px-2">
                     <input
                       type="date"
                       value={participant.ngayBienLai || ''}
@@ -733,7 +733,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[140px] py-3 px-2">
                     <select
                       value={participant.maTinhNkq || ''}
                       onChange={(e) => handleTinhChange(index, e.target.value)}
@@ -748,7 +748,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       ))}
                     </select>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[140px] py-3 px-2">
                     <select
                       value={participant.maHuyenNkq || ''}
                       onChange={(e) => handleHuyenChange(index, e.target.value)}
@@ -763,7 +763,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       ))}
                     </select>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="w-[140px] py-3 px-2">
                     <select
                       value={participant.maXaNkq || ''}
                       onChange={(e) => handleParticipantChange(index, 'maXaNkq', e.target.value)}
@@ -779,7 +779,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       ))}
                     </select>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="min-w-[150px] py-3 px-2">
                     <input
                       type="text"
                       value={participant.noiNhanHoSo || ''}
@@ -788,8 +788,8 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                       placeholder="Nơi nhận hồ sơ"
                     />
                   </td>
-                  <td className="py-3 px-2">
-                    <div className="flex items-center space-x-2">
+                  <td className="w-[100px] py-3 px-2">
+                    <div className="flex items-center space-x-1">
                       <button
                         onClick={() => handleSaveSingleParticipant(index)}
                         disabled={savingData}

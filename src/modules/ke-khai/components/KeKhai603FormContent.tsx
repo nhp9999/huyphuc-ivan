@@ -13,6 +13,7 @@ import { KeKhai603PersonalInfoForm } from './kekhai603/KeKhai603PersonalInfoForm
 import { KeKhai603CardInfoForm } from './kekhai603/KeKhai603CardInfoForm';
 import { KeKhai603PaymentInfoForm } from './kekhai603/KeKhai603PaymentInfoForm';
 import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable';
+import { HouseholdBulkInputModal } from './kekhai603/HouseholdBulkInputModal';
 import { useCSKCBPreloader } from '../hooks/useCSKCBPreloader';
 import { useCSKCBContext } from '../contexts/CSKCBContext';
 import { keKhaiService } from '../services/keKhaiService';
@@ -38,6 +39,15 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   const [fixErrorProcessing, setFixErrorProcessing] = React.useState(false);
   const [fixErrorPhase, setFixErrorPhase] = React.useState<'idle' | 'testing' | 'waiting' | 'refreshing'>('idle');
   const [waitingCountdown, setWaitingCountdown] = React.useState(0);
+
+  // State for household bulk input modal
+  const [showHouseholdBulkInputModal, setShowHouseholdBulkInputModal] = React.useState(false);
+  const [householdProcessing, setHouseholdProcessing] = React.useState(false);
+  const [householdProgress, setHouseholdProgress] = React.useState<{
+    current: number;
+    total: number;
+    currentCode?: string;
+  } | null>(null);
 
   // Custom hooks - order matters for dependencies
   const { toast, showToast, hideToast } = useToast();
@@ -898,6 +908,47 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     showToast('Thanh toán đã được xác nhận thành công!', 'success');
   };
 
+  // Handle household bulk input
+  const handleHouseholdBulkInput = async (data: {
+    bhxhCodes: string[];
+    soThangDong: string;
+    maBenhVien?: string;
+    tenBenhVien?: string;
+  }) => {
+    if (!handleHouseholdBulkAddNew) return;
+
+    setHouseholdProcessing(true);
+    setHouseholdProgress({
+      current: 0,
+      total: data.bhxhCodes.length
+    });
+
+    try {
+      const medicalFacility = data.maBenhVien && data.tenBenhVien ? {
+        maBenhVien: data.maBenhVien,
+        tenBenhVien: data.tenBenhVien,
+        maTinh: data.maTinh
+      } : undefined;
+
+      // Create a wrapper function that updates progress
+      const progressCallback = (current: number, currentCode?: string) => {
+        setHouseholdProgress({
+          current,
+          total: data.bhxhCodes.length,
+          currentCode
+        });
+      };
+
+      await handleHouseholdBulkAddNew(data.bhxhCodes, data.soThangDong, medicalFacility, progressCallback);
+      setShowHouseholdBulkInputModal(false);
+    } catch (error) {
+      console.error('Household bulk input error:', error);
+    } finally {
+      setHouseholdProcessing(false);
+      setHouseholdProgress(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
         {/* Header */}
@@ -941,44 +992,503 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           </div>
         ) : (
           <>
-            {/* Personal Information Form */}
-            <KeKhai603PersonalInfoForm
-              formData={formData}
-              handleInputChange={handleInputChange}
-              handleSearch={handleSearch}
-              handleKeyPress={handleKeyPress}
-              searchLoading={searchLoading}
-              onSaveParticipant={handleSaveParticipantNew}
-              savingParticipant={savingParticipant}
-            />
+            {/* Main Form - Matching the image layout */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              {/* Form Header with Household Input */}
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    Thông tin người tham gia
+                  </h3>
+                  <button
+                    onClick={() => setShowHouseholdBulkInputModal(true)}
+                    disabled={saving || savingData || householdProcessing}
+                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    title="Nhập hộ gia đình - tự động tăng STT hộ"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>Nhập hộ gia đình</span>
+                  </button>
+                </div>
+              </div>
 
-            {/* Card Information Form */}
-            <KeKhai603CardInfoForm
-              formData={formData}
-              handleInputChange={handleInputChange}
-            />
+              {/* Form Content */}
+              <div className="p-6">
+                {/* Section 1: Thông tin cá nhân */}
+                <div className="mb-8">
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4 pb-2 border-b border-gray-200 dark:border-gray-600">
+                    Thông tin cá nhân
+                  </h4>
+                  <div className="space-y-4">
+                    {/* Row 1: Basic Information */}
+                    <div className="grid grid-cols-12 gap-4">
+                      {/* Mã số BHXH */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Mã số BHXH <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={formData.maSoBHXH}
+                            onChange={(e) => handleInputChange('maSoBHXH', e.target.value)}
+                            onKeyDown={handleKeyPress}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                            placeholder="01234567890"
+                          />
+                          <button
+                            onClick={handleSearch}
+                            disabled={searchLoading}
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-blue-600 disabled:opacity-50"
+                          >
+                            {searchLoading ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            ) : (
+                              <span className="text-sm">🔍</span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
 
-            {/* Payment Information Form */}
-            <KeKhai603PaymentInfoForm
-              formData={formData}
-              handleInputChange={handleInputChange}
-              doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
-            />
+                      {/* Họ và tên */}
+                      <div className="col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Họ và tên <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.hoTen}
+                          onChange={(e) => handleInputChange('hoTen', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="Trần Đình Linh"
+                        />
+                      </div>
 
-            {/* Participant Table */}
-            <KeKhai603ParticipantTable
-              participants={participants}
-              handleParticipantChange={handleParticipantChange}
-              handleParticipantKeyPress={handleParticipantKeyPress}
-              handleAddParticipant={handleAddParticipant}
-              handleRemoveParticipant={handleRemoveParticipant}
-              handleBulkRemoveParticipants={handleBulkRemoveParticipants}
-              handleSaveSingleParticipant={handleSaveSingleParticipant}
-              participantSearchLoading={participantSearchLoading}
-              savingData={savingData}
-              doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
-              onHouseholdBulkAdd={handleHouseholdBulkAddNew}
-            />
+                      {/* CCCD */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          CCCD <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.soCCCD}
+                          onChange={(e) => handleInputChange('soCCCD', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="Dây số"
+                        />
+                      </div>
+
+                      {/* Ngày sinh */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Ngày sinh <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.ngaySinh}
+                          onChange={(e) => handleInputChange('ngaySinh', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        />
+                      </div>
+
+                      {/* Giới tính */}
+                      <div className="col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Giới tính <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={formData.gioiTinh}
+                          onChange={(e) => handleInputChange('gioiTinh', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        >
+                          <option value="Nam">Nam</option>
+                          <option value="Nữ">Nữ</option>
+                        </select>
+                      </div>
+
+                      {/* Quốc tịch */}
+                      <div className="col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Quốc tịch <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.quocTich}
+                          onChange={(e) => handleInputChange('quocTich', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="VN"
+                        />
+                      </div>
+
+                      {/* Dân tộc */}
+                      <div className="col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Dân tộc <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.danToc}
+                          onChange={(e) => handleInputChange('danToc', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="01 - Kinh"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 2: Location Information */}
+                    <div className="grid grid-cols-12 gap-4 mt-4">
+                      {/* Tỉnh KCB */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Tỉnh KCB <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.tinhKCB}
+                          onChange={(e) => handleInputChange('tinhKCB', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="01 - Thành phố Hà Nội"
+                        />
+                      </div>
+
+                      {/* Huyện KCB */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Huyện KCB <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.maHuyenNkq}
+                          onChange={(e) => handleInputChange('maHuyenNkq', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="001 - Quận Ba Đình"
+                        />
+                      </div>
+
+                      {/* Xã KCB */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Xã KCB <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.maXaNkq}
+                          onChange={(e) => handleInputChange('maXaNkq', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="00028 - Phường Kim Mã"
+                        />
+                      </div>
+
+                      {/* Tỉnh KS */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Tỉnh KS <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.maTinhKS}
+                          onChange={(e) => handleInputChange('maTinhKS', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="01 - Thành phố Hà Nội"
+                        />
+                      </div>
+
+                      {/* Huyện KS */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Huyện KS <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.maHuyenKS}
+                          onChange={(e) => handleInputChange('maHuyenKS', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="001 - Quận Ba Đình"
+                        />
+                      </div>
+
+                      {/* Xã KS */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Xã KS
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.maXaKS}
+                          onChange={(e) => handleInputChange('maXaKS', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="00028 - Phường Kim Mã"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 3: Contact and Medical Information */}
+                    <div className="grid grid-cols-12 gap-4 mt-4">
+                      {/* Số điện thoại */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Số điện thoại
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.soDienThoai}
+                          onChange={(e) => handleInputChange('soDienThoai', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="09/78656646"
+                        />
+                      </div>
+
+                      {/* Email */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="example@email.com"
+                        />
+                      </div>
+
+                      {/* Bệnh viện */}
+                      <div className="col-span-4">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Bệnh viện <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.noiDangKyKCB}
+                          onChange={(e) => handleInputChange('noiDangKyKCB', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="075 - Bệnh viện tim Hà Nội (cơ sở 2)"
+                        />
+                      </div>
+
+                      {/* Mã số hộ gia đình */}
+                      <div className="col-span-4">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Mã số hộ gia đình
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.maHoGiaDinh}
+                          onChange={(e) => handleInputChange('maHoGiaDinh', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="309911370"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Thông tin đóng */}
+                <div className="mb-8">
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4 pb-2 border-b border-gray-200 dark:border-gray-600">
+                    Thông tin đóng
+                  </h4>
+                  <div className="space-y-4">
+                    {/* Row 1: Card Information */}
+                    <div className="grid grid-cols-12 gap-4">
+                      {/* Số thẻ BHYT */}
+                      <div className="col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Số thẻ BHYT
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.soTheBHYT}
+                          onChange={(e) => handleInputChange('soTheBHYT', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="HX4010516480000049"
+                        />
+                      </div>
+
+                      {/* Từ ngày thẻ cũ */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Từ ngày thẻ cũ
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.tuNgayTheCu}
+                          onChange={(e) => handleInputChange('tuNgayTheCu', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        />
+                      </div>
+
+                      {/* Đến ngày thẻ cũ */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Đến ngày thẻ cũ
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.denNgayTheCu}
+                          onChange={(e) => handleInputChange('denNgayTheCu', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        />
+                      </div>
+
+                      {/* Số tháng đóng */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Số tháng đóng <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.soThangDong}
+                          onChange={(e) => handleInputChange('soThangDong', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="12"
+                          min="1"
+                          max="12"
+                        />
+                      </div>
+
+                      {/* STT hộ */}
+                      <div className="col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          STT hộ <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={formData.sttHo}
+                          onChange={(e) => handleInputChange('sttHo', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        >
+                          <option value="">Chọn</option>
+                          <option value="1">1</option>
+                          <option value="2">2</option>
+                          <option value="3">3</option>
+                          <option value="4">4</option>
+                          <option value="5">5</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Payment Information */}
+                    <div className="grid grid-cols-12 gap-4 mt-4">
+                      {/* Tỷ lệ đóng */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Tỷ lệ đóng
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.tyLeDong}
+                          onChange={(e) => handleInputChange('tyLeDong', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="4.5"
+                        />
+                      </div>
+
+                      {/* Từ ngày thẻ mới */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Từ ngày thẻ mới
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.tuNgayTheMoi}
+                          onChange={(e) => handleInputChange('tuNgayTheMoi', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        />
+                      </div>
+
+                      {/* Đến ngày thẻ mới */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Đến ngày thẻ mới
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.denNgayTheMoi}
+                          onChange={(e) => handleInputChange('denNgayTheMoi', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        />
+                      </div>
+
+                      {/* Ngày biên lai */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Ngày biên lai
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.ngayBienLai}
+                          onChange={(e) => handleInputChange('ngayBienLai', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        />
+                      </div>
+
+                      {/* Lương cơ sở */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Lương cơ sở
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.mucLuong}
+                          onChange={(e) => handleInputChange('mucLuong', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="2,340,000"
+                        />
+                      </div>
+
+                      {/* Tiền đóng thực tế */}
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Tiền đóng thực tế
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.soTienDong}
+                          onChange={(e) => handleInputChange('soTienDong', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="Ngành sách thành phố Hà Nội"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 3: Additional Information */}
+                    <div className="grid grid-cols-12 gap-4 mt-4">
+                      {/* Nơi đăng ký đối với cũ */}
+                      <div className="col-span-6">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Nơi đăng ký đối với cũ
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.noiNhanHoSo}
+                          onChange={(e) => handleInputChange('noiNhanHoSo', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="Ngành sách thành phố Hà Nội, có trụ sở tại số 1 trần hưng đạo"
+                        />
+                      </div>
+
+                      {/* Ghi chú đóng phí */}
+                      <div className="col-span-6">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Ghi chú đóng phí
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.ghiChuDongPhi}
+                          onChange={(e) => handleInputChange('ghiChuDongPhi', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="Ngành sách thành phố Hà Nội, có trụ sở tại số 1 trần hưng đạo"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
 
             {/* Action Buttons */}
             <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -1031,6 +1541,17 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           onPaymentConfirmed={handlePaymentConfirmed}
         />
       )}
+
+      {/* Household Bulk Input Modal */}
+      <HouseholdBulkInputModal
+        isOpen={showHouseholdBulkInputModal}
+        onClose={() => setShowHouseholdBulkInputModal(false)}
+        onSubmit={handleHouseholdBulkInput}
+        doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
+        cskcbOptions={[]} // Will be populated by the modal itself
+        processing={householdProcessing}
+        progress={householdProgress}
+      />
     </div>
   );
 };

@@ -24,7 +24,10 @@ import {
   Edit3,
   X,
   MoreVertical,
-  ChevronDown
+  ChevronDown,
+  User,
+  Phone,
+  Calendar
 } from 'lucide-react';
 import DaiLyDonViSelector from '../components/DaiLyDonViSelector';
 import PaymentQRModal from '../components/PaymentQRModal';
@@ -92,6 +95,18 @@ const KeKhai603: React.FC = () => {
 
   // State cho dropdown menu
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+  // State cho tab view - chỉ hiển thị participants
+  const [activeTab, setActiveTab] = useState<'participants'>('participants');
+
+  // State cho participants data
+  const [participantsList, setParticipantsList] = useState<any[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [errorParticipants, setErrorParticipants] = useState<string | null>(null);
+
+  // State cho checkbox selection
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
+  const [selectAllParticipants, setSelectAllParticipants] = useState(false);
 
   const [formData, setFormData] = useState({
     // Thông tin đại lý
@@ -235,13 +250,80 @@ const KeKhai603: React.FC = () => {
     }
   };
 
+  // Load danh sách người tham gia từ Supabase
+  const loadParticipantsData = async () => {
+    setLoadingParticipants(true);
+    setErrorParticipants(null);
+    try {
+      if (!user?.id) {
+        setParticipantsList([]);
+        return;
+      }
+
+      console.log('🔍 Loading participants for user:', user.id);
+
+      // Lấy danh sách kê khai của user trước
+      const searchParams: any = {
+        loai_ke_khai: declarationCode,
+        created_by: user.id
+      };
+
+      const keKhaiData = await keKhaiService.getKeKhaiList(searchParams);
+      console.log('📋 Found ke khai for participants:', keKhaiData.length);
+
+      // Lấy tất cả người tham gia từ các kê khai này
+      const allParticipants: any[] = [];
+
+      for (const keKhai of keKhaiData) {
+        try {
+          const nguoiThamGiaList = await keKhaiService.getNguoiThamGiaByKeKhai(keKhai.id);
+
+          // Thêm thông tin kê khai vào mỗi người tham gia
+          const participantsWithKeKhai = nguoiThamGiaList.map(participant => ({
+            ...participant,
+            ke_khai: keKhai
+          }));
+
+          allParticipants.push(...participantsWithKeKhai);
+        } catch (error) {
+          console.error(`Error loading participants for ke khai ${keKhai.id}:`, error);
+        }
+      }
+
+      // Sắp xếp theo ngày tạo mới nhất
+      allParticipants.sort((a, b) =>
+        new Date(b.ke_khai.created_at || '').getTime() - new Date(a.ke_khai.created_at || '').getTime()
+      );
+
+      console.log('👥 Loaded participants count:', allParticipants.length);
+      setParticipantsList(allParticipants);
+    } catch (err) {
+      console.error('Error loading participants data:', err);
+      setErrorParticipants('Không thể tải danh sách người tham gia. Vui lòng thử lại.');
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
+
   // Load dữ liệu khi component mount
   useEffect(() => {
     loadDonViData();
     loadDaiLyData();
     loadBaseSalaryData();
     loadKeKhaiData();
+    loadParticipantsData();
   }, []);
+
+  // Load participants data when component mounts
+  useEffect(() => {
+    loadParticipantsData();
+  }, []);
+
+  // Reset selection when participants data changes
+  useEffect(() => {
+    setSelectedParticipants(new Set());
+    setSelectAllParticipants(false);
+  }, [participantsList]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -691,11 +773,89 @@ const KeKhai603: React.FC = () => {
   };
 
   // Format currency for display
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
+  const formatCurrency = (amount: number | string | null | undefined): string => {
+    if (!amount || amount === 0) return '0';
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('vi-VN').format(numAmount);
+  };
+
+  // Format date helper
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '';
+    try {
+      return new Date(dateString).toLocaleDateString('vi-VN');
+    } catch {
+      return '';
+    }
+  };
+
+  // Get status color for participants
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+      case 'submitted':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'processing':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'approved':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      case 'rejected':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+      case 'pending_payment':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+      case 'paid':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+    }
+  };
+
+  // Get status text for participants
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'Nháp';
+      case 'submitted':
+        return 'Đã nộp';
+      case 'processing':
+        return 'Đang xử lý';
+      case 'approved':
+        return 'Đã duyệt';
+      case 'rejected':
+        return 'Từ chối';
+      case 'pending_payment':
+        return 'Chờ thanh toán';
+      case 'paid':
+        return 'Đã thanh toán';
+      default:
+        return status;
+    }
+  };
+
+  // Handle select all participants
+  const handleSelectAllParticipants = (checked: boolean) => {
+    setSelectAllParticipants(checked);
+    if (checked) {
+      const allIds = new Set(participantsList.map(p => `${p.ke_khai.id}-${p.id}`));
+      setSelectedParticipants(allIds);
+    } else {
+      setSelectedParticipants(new Set());
+    }
+  };
+
+  // Handle individual participant selection
+  const handleParticipantSelection = (participantKey: string, checked: boolean) => {
+    const newSelected = new Set(selectedParticipants);
+    if (checked) {
+      newSelected.add(participantKey);
+    } else {
+      newSelected.delete(participantKey);
+    }
+    setSelectedParticipants(newSelected);
+
+    // Update select all state
+    setSelectAllParticipants(newSelected.size === participantsList.length);
   };
 
   // Get total amount for display
@@ -797,12 +957,13 @@ const KeKhai603: React.FC = () => {
               loadDaiLyData();
               loadBaseSalaryData();
               loadKeKhaiData();
+              loadParticipantsData();
             }}
-            disabled={loadingDonVi || loadingDaiLy || baseSalaryLoading || loadingKeKhai}
+            disabled={loadingDonVi || loadingDaiLy || baseSalaryLoading || loadingKeKhai || loadingParticipants}
             className="flex items-center justify-center space-x-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-4 py-3 sm:py-2 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors min-h-[44px] text-sm sm:text-base disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${(loadingDonVi || loadingDaiLy || baseSalaryLoading || loadingKeKhai) ? 'animate-spin' : ''}`} />
-            <span>{(loadingDonVi || loadingDaiLy || baseSalaryLoading || loadingKeKhai) ? 'Đang tải...' : 'Tải dữ liệu'}</span>
+            <RefreshCw className={`w-4 h-4 ${(loadingDonVi || loadingDaiLy || baseSalaryLoading || loadingKeKhai || loadingParticipants) ? 'animate-spin' : ''}`} />
+            <span>{(loadingDonVi || loadingDaiLy || baseSalaryLoading || loadingKeKhai || loadingParticipants) ? 'Đang tải...' : 'Tải dữ liệu'}</span>
           </button>
           <button
             onClick={handleSave}
@@ -873,6 +1034,22 @@ const KeKhai603: React.FC = () => {
             <span className="text-red-800 dark:text-red-200">{errorKeKhai}</span>
             <button
               onClick={loadKeKhaiData}
+              className="ml-auto flex items-center space-x-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Thử lại</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {errorParticipants && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            <span className="text-red-800 dark:text-red-200">{errorParticipants}</span>
+            <button
+              onClick={loadParticipantsData}
               className="ml-auto flex items-center space-x-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
             >
               <RefreshCw className="w-4 h-4" />
@@ -998,18 +1175,21 @@ const KeKhai603: React.FC = () => {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-0">
-              Danh sách kê khai
-            </h3>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {loadingKeKhai ? (
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                Danh sách người tham gia
+              </h3>
+            </div>
+
+            <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 sm:mt-0">
+              {loadingParticipants ? (
                 <span className="flex items-center space-x-1">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   <span>Đang tải...</span>
                 </span>
               ) : (
                 <span>
-                  Có <strong className="text-blue-600 dark:text-blue-400">{keKhaiList.length}</strong> kê khai
+                  Có <strong className="text-blue-600 dark:text-blue-400">{participantsList.length}</strong> người tham gia
                 </span>
               )}
             </div>
@@ -1019,458 +1199,220 @@ const KeKhai603: React.FC = () => {
         {/* Mobile-friendly table */}
         <div className="overflow-x-auto">
           <div className="min-w-full">
-            {loadingKeKhai ? (
+            {loadingParticipants ? (
               <div className="p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400">
                 <RefreshCw className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300 animate-spin" />
-                <p className="text-sm sm:text-base">Đang tải danh sách kê khai...</p>
+                <p className="text-sm sm:text-base">Đang tải danh sách người tham gia...</p>
               </div>
-            ) : keKhaiList.length === 0 ? (
+            ) : participantsList.length === 0 ? (
               <div className="p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400">
-                <FileText className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-sm sm:text-base">Chưa có kê khai nào</p>
+                <User className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-sm sm:text-base">Chưa có người tham gia nào</p>
                 <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
-                  Nhấn "Thêm Mới" để tạo kê khai đầu tiên
+                  Tạo kê khai và thêm người tham gia để xem danh sách
                 </p>
               </div>
             ) : (
-              <>
-                {/* Table header - hidden on mobile, shown on larger screens */}
-                <div className="hidden lg:block bg-gray-50 dark:bg-gray-700 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    <div className="col-span-2">Mã kê khai / Mã hồ sơ</div>
-                    <div className="col-span-2">Tên kê khai</div>
-                    <div className="col-span-2">Đối tượng tham gia</div>
-                    <div className="col-span-1">Trạng thái</div>
-                    <div className="col-span-1">Thanh toán</div>
-                    <div className="col-span-2">Tổng số tiền</div>
-                    <div className="col-span-1">Ngày tạo</div>
-                    <div className="col-span-1">Thao tác</div>
+              // Participants Content
+              loadingParticipants ? (
+                <div className="p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400">
+                  <RefreshCw className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300 animate-spin" />
+                  <p className="text-sm sm:text-base">Đang tải danh sách người tham gia...</p>
+                </div>
+              ) : participantsList.length === 0 ? (
+                <div className="p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400">
+                  <User className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-sm sm:text-base">Chưa có người tham gia nào</p>
+                  <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
+                    Tạo kê khai và thêm người tham gia để xem danh sách
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Action buttons */}
+                  <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-2">
+                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                      Xuất TK1-TS
+                    </button>
+                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                      Xuất D03/D05
+                    </button>
+                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                      Xuất D03/D05 (Excel)
+                    </button>
+                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                      Xuất file (Excel)
+                    </button>
+                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                      In C45
+                    </button>
+                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                      Xuất Excel
+                    </button>
+                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                      Sao chép
+                    </button>
+                    <button className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+                      Tra Cứu
+                    </button>
                   </div>
-                </div>
 
-                {/* Table rows */}
-                <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {keKhaiList.map((keKhai, index) => (
-                    <div key={keKhai.id} className="p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      {/* Mobile layout */}
-                      <div className="lg:hidden space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex flex-col space-y-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">Mã kê khai:</span>
-                              <span className="font-medium text-blue-600 dark:text-blue-400">
-                                {keKhai.ma_ke_khai}
-                              </span>
-                              <button
-                                onClick={() => handleCopyKeKhaiCode(keKhai)}
-                                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                title="Copy mã kê khai"
-                              >
-                                {copiedKeKhaiId === keKhai.id ? (
-                                  <Check className="w-3 h-3 text-green-600" />
-                                ) : (
-                                  <Copy className="w-3 h-3" />
-                                )}
-                              </button>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse" style={{minWidth: '2000px'}}>
+                    <thead className="bg-blue-600 text-white">
+                      <tr>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '40px', minWidth: '40px'}}>
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4"
+                            checked={selectAllParticipants}
+                            onChange={(e) => handleSelectAllParticipants(e.target.checked)}
+                          />
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '50px', minWidth: '50px'}}>
+                          STT
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
+                          Họ tên
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                          Mã số BHXH
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                          Số CCCD
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
+                          Ngày sinh
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+                          Giới tính
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                          Số ĐT
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                          Số thẻ BHYT
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '200px', minWidth: '200px'}}>
+                          Nơi đăng ký KCB
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                          Mức lương
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                          Tỷ lệ (%)
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                          Số tiền đóng
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                          Số tháng đóng
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+                          STT hộ
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
+                          Ngày biên lai
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                          Mã kê khai
+                        </th>
+                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                          Trạng thái
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                      {participantsList.map((participant, index) => {
+                        const participantKey = `${participant.ke_khai.id}-${participant.id}`;
+                        return (
+                        <tr key={participantKey} className="hover:bg-gray-50 border-b border-gray-200">
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '40px', minWidth: '40px'}}>
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4"
+                              checked={selectedParticipants.has(participantKey)}
+                              onChange={(e) => handleParticipantSelection(participantKey, e.target.checked)}
+                            />
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '50px', minWidth: '50px'}}>
+                            {index + 1}
+                          </td>
+                          <td className="px-2 py-2 text-left text-xs border border-gray-300" style={{width: '150px', minWidth: '150px'}}>
+                            <div className="truncate" title={participant.ho_ten}>
+                              {participant.ho_ten}
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">Mã hồ sơ:</span>
-                              {editingHoSoId === keKhai.id ? (
-                                <div className="flex items-center space-x-1">
-                                  <input
-                                    type="text"
-                                    value={editingHoSoValue}
-                                    onChange={(e) => setEditingHoSoValue(e.target.value)}
-                                    onKeyDown={(e) => handleHoSoKeyPress(e, keKhai.id)}
-                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                                    placeholder="Nhập mã hồ sơ"
-                                    autoFocus
-                                  />
-                                  <button
-                                    onClick={() => handleSaveHoSo(keKhai.id)}
-                                    disabled={savingHoSo === keKhai.id}
-                                    className="p-1 text-green-600 hover:text-green-700 transition-colors"
-                                    title="Lưu mã hồ sơ"
-                                  >
-                                    {savingHoSo === keKhai.id ? (
-                                      <RefreshCw className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <Check className="w-3 h-3" />
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={handleCancelEditHoSo}
-                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                                    title="Hủy"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center space-x-2">
-                                  {keKhai.ma_ho_so ? (
-                                    <>
-                                      <span className="font-medium text-purple-600 dark:text-purple-400">
-                                        {keKhai.ma_ho_so}
-                                      </span>
-                                      <button
-                                        onClick={() => handleCopyHoSoCode(keKhai)}
-                                        className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                                        title="Copy mã hồ sơ"
-                                      >
-                                        {copiedHoSoId === keKhai.id ? (
-                                          <Check className="w-3 h-3 text-green-600" />
-                                        ) : (
-                                          <Copy className="w-3 h-3" />
-                                        )}
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <span className="text-gray-400 dark:text-gray-500 text-xs">Chưa có</span>
-                                  )}
-                                  <button
-                                    onClick={() => handleStartEditHoSo(keKhai)}
-                                    className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                                    title="Chỉnh sửa mã hồ sơ"
-                                  >
-                                    <Edit3 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                            {participant.ma_so_bhxh || ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                            {participant.so_cccd || ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
+                            {participant.ngay_sinh ?
+                              formatDate(participant.ngay_sinh) : ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+                            {participant.gioi_tinh === 'Nam' ? 'Nam' : 'Nữ'}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                            {participant.so_dien_thoai || ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                            {participant.so_the_bhyt || ''}
+                          </td>
+                          <td className="px-2 py-2 text-left text-xs border border-gray-300" style={{width: '200px', minWidth: '200px'}}>
+                            <div className="truncate" title={participant.noi_dang_ky_kcb}>
+                              {participant.noi_dang_ky_kcb || ''}
                             </div>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            keKhai.trang_thai === 'draft'
-                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                              : keKhai.trang_thai === 'submitted'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                              : keKhai.trang_thai === 'pending_payment'
-                              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-                              : keKhai.trang_thai === 'processing'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                              : keKhai.trang_thai === 'completed'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
-                          }`}>
-                            {keKhai.trang_thai === 'draft' ? 'Nháp' :
-                             keKhai.trang_thai === 'submitted' ? 'Chờ duyệt' :
-                             keKhai.trang_thai === 'pending_payment' ? 'Chờ thanh toán' :
-                             keKhai.trang_thai === 'processing' ? 'Đang xử lý' :
-                             keKhai.trang_thai === 'completed' ? 'Hoàn thành' : keKhai.trang_thai}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {keKhai.ten_ke_khai}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {keKhai.doi_tuong_tham_gia || 'Chưa xác định'}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs text-gray-400 dark:text-gray-500">
-                            {new Date(keKhai.created_at || '').toLocaleDateString('vi-VN')}
-                          </div>
-                          <div className="text-sm font-medium text-green-600 dark:text-green-400">
-                            {getTotalAmountDisplay(keKhai)}
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => {
-                              setCurrentPage('ke-khai-603-form', {
-                                declarationCode,
-                                declarationName,
-                                formData: {},
-                                keKhaiId: keKhai.id
-                              });
-                            }}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center space-x-1"
-                          >
-                            <Eye className="w-4 h-4" />
-                            <span>Xem chi tiết</span>
-                          </button>
-
-                          {/* QR code viewing for mobile - only after approval */}
-
-                          {isPendingPayment(keKhai) && (
-                            <button
-                              onClick={() => handleViewPayment(keKhai)}
-                              className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center"
-                              title="Xem QR thanh toán"
-                            >
-                              <QrCode className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Dropdown menu for secondary actions */}
-                          <div className="relative dropdown-container">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleDropdown(keKhai.id);
-                              }}
-                              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-
-                            {openDropdownId === keKhai.id && (
-                              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[160px]">
-                                <button
-                                  onClick={() => {
-                                    handleExportD03TK1Excel(keKhai);
-                                    setOpenDropdownId(null);
-                                  }}
-                                  disabled={exportingExcel === keKhai.id}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 disabled:opacity-50"
-                                >
-                                  {exportingExcel === keKhai.id ? (
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <FileSpreadsheet className="w-4 h-4" />
-                                  )}
-                                  <span>Xuất Excel</span>
-                                </button>
-                                <hr className="border-gray-200 dark:border-gray-700" />
-                                <button
-                                  onClick={() => {
-                                    openDeleteModal(keKhai);
-                                    setOpenDropdownId(null);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  <span>Xóa</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Desktop layout */}
-                      <div className="hidden lg:grid lg:grid-cols-12 lg:gap-2 lg:items-center">
-                        <div className="col-span-2">
-                          <div className="space-y-1">
-                            {/* Mã kê khai */}
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">KK:</span>
-                              <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">
-                                {keKhai.ma_ke_khai}
-                              </span>
-                              <button
-                                onClick={() => handleCopyKeKhaiCode(keKhai)}
-                                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                title="Copy mã kê khai"
-                              >
-                                {copiedKeKhaiId === keKhai.id ? (
-                                  <Check className="w-3 h-3 text-green-600" />
-                                ) : (
-                                  <Copy className="w-3 h-3" />
-                                )}
-                              </button>
-                            </div>
-                            {/* Mã hồ sơ */}
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">HS:</span>
-                              {editingHoSoId === keKhai.id ? (
-                                <div className="flex items-center space-x-1">
-                                  <input
-                                    type="text"
-                                    value={editingHoSoValue}
-                                    onChange={(e) => setEditingHoSoValue(e.target.value)}
-                                    onKeyDown={(e) => handleHoSoKeyPress(e, keKhai.id)}
-                                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white w-24"
-                                    placeholder="Mã hồ sơ"
-                                    autoFocus
-                                  />
-                                  <button
-                                    onClick={() => handleSaveHoSo(keKhai.id)}
-                                    disabled={savingHoSo === keKhai.id}
-                                    className="p-1 text-green-600 hover:text-green-700 transition-colors"
-                                    title="Lưu mã hồ sơ"
-                                  >
-                                    {savingHoSo === keKhai.id ? (
-                                      <RefreshCw className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <Check className="w-3 h-3" />
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={handleCancelEditHoSo}
-                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                                    title="Hủy"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center space-x-1">
-                                  {keKhai.ma_ho_so ? (
-                                    <>
-                                      <span className="font-medium text-purple-600 dark:text-purple-400 text-sm">
-                                        {keKhai.ma_ho_so}
-                                      </span>
-                                      <button
-                                        onClick={() => handleCopyHoSoCode(keKhai)}
-                                        className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                                        title="Copy mã hồ sơ"
-                                      >
-                                        {copiedHoSoId === keKhai.id ? (
-                                          <Check className="w-3 h-3 text-green-600" />
-                                        ) : (
-                                          <Copy className="w-3 h-3" />
-                                        )}
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <span className="text-gray-400 dark:text-gray-500 text-xs">Chưa có</span>
-                                  )}
-                                  <button
-                                    onClick={() => handleStartEditHoSo(keKhai)}
-                                    className="p-1 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                                    title="Chỉnh sửa mã hồ sơ"
-                                  >
-                                    <Edit3 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="col-span-2 text-sm text-gray-900 dark:text-white">
-                          {keKhai.ten_ke_khai}
-                        </div>
-                        <div className="col-span-2 text-sm text-gray-500 dark:text-gray-400">
-                          {keKhai.doi_tuong_tham_gia || 'Chưa xác định'}
-                        </div>
-                        <div className="col-span-1">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            keKhai.trang_thai === 'draft'
-                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                              : keKhai.trang_thai === 'submitted'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                              : keKhai.trang_thai === 'pending_payment'
-                              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-                              : keKhai.trang_thai === 'processing'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                              : keKhai.trang_thai === 'completed'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : keKhai.trang_thai === 'paid'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
-                          }`}>
-                            {keKhai.trang_thai === 'draft' ? 'Nháp' :
-                             keKhai.trang_thai === 'submitted' ? 'Chờ duyệt' :
-                             keKhai.trang_thai === 'pending_payment' ? 'Chờ thanh toán' :
-                             keKhai.trang_thai === 'processing' ? 'Đang xử lý' :
-                             keKhai.trang_thai === 'completed' ? 'Hoàn thành' :
-                             keKhai.trang_thai === 'paid' ? 'Đã thanh toán' : keKhai.trang_thai}
-                          </span>
-                        </div>
-                        <div className="col-span-1">
-                          {isPaid(keKhai) ? (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                              Đã thanh toán
+                          </td>
+                          <td className="px-2 py-2 text-right text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                            {participant.muc_luong ?
+                              formatCurrency(participant.muc_luong) : ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                            {participant.ty_le_dong || '100'}%
+                          </td>
+                          <td className="px-2 py-2 text-right text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                            {participant.tien_dong_thuc_te ?
+                              formatCurrency(participant.tien_dong_thuc_te) :
+                              participant.tien_dong ?
+                              formatCurrency(participant.tien_dong) : '0'}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                            {participant.so_thang_dong || ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+                            {participant.stt_ho || ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
+                            {participant.ngay_bien_lai ?
+                              formatDate(participant.ngay_bien_lai) : ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                            {participant.ke_khai.ma_ke_khai || ''}
+                          </td>
+                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                            <span className={`px-1 py-1 rounded text-white text-xs whitespace-nowrap ${
+                              participant.ke_khai.trang_thai === 'submitted' ? 'bg-blue-500' :
+                              participant.ke_khai.trang_thai === 'approved' ? 'bg-green-500' :
+                              participant.ke_khai.trang_thai === 'rejected' ? 'bg-red-500' :
+                              participant.ke_khai.trang_thai === 'paid' ? 'bg-green-600' :
+                              participant.ke_khai.trang_thai === 'pending_payment' ? 'bg-orange-500' :
+                              'bg-gray-500'
+                            }`}>
+                              {getStatusText(participant.ke_khai.trang_thai)}
                             </span>
-                          ) : isPendingPayment(keKhai) ? (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
-                              Chờ thanh toán
-                            </span>
-                          ) : keKhai.trang_thai === 'submitted' ? (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                              Chờ duyệt
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
-                              Chưa xác định
-                            </span>
-                          )}
-                        </div>
-                        <div className="col-span-2 text-sm font-medium text-green-600 dark:text-green-400">
-                          {getTotalAmountDisplay(keKhai)}
-                        </div>
-                        <div className="col-span-1 text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(keKhai.created_at || '').toLocaleDateString('vi-VN')}
-                        </div>
-                        <div className="col-span-1 flex space-x-1">
-                          {/* Primary actions */}
-                          <button
-                            onClick={() => {
-                              setCurrentPage('ke-khai-603-form', {
-                                declarationCode,
-                                declarationName,
-                                formData: {},
-                                keKhaiId: keKhai.id
-                              });
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
-                            title="Xem chi tiết"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          {/* QR code viewing - only available after synthesis staff approval */}
-
-                          {isPendingPayment(keKhai) && (
-                            <button
-                              onClick={() => handleViewPayment(keKhai)}
-                              className="bg-orange-600 hover:bg-orange-700 text-white px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
-                              title="Xem QR thanh toán"
-                            >
-                              <QrCode className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Dropdown menu for secondary actions */}
-                          <div className="relative dropdown-container">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleDropdown(keKhai.id);
-                              }}
-                              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-2 rounded text-sm transition-colors flex items-center justify-center"
-                              title="Thêm thao tác"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-
-                            {openDropdownId === keKhai.id && (
-                              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[160px]">
-                                <button
-                                  onClick={() => {
-                                    handleExportD03TK1Excel(keKhai);
-                                    setOpenDropdownId(null);
-                                  }}
-                                  disabled={exportingExcel === keKhai.id}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 disabled:opacity-50 rounded-t-lg"
-                                >
-                                  {exportingExcel === keKhai.id ? (
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <FileSpreadsheet className="w-4 h-4" />
-                                  )}
-                                  <span>Xuất Excel</span>
-                                </button>
-                                <hr className="border-gray-200 dark:border-gray-700" />
-                                <button
-                                  onClick={() => {
-                                    openDeleteModal(keKhai);
-                                    setOpenDropdownId(null);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2 rounded-b-lg"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  <span>Xóa</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
+                          </td>
+                        </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  </div>
+                </>
+              )
             )}
           </div>
         </div>
