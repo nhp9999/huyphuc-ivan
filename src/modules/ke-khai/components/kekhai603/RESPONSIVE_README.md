@@ -149,18 +149,8 @@ The "Nhập danh sách người tham gia BHYT" (BHYT Participant Input) interfac
 
 ### Basic Implementation
 ```tsx
-<KeKhai603ParticipantTable
-  participants={participants}
-  handleParticipantChange={handleParticipantChange}
-  handleParticipantKeyPress={handleParticipantKeyPress}
-  handleAddParticipant={handleAddParticipant}
-  handleRemoveParticipant={handleRemoveParticipant}
-  handleSaveSingleParticipant={handleSaveSingleParticipant}
-  participantSearchLoading={participantSearchLoading}
-  savingData={savingData}
-  doiTuongThamGia={doiTuongThamGia}
-  onBulkAdd={onBulkAdd}
-/>
+// Note: KeKhai603ParticipantTable component has been removed
+// This documentation is kept for reference only
 ```
 
 ### Mobile Card Usage

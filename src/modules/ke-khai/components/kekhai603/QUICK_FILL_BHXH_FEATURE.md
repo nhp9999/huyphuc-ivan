@@ -1,7 +1,7 @@
-# Tính năng Điền nhanh Mã số BHXH
+# Tính năng Điền nhanh Mã số BHXH (REMOVED)
 
 ## Tổng quan
-Đã thêm tính năng điền nhanh mã số BHXH vào chức năng "Điền nhanh dữ liệu" trong KeKhai603ParticipantTable. Tính năng này giúp người dùng điền cùng một mã số BHXH cho nhiều người tham gia một cách nhanh chóng.
+Tính năng này đã được thêm vào KeKhai603ParticipantTable (component đã bị xóa). Tài liệu này được giữ lại để tham khảo.
 
 ## Tính năng mới
 

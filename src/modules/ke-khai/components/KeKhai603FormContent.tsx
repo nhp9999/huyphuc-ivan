@@ -12,7 +12,6 @@ import { KeKhai603Header } from './kekhai603/KeKhai603Header';
 import { KeKhai603PersonalInfoForm } from './kekhai603/KeKhai603PersonalInfoForm';
 import { KeKhai603CardInfoForm } from './kekhai603/KeKhai603CardInfoForm';
 import { KeKhai603PaymentInfoForm } from './kekhai603/KeKhai603PaymentInfoForm';
-import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable';
 import { HouseholdBulkInputModal } from './kekhai603/HouseholdBulkInputModal';
 import { useCSKCBPreloader } from '../hooks/useCSKCBPreloader';
 import { useCSKCBContext } from '../contexts/CSKCBContext';

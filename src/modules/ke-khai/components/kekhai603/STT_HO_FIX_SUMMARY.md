@@ -129,9 +129,8 @@ Open browser console and look for these debug messages:
    - Improved `handleHouseholdBulkAdd` timing and error handling
    - Added comprehensive debugging logs
 
-3. **`frontend/src/modules/ke-khai/components/kekhai603/KeKhai603ParticipantTable.tsx`**
-   - Updated interface for progress callback
-   - Enhanced household bulk input integration
+3. **`frontend/src/modules/ke-khai/components/kekhai603/KeKhai603ParticipantTable.tsx`** (REMOVED)
+   - This component has been deleted from the codebase
 
 ## Debugging Commands
 

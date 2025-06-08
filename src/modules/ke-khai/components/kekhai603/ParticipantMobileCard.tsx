@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Save, Trash2, Loader2 } from 'lucide-react';
 import { KeKhai603Participant } from '../../../hooks/useKeKhai603Participants';
-import styles from './KeKhai603ParticipantTable.module.css';
+import styles from './ParticipantMobileCard.module.css';
 
 interface ParticipantMobileCardProps {
   participant: KeKhai603Participant;

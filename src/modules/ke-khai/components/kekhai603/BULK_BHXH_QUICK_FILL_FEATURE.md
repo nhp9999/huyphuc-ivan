@@ -139,9 +139,8 @@ invalid
    - Cải thiện modal layout (fixed header/footer)
    - Thêm bulk BHXH UI components
 
-2. **`KeKhai603ParticipantTable.tsx`**
-   - Thêm `handleQuickFillBulkBHXH` function
-   - Cập nhật QuickFillModal props
+2. **`KeKhai603ParticipantTable.tsx`** (REMOVED)
+   - Component đã bị xóa khỏi codebase
 
 ### Key Functions
 ```typescript

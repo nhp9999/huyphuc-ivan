@@ -1,4 +1,4 @@
-# Tính năng Nhập hàng loạt và Điền nhanh cho KeKhai603ParticipantTable
+# Tính năng Nhập hàng loạt và Điền nhanh (KeKhai603ParticipantTable - REMOVED)
 
 ## Tổng quan
 

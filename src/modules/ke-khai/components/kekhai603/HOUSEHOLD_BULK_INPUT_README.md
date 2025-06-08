@@ -64,7 +64,7 @@ The modal provides sample data for testing:
 
 ### Components
 - `HouseholdBulkInputModal.tsx` - Main modal component
-- `KeKhai603ParticipantTable.tsx` - Updated with household bulk input button
+- `KeKhai603ParticipantTable.tsx` - (REMOVED) Previously contained household bulk input button
 - `KeKhai603FormContent.tsx` - Contains the bulk processing logic
 
 ### Key Functions
