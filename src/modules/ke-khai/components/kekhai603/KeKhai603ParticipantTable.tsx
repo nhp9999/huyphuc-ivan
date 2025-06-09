@@ -307,7 +307,8 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   />
                 </td>
                 <td className="px-2 py-2 text-right text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                  {participant.tienDong ? formatCurrency(participant.tienDong) : ''}
+                  {participant.tienDongThucTe ? formatCurrency(participant.tienDongThucTe) :
+                   participant.tienDong ? formatCurrency(participant.tienDong) : ''}
                 </td>
                 <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
                   <input
