@@ -268,6 +268,15 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
   const handleInputChange = (field: keyof KeKhai603FormData, value: string) => {
     console.log('🔄 handleInputChange called:', { field, value, editingParticipantId: formData.editingParticipantId });
 
+    // Special debug for maSoBHXH changes
+    if (field === 'maSoBHXH') {
+      console.log('🔍 DEBUG: maSoBHXH change detected:', {
+        oldValue: formData.maSoBHXH,
+        newValue: value,
+        editingParticipantId: formData.editingParticipantId
+      });
+    }
+
     setFormData(prev => {
       const newData = {
         ...prev,
@@ -375,7 +384,62 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
   };
 
   const resetForm = () => {
-    setFormData(initialFormData);
+    console.log('🔄 Resetting form to initial state...');
+    // Create a fresh copy of initial data to avoid reference issues
+    const freshInitialData: KeKhai603FormData = {
+      // Edit tracking
+      editingParticipantId: null,
+
+      // Thông tin cơ bản
+      hoTen: '',
+      maSoBHXH: '',
+      ngaySinh: '',
+      gioiTinh: '',
+      soCCCD: '',
+      noiDangKyKCB: '',
+      soDienThoai: '',
+      email: '',
+      soTheBHYT: '',
+      quocTich: 'VN',
+      danToc: '',
+
+      // Thông tin địa chỉ
+      maTinhKS: '',
+      maHuyenKS: '',
+      maXaKS: '',
+      maTinhNkq: '',
+      maHuyenNkq: '',
+      maXaNkq: '',
+
+      // Thông tin BHYT
+      mucLuong: '2,340,000',
+      tyLeDong: '100',
+      soTienDong: '',
+      tienDong: 0,
+      tienDongThucTe: 0,
+      tinhKCB: '',
+      noiNhanHoSo: '',
+      maBenhVien: '',
+      tenBenhVien: '',
+      maHoGiaDinh: '',
+      phuongAn: '',
+      trangThai: '',
+
+      // Thông tin thẻ cũ
+      tuNgayTheCu: '',
+      denNgayTheCu: '',
+
+      // Thông tin đóng BHYT mới
+      soThangDong: '',
+      sttHo: '',
+      tuNgayTheMoi: '',
+      denNgayTheMoi: '',
+      ngayBienLai: new Date().toISOString().split('T')[0],
+      ghiChuDongPhi: ''
+    };
+
+    setFormData(freshInitialData);
+    console.log('✅ Form reset completed with fresh data');
   };
 
   const updateFormData = (data: Partial<KeKhai603FormData>) => {

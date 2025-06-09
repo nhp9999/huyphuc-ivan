@@ -584,12 +584,15 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
   // Handle search for main form
   const handleSearch = async () => {
+    console.log('🔍 DEBUG: handleSearch called with maSoBHXH:', formData.maSoBHXH);
+
     if (!formData.maSoBHXH.trim()) {
       showToast('Vui lòng nhập mã số BHXH', 'warning');
       return;
     }
 
     try {
+      console.log('🔍 DEBUG: Searching for BHXH code:', formData.maSoBHXH);
       const result = await searchKeKhai603(formData.maSoBHXH);
 
       if (result.success && result.data) {
@@ -617,33 +620,9 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           }
         });
 
-        // Also update the first participant with the same data
-        if (participants.length > 0) {
-          if (result.data.hoTen) {
-            handleParticipantChange(0, 'hoTen', result.data.hoTen);
-          }
-          if ((result.data as any).maSoBHXH) {
-            handleParticipantChange(0, 'maSoBHXH', (result.data as any).maSoBHXH);
-          }
-          if (result.data.ngaySinh) {
-            handleParticipantChange(0, 'ngaySinh', result.data.ngaySinh);
-          }
-          if (result.data.gioiTinh) {
-            handleParticipantChange(0, 'gioiTinh', result.data.gioiTinh);
-          }
-          // Update participant medical facility with matched data
-          if (facilityUpdated && result.data.noiDangKyKCB) {
-            const matchedFacility = await findMatchingMedicalFacility(result.data.noiDangKyKCB);
-            if (matchedFacility) {
-              handleParticipantChange(0, 'noiDangKyKCB', matchedFacility.ten);
-              handleParticipantChange(0, 'tinhKCB', matchedFacility.ma_tinh);
-              handleParticipantChange(0, 'maBenhVien', matchedFacility.value);
-              handleParticipantChange(0, 'tenBenhVien', matchedFacility.ten);
-            }
-          } else if (result.data.noiDangKyKCB) {
-            handleParticipantChange(0, 'noiDangKyKCB', result.data.noiDangKyKCB);
-          }
-        }
+        // NOTE: Removed automatic update of first participant to prevent data corruption
+        // Form search should only update the form, not existing participants in the table
+        console.log('✅ Form data updated from search, existing participants unchanged');
 
         // Kiểm tra nếu có cảnh báo về trạng thái thẻ
         const hasCardWarning = result.data.trangThaiThe &&
@@ -1236,8 +1215,22 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           }
 
           // Reset the form for next entry
-          console.log('🔄 Resetting form...');
+          console.log('🔄 Resetting form after successful save...');
+          console.log('🔍 DEBUG: Form data before reset:', {
+            maSoBHXH: formData.maSoBHXH,
+            hoTen: formData.hoTen,
+            editingParticipantId: formData.editingParticipantId
+          });
           resetForm();
+
+          // Verify reset worked
+          setTimeout(() => {
+            console.log('🔍 DEBUG: Form data after reset (async check):', {
+              maSoBHXH: formData.maSoBHXH,
+              hoTen: formData.hoTen,
+              editingParticipantId: formData.editingParticipantId
+            });
+          }, 100);
         } else {
           console.log('❌ Participant save failed:', participantResult);
           showToast(participantResult.message, 'error');
