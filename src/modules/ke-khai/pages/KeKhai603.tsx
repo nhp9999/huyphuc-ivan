@@ -113,6 +113,15 @@ const KeKhai603: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
   const [totalParticipants, setTotalParticipants] = useState(0);
 
+  // State cho bộ lọc ngày
+  const [dateFilter, setDateFilter] = useState<{
+    fromDate: string;
+    toDate: string;
+  }>({
+    fromDate: '',
+    toDate: ''
+  });
+
   // State cho checkbox selection
   const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
   const [selectAllParticipants, setSelectAllParticipants] = useState(false);
@@ -300,6 +309,30 @@ const KeKhai603: React.FC = () => {
   const cancelBulkDelete = () => {
     setBulkDeleteModal({ isOpen: false, isDeleting: false });
   };
+
+  // Handle date filter change
+  const handleDateFilterChange = (field: 'fromDate' | 'toDate', value: string) => {
+    setDateFilter(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Apply date filter
+  const applyDateFilter = () => {
+    setCurrentPageNumber(1); // Reset to first page
+    loadParticipantsData(1, pageSize, dateFilter);
+  };
+
+  // Clear date filter
+  const clearDateFilter = () => {
+    setDateFilter({ fromDate: '', toDate: '' });
+    setCurrentPageNumber(1);
+    loadParticipantsData(1, pageSize, { fromDate: '', toDate: '' });
+  };
+
+  // Check if filter is active
+  const isFilterActive = dateFilter.fromDate || dateFilter.toDate;
 
   // Handle right-click context menu for participant
   const handleParticipantContextMenu = (e: React.MouseEvent, participant: any) => {
@@ -544,8 +577,8 @@ const KeKhai603: React.FC = () => {
     }
   };
 
-  // Load danh sách tất cả người tham gia với phân trang
-  const loadParticipantsData = async (page: number = currentPage, size: number = pageSize) => {
+  // Load danh sách tất cả người tham gia với phân trang và filter
+  const loadParticipantsData = async (page: number = currentPage, size: number = pageSize, filters?: { fromDate?: string; toDate?: string }) => {
     setLoadingParticipants(true);
     setErrorParticipants(null);
     try {
@@ -555,15 +588,18 @@ const KeKhai603: React.FC = () => {
         return;
       }
 
-      console.log('🔍 Loading ALL participants for user:', user.id, 'page:', page, 'size:', size);
+      const currentFilters = filters || dateFilter;
+      console.log('🔍 Loading ALL participants for user:', user.id, 'page:', page, 'size:', size, 'filters:', currentFilters);
 
-      // Lấy tất cả người tham gia từ tất cả kê khai của user với phân trang
+      // Lấy tất cả người tham gia từ tất cả kê khai của user với phân trang và filter
       try {
         const result = await keKhaiService.getAllNguoiThamGiaWithPagination({
           userId: user.id,
           page: page,
           pageSize: size,
-          loaiKeKhai: '603' // Chỉ lấy từ kê khai 603
+          loaiKeKhai: '603', // Chỉ lấy từ kê khai 603
+          fromDate: currentFilters.fromDate || undefined,
+          toDate: currentFilters.toDate || undefined
         });
 
         console.log('👥 Loaded participants:', result.data.length, 'of', result.total);
@@ -1451,6 +1487,55 @@ const KeKhai603: React.FC = () => {
 
       {/* Table Section */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {/* Date Filter */}
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Lọc theo ngày tạo:</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-gray-600 dark:text-gray-400 min-w-[30px]">Từ:</label>
+                <input
+                  type="date"
+                  value={dateFilter.fromDate}
+                  onChange={(e) => handleDateFilterChange('fromDate', e.target.value)}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-gray-600 dark:text-gray-400 min-w-[35px]">Đến:</label>
+                <input
+                  type="date"
+                  value={dateFilter.toDate}
+                  onChange={(e) => handleDateFilterChange('toDate', e.target.value)}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={applyDateFilter}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                >
+                  Lọc
+                </button>
+
+                {isFilterActive && (
+                  <button
+                    onClick={clearDateFilter}
+                    className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                  >
+                    Xóa lọc
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
             <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">

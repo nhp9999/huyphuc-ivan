@@ -766,6 +766,8 @@ class KeKhaiService {
     page: number;
     pageSize: number;
     loaiKeKhai?: string;
+    fromDate?: string;
+    toDate?: string;
   }): Promise<{ data: any[]; total: number }> {
     try {
       console.log('🔍 getAllNguoiThamGiaWithPagination called with:', params);
@@ -778,6 +780,17 @@ class KeKhaiService {
 
       if (params.loaiKeKhai) {
         keKhaiQuery = keKhaiQuery.eq('loai_ke_khai', params.loaiKeKhai);
+      }
+
+      // Apply date filters
+      if (params.fromDate) {
+        keKhaiQuery = keKhaiQuery.gte('created_at', params.fromDate);
+      }
+      if (params.toDate) {
+        // Add 1 day to include the entire end date
+        const endDate = new Date(params.toDate);
+        endDate.setDate(endDate.getDate() + 1);
+        keKhaiQuery = keKhaiQuery.lt('created_at', endDate.toISOString().split('T')[0]);
       }
 
       const { data: keKhaiList, error: keKhaiError } = await keKhaiQuery;
