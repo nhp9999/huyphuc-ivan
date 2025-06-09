@@ -33,6 +33,7 @@ import DaiLyDonViSelector from '../components/DaiLyDonViSelector';
 import PaymentQRModal from '../components/PaymentQRModal';
 import { useToast } from '../../../shared/hooks/useToast';
 import { exportD03TK1VNPTExcel } from '../../../shared/utils/excelExport';
+import { ContextMenu, ContextMenuItem } from '../../../shared/components/ui/ContextMenu';
 
 const KeKhai603: React.FC = () => {
   const { pageParams, setCurrentPage } = useNavigation();
@@ -104,12 +105,48 @@ const KeKhai603: React.FC = () => {
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [errorParticipants, setErrorParticipants] = useState<string | null>(null);
 
-  // State cho selected declaration để filter participants
+  // State cho selected declaration để filter participants (không sử dụng nữa)
   const [selectedDeclarationId, setSelectedDeclarationId] = useState<number | null>(null);
 
+  // State cho phân trang
+  const [currentPage, setCurrentPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalParticipants, setTotalParticipants] = useState(0);
+
   // State cho checkbox selection
-  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
   const [selectAllParticipants, setSelectAllParticipants] = useState(false);
+
+  // State cho context menu
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    participant: any | null;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    participant: null
+  });
+
+  // State cho delete confirmation modal
+  const [deleteParticipantModal, setDeleteParticipantModal] = useState<{
+    isOpen: boolean;
+    participant: any | null;
+    isDeleting: boolean;
+  }>({
+    isOpen: false,
+    participant: null,
+    isDeleting: false
+  });
+
+  // State cho bulk delete modal
+  const [bulkDeleteModal, setBulkDeleteModal] = useState<{
+    isOpen: boolean;
+    isDeleting: boolean;
+  }>({
+    isOpen: false,
+    isDeleting: false
+  });
 
   const [formData, setFormData] = useState({
     // Thông tin đại lý
@@ -134,6 +171,260 @@ const KeKhai603: React.FC = () => {
 
   const declarationCode = pageParams?.code || '603';
   const declarationName = pageParams?.name || 'Đăng ký đóng BHYT đối với người chỉ tham gia BHYT';
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= Math.ceil(totalParticipants / pageSize)) {
+      loadParticipantsData(newPage, pageSize);
+    }
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    loadParticipantsData(1, newSize); // Reset to first page
+  };
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(totalParticipants / pageSize);
+  const startIndex = (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalParticipants);
+
+  // Handle delete participant
+  const handleDeleteParticipant = (participant: any) => {
+    setDeleteParticipantModal({
+      isOpen: true,
+      participant: participant,
+      isDeleting: false
+    });
+  };
+
+  // Confirm delete participant
+  const confirmDeleteParticipant = async () => {
+    if (!deleteParticipantModal.participant) return;
+
+    setDeleteParticipantModal(prev => ({ ...prev, isDeleting: true }));
+
+    try {
+      console.log('🗑️ Deleting participant:', deleteParticipantModal.participant.id);
+
+      await keKhaiService.deleteNguoiThamGia(deleteParticipantModal.participant.id);
+
+      showToast(`Đã xóa thành công ${deleteParticipantModal.participant.ho_ten}`, 'success');
+
+      // Refresh data
+      await loadParticipantsData(currentPage, pageSize);
+
+      // Close modal
+      setDeleteParticipantModal({
+        isOpen: false,
+        participant: null,
+        isDeleting: false
+      });
+    } catch (error) {
+      console.error('Error deleting participant:', error);
+      showToast('Không thể xóa người tham gia. Vui lòng thử lại.', 'error');
+      setDeleteParticipantModal(prev => ({ ...prev, isDeleting: false }));
+    }
+  };
+
+  // Cancel delete
+  const cancelDeleteParticipant = () => {
+    setDeleteParticipantModal({
+      isOpen: false,
+      participant: null,
+      isDeleting: false
+    });
+  };
+
+  // Handle checkbox selection
+  const handleParticipantSelect = (participantId: number, checked: boolean) => {
+    setSelectedParticipants(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(participantId);
+      } else {
+        newSet.delete(participantId);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle select all
+  const handleSelectAll = (checked: boolean) => {
+    setSelectAllParticipants(checked);
+    if (checked) {
+      const allIds = new Set(participantsList.map(p => p.id));
+      setSelectedParticipants(allIds);
+    } else {
+      setSelectedParticipants(new Set());
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = () => {
+    if (selectedParticipants.size === 0) {
+      showToast('Vui lòng chọn ít nhất một người tham gia để xóa', 'warning');
+      return;
+    }
+    setBulkDeleteModal({ isOpen: true, isDeleting: false });
+  };
+
+  // Confirm bulk delete
+  const confirmBulkDelete = async () => {
+    setBulkDeleteModal(prev => ({ ...prev, isDeleting: true }));
+
+    try {
+      console.log('🗑️ Bulk deleting participants:', Array.from(selectedParticipants));
+
+      await keKhaiService.deleteMultipleNguoiThamGia(Array.from(selectedParticipants));
+
+      showToast(`Đã xóa thành công ${selectedParticipants.size} người tham gia`, 'success');
+
+      // Clear selection
+      setSelectedParticipants(new Set());
+      setSelectAllParticipants(false);
+
+      // Refresh data
+      await loadParticipantsData(currentPage, pageSize);
+
+      // Close modal
+      setBulkDeleteModal({ isOpen: false, isDeleting: false });
+    } catch (error) {
+      console.error('Error bulk deleting participants:', error);
+      showToast('Không thể xóa người tham gia. Vui lòng thử lại.', 'error');
+      setBulkDeleteModal(prev => ({ ...prev, isDeleting: false }));
+    }
+  };
+
+  // Cancel bulk delete
+  const cancelBulkDelete = () => {
+    setBulkDeleteModal({ isOpen: false, isDeleting: false });
+  };
+
+  // Handle right-click context menu for participant
+  const handleParticipantContextMenu = (e: React.MouseEvent, participant: any) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      participant: participant
+    });
+  };
+
+  // Close context menu
+  const closeContextMenu = () => {
+    setContextMenu({
+      isOpen: false,
+      position: { x: 0, y: 0 },
+      participant: null
+    });
+  };
+
+  // Context menu items for participant
+  const getParticipantContextMenuItems = (participant: any): ContextMenuItem[] => {
+    if (!participant) return [];
+
+    return [
+      {
+        id: 'view-participant',
+        label: 'Xem thông tin người tham gia',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        ),
+        onClick: () => {
+          // Hiển thị modal thông tin chi tiết người tham gia
+          alert(`Thông tin người tham gia:\n\nHọ tên: ${participant.ho_ten}\nMã BHXH: ${participant.ma_so_bhxh}\nSố CCCD: ${participant.so_cccd}\nNgày sinh: ${participant.ngay_sinh}\nGiới tính: ${participant.gioi_tinh}\nSố điện thoại: ${participant.so_dien_thoai}\nSố thẻ BHYT: ${participant.so_the_bhyt}`);
+        }
+      },
+      {
+        id: 'view-kekhai',
+        label: 'Xem chi tiết kê khai',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        ),
+        onClick: () => {
+          const keKhai = participant.ke_khai;
+          alert(`Chi tiết kê khai:\n\nMã kê khai: ${keKhai.ma_ke_khai}\nTên kê khai: ${keKhai.ten_ke_khai}\nLoại kê khai: ${keKhai.loai_ke_khai}\nTrạng thái: ${getStatusText(keKhai.trang_thai)}\nNgày tạo: ${formatDate(keKhai.created_at)}\nĐối tượng tham gia: ${keKhai.doi_tuong_tham_gia || 'N/A'}\nNguồn đóng: ${keKhai.nguon_dong || 'N/A'}`);
+        }
+      },
+      {
+        id: 'edit-kekhai',
+        label: 'Mở form chỉnh sửa kê khai',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        ),
+        onClick: () => {
+          setCurrentPage('ke-khai-603-form', {
+            declarationCode: '603',
+            declarationName: 'Đăng ký đóng BHYT đối với người chỉ tham gia BHYT',
+            keKhaiId: participant.ke_khai.id
+          });
+        }
+      },
+      {
+        id: 'copy-info',
+        label: 'Sao chép thông tin',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        ),
+        onClick: () => {
+          const info = `${participant.ho_ten} - ${participant.ma_so_bhxh} - ${participant.ke_khai.ma_ke_khai}`;
+          navigator.clipboard.writeText(info);
+          showToast(`Đã sao chép: ${info}`, 'success');
+        },
+        divider: true
+      },
+      {
+        id: 'copy-kekhai-code',
+        label: 'Sao chép mã kê khai',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        ),
+        onClick: () => {
+          navigator.clipboard.writeText(participant.ke_khai.ma_ke_khai);
+          showToast(`Đã sao chép mã kê khai: ${participant.ke_khai.ma_ke_khai}`, 'success');
+        }
+      },
+      {
+        id: 'copy-bhxh-code',
+        label: 'Sao chép mã BHXH',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        ),
+        onClick: () => {
+          if (participant.ma_so_bhxh) {
+            navigator.clipboard.writeText(participant.ma_so_bhxh);
+            showToast(`Đã sao chép mã BHXH: ${participant.ma_so_bhxh}`, 'success');
+          } else {
+            showToast('Người này chưa có mã BHXH', 'warning');
+          }
+        }
+      },
+      {
+        id: 'delete-participant',
+        label: 'Xóa người tham gia',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        ),
+        onClick: () => handleDeleteParticipant(participant),
+        divider: true
+      }
+    ];
+  };
 
   // Load dữ liệu đơn vị từ Supabase
   const loadDonViData = async () => {
@@ -253,52 +544,37 @@ const KeKhai603: React.FC = () => {
     }
   };
 
-  // Load danh sách người tham gia từ Supabase - chỉ từ kê khai được chọn
-  const loadParticipantsData = async (specificDeclarationId?: number | null) => {
+  // Load danh sách tất cả người tham gia với phân trang
+  const loadParticipantsData = async (page: number = currentPage, size: number = pageSize) => {
     setLoadingParticipants(true);
     setErrorParticipants(null);
     try {
       if (!user?.id) {
         setParticipantsList([]);
+        setTotalParticipants(0);
         return;
       }
 
-      const targetDeclarationId = specificDeclarationId !== undefined ? specificDeclarationId : selectedDeclarationId;
+      console.log('🔍 Loading ALL participants for user:', user.id, 'page:', page, 'size:', size);
 
-      console.log('🔍 Loading participants for user:', user.id, 'declaration:', targetDeclarationId);
-
-      // Nếu không có kê khai được chọn, không hiển thị người tham gia nào
-      if (!targetDeclarationId) {
-        console.log('📋 No declaration selected, clearing participants list');
-        setParticipantsList([]);
-        return;
-      }
-
-      // Lấy người tham gia chỉ từ kê khai được chọn
+      // Lấy tất cả người tham gia từ tất cả kê khai của user với phân trang
       try {
-        const nguoiThamGiaList = await keKhaiService.getNguoiThamGiaByKeKhai(targetDeclarationId);
+        const result = await keKhaiService.getAllNguoiThamGiaWithPagination({
+          userId: user.id,
+          page: page,
+          pageSize: size,
+          loaiKeKhai: '603' // Chỉ lấy từ kê khai 603
+        });
 
-        // Lấy thông tin kê khai để thêm vào mỗi người tham gia
-        const keKhaiInfo = keKhaiList.find(kk => kk.id === targetDeclarationId);
-
-        if (!keKhaiInfo) {
-          console.warn('⚠️ Declaration info not found for ID:', targetDeclarationId);
-          setParticipantsList([]);
-          return;
-        }
-
-        // Thêm thông tin kê khai vào mỗi người tham gia
-        const participantsWithKeKhai = nguoiThamGiaList.map(participant => ({
-          ...participant,
-          ke_khai: keKhaiInfo
-        }));
-
-        console.log('👥 Loaded participants count for declaration', targetDeclarationId, ':', participantsWithKeKhai.length);
-        setParticipantsList(participantsWithKeKhai);
+        console.log('👥 Loaded participants:', result.data.length, 'of', result.total);
+        setParticipantsList(result.data);
+        setTotalParticipants(result.total);
+        setCurrentPageNumber(page);
       } catch (error) {
-        console.error(`Error loading participants for ke khai ${targetDeclarationId}:`, error);
-        setErrorParticipants(`Không thể tải danh sách người tham gia cho kê khai ${targetDeclarationId}.`);
+        console.error('Error loading participants:', error);
+        setErrorParticipants('Không thể tải danh sách người tham gia.');
         setParticipantsList([]);
+        setTotalParticipants(0);
       }
     } catch (err) {
       console.error('Error loading participants data:', err);
@@ -314,28 +590,15 @@ const KeKhai603: React.FC = () => {
     loadDaiLyData();
     loadBaseSalaryData();
     loadKeKhaiData();
-    // Don't load participants initially - wait for declaration selection
+    // Load all participants immediately
+    loadParticipantsData(1, pageSize);
   }, []);
-
-  // Load participants when selected declaration changes
-  useEffect(() => {
-    loadParticipantsData();
-  }, [selectedDeclarationId, keKhaiList]); // Depend on keKhaiList to ensure we have declaration info
 
   // Reset selection when participants data changes
   useEffect(() => {
     setSelectedParticipants(new Set());
     setSelectAllParticipants(false);
   }, [participantsList]);
-
-  // Auto-select first declaration when keKhaiList loads
-  useEffect(() => {
-    if (keKhaiList.length > 0 && !selectedDeclarationId) {
-      const firstDeclaration = keKhaiList[0];
-      console.log('🎯 Auto-selecting first declaration:', firstDeclaration.id, firstDeclaration.ma_ke_khai);
-      setSelectedDeclarationId(firstDeclaration.id);
-    }
-  }, [keKhaiList, selectedDeclarationId]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -1195,43 +1458,60 @@ const KeKhai603: React.FC = () => {
                 Danh sách người tham gia
               </h3>
 
-              {/* Declaration Selector */}
+              {/* Page Size Selector */}
               <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Kê khai:
+                  Hiển thị:
                 </label>
                 <select
-                  value={selectedDeclarationId || ''}
-                  onChange={(e) => {
-                    const newId = e.target.value ? parseInt(e.target.value) : null;
-                    console.log('🎯 Declaration selection changed:', newId);
-                    setSelectedDeclarationId(newId);
-                  }}
+                  value={pageSize}
+                  onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
                   className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 >
-                  <option value="">-- Chọn kê khai --</option>
-                  {keKhaiList.map((keKhai) => (
-                    <option key={keKhai.id} value={keKhai.id}>
-                      {keKhai.ma_ke_khai} - {formatDate(keKhai.created_at)}
-                    </option>
-                  ))}
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
                 </select>
+                <span className="text-sm text-gray-500">người/trang</span>
               </div>
+
+              {/* Bulk Actions */}
+              {selectedParticipants.size > 0 && (
+                <div className="flex items-center space-x-3 bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded border">
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    Đã chọn {selectedParticipants.size} người
+                  </span>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                  >
+                    Xóa đã chọn
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedParticipants(new Set());
+                      setSelectAllParticipants(false);
+                    }}
+                    className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+                  >
+                    Bỏ chọn
+                  </button>
+                </div>
+              )}
+
+
             </div>
 
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               {loadingParticipants ? (
-                <span className="flex items-center space-x-1">
-                  <RefreshCw className="w-3 h-3 animate-spin" />
+                <div className="flex items-center space-x-2">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
                   <span>Đang tải...</span>
-                </span>
-              ) : selectedDeclarationId ? (
-                <span>
-                  Có <strong className="text-blue-600 dark:text-blue-400">{participantsList.length}</strong> người tham gia
-                </span>
+                </div>
               ) : (
-                <span className="text-gray-400">
-                  Chọn kê khai để xem người tham gia
+                <span>
+                  Hiển thị {startIndex}-{endIndex} trong tổng số {totalParticipants} người tham gia
                 </span>
               )}
             </div>
@@ -1249,21 +1529,10 @@ const KeKhai603: React.FC = () => {
             ) : participantsList.length === 0 ? (
               <div className="p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400">
                 <User className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
-                {selectedDeclarationId ? (
-                  <>
-                    <p className="text-sm sm:text-base">Kê khai này chưa có người tham gia nào</p>
-                    <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
-                      Vào form kê khai để thêm người tham gia
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm sm:text-base">Chọn kê khai để xem người tham gia</p>
-                    <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
-                      Sử dụng dropdown ở trên để chọn kê khai cụ thể
-                    </p>
-                  </>
-                )}
+                <p className="text-sm sm:text-base">Chưa có người tham gia nào</p>
+                <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
+                  Tạo kê khai mới và thêm người tham gia để hiển thị ở đây
+                </p>
               </div>
             ) : (
               // Participants Content
@@ -1274,178 +1543,162 @@ const KeKhai603: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  {/* Action buttons */}
-                  <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-2">
-                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                      Xuất TK1-TS
-                    </button>
-                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                      Xuất D03/D05
-                    </button>
-                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                      Xuất D03/D05 (Excel)
-                    </button>
-                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                      Xuất file (Excel)
-                    </button>
-                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                      In C45
-                    </button>
-                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                      Xuất Excel
-                    </button>
-                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                      Sao chép
-                    </button>
-                    <button className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
-                      Tra Cứu
-                    </button>
-                  </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse" style={{minWidth: '2000px'}}>
-                    <thead className="bg-blue-600 text-white">
+
+                  <div className="overflow-x-auto shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" style={{minWidth: '2000px'}}>
+                    <thead className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800">
                       <tr>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '40px', minWidth: '40px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '50px', minWidth: '50px'}}>
                           <input
                             type="checkbox"
-                            className="w-4 h-4"
+                            className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                             checked={selectAllParticipants}
-                            onChange={(e) => handleSelectAllParticipants(e.target.checked)}
+                            onChange={(e) => handleSelectAll(e.target.checked)}
                           />
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '50px', minWidth: '50px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '60px', minWidth: '60px'}}>
                           STT
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
-                          Họ tên
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '160px', minWidth: '160px'}}>
+                          Họ và tên
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                          Mã số BHXH
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '140px', minWidth: '140px'}}>
+                          Mã BHXH
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '130px', minWidth: '130px'}}>
                           Số CCCD
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '110px', minWidth: '110px'}}>
                           Ngày sinh
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '90px', minWidth: '90px'}}>
                           Giới tính
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '120px', minWidth: '120px'}}>
                           Số ĐT
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                          Số thẻ BHYT
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '140px', minWidth: '140px'}}>
+                          Thẻ BHYT
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '200px', minWidth: '200px'}}>
-                          Nơi đăng ký KCB
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '180px', minWidth: '180px'}}>
+                          Nơi KCB
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                        <th className="px-3 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '120px', minWidth: '120px'}}>
                           Mức lương
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '90px', minWidth: '90px'}}>
                           Tỷ lệ (%)
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                          Số tiền đóng
+                        <th className="px-3 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '120px', minWidth: '120px'}}>
+                          Tiền đóng
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
-                          Số tháng đóng
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '110px', minWidth: '110px'}}>
+                          Số tháng
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '80px', minWidth: '80px'}}>
                           STT hộ
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
-                          Ngày biên lai
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '110px', minWidth: '110px'}}>
+                          Biên lai
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '140px', minWidth: '140px'}}>
                           Mã kê khai
                         </th>
-                        <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                        <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style={{width: '120px', minWidth: '120px'}}>
                           Trạng thái
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {participantsList.map((participant, index) => {
                         const participantKey = `${participant.ke_khai.id}-${participant.id}`;
+                        const isSelected = selectedParticipants.has(participant.id);
                         return (
-                        <tr key={participantKey} className="hover:bg-gray-50 border-b border-gray-200">
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '40px', minWidth: '40px'}}>
+                        <tr
+                          key={participantKey}
+                          className={`
+                            transition-all duration-200 cursor-pointer
+                            ${isSelected
+                              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }
+                            border-b border-gray-200 dark:border-gray-700
+                          `}
+                          onContextMenu={(e) => handleParticipantContextMenu(e, participant)}
+                          title="Chuột phải để xem menu"
+                        >
+                          <td className="px-3 py-4 text-center whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '50px', minWidth: '50px'}}>
                             <input
                               type="checkbox"
-                              className="w-4 h-4"
-                              checked={selectedParticipants.has(participantKey)}
-                              onChange={(e) => handleParticipantSelection(participantKey, e.target.checked)}
+                              className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                              checked={selectedParticipants.has(participant.id)}
+                              onChange={(e) => handleParticipantSelect(participant.id, e.target.checked)}
                             />
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '50px', minWidth: '50px'}}>
-                            {index + 1}
+                          <td className="px-3 py-4 text-center text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '60px', minWidth: '60px'}}>
+                            {startIndex + index}
                           </td>
-                          <td className="px-2 py-2 text-left text-xs border border-gray-300" style={{width: '150px', minWidth: '150px'}}>
-                            <div className="truncate" title={participant.ho_ten}>
+                          <td className="px-3 py-4 text-left border-r border-gray-200 dark:border-gray-700" style={{width: '160px', minWidth: '160px'}}>
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={participant.ho_ten}>
                               {participant.ho_ten}
                             </div>
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                            {participant.ma_so_bhxh || ''}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '140px', minWidth: '140px'}}>
+                            {participant.ma_so_bhxh || <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                            {participant.so_cccd || ''}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '130px', minWidth: '130px'}}>
+                            {participant.so_cccd || <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
-                            {participant.ngay_sinh ?
-                              formatDate(participant.ngay_sinh) : ''}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                            {participant.ngay_sinh ? formatDate(participant.ngay_sinh) : <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
-                            {participant.gioi_tinh === 'Nam' ? 'Nam' : 'Nữ'}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '90px', minWidth: '90px'}}>
+                            {participant.gioi_tinh || <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                            {participant.so_dien_thoai || ''}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
+                            {participant.so_dien_thoai || <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                            {participant.so_the_bhyt || ''}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '140px', minWidth: '140px'}}>
+                            {participant.so_the_bhyt || <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-left text-xs border border-gray-300" style={{width: '200px', minWidth: '200px'}}>
-                            <div className="truncate" title={participant.noi_dang_ky_kcb}>
-                              {participant.noi_dang_ky_kcb || ''}
+                          <td className="px-3 py-4 text-left text-sm border-r border-gray-200 dark:border-gray-700" style={{width: '180px', minWidth: '180px'}}>
+                            <div className="text-gray-900 dark:text-gray-100 text-sm truncate" title={participant.noi_dang_ky_kcb}>
+                              {participant.noi_dang_ky_kcb || <span className="text-gray-400 dark:text-gray-500">-</span>}
                             </div>
                           </td>
-                          <td className="px-2 py-2 text-right text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                            {participant.muc_luong ?
-                              formatCurrency(participant.muc_luong) : ''}
+                          <td className="px-3 py-4 text-right text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
+                            {participant.muc_luong ? formatCurrency(participant.muc_luong) : <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '90px', minWidth: '90px'}}>
                             {participant.ty_le_dong || '100'}%
                           </td>
-                          <td className="px-2 py-2 text-right text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                            {participant.tien_dong_thuc_te ?
-                              formatCurrency(participant.tien_dong_thuc_te) :
-                              participant.tien_dong ?
-                              formatCurrency(participant.tien_dong) : '0'}
+                          <td className="px-3 py-4 text-right text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
+                            {(participant.tien_dong_thuc_te || participant.tien_dong) ?
+                              formatCurrency(participant.tien_dong_thuc_te || participant.tien_dong) :
+                              <span className="text-gray-400 dark:text-gray-500">0</span>
+                            }
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
-                            {participant.so_thang_dong || ''}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                            {participant.so_thang_dong || <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
-                            {participant.stt_ho || ''}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '80px', minWidth: '80px'}}>
+                            {participant.stt_ho || <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
-                            {participant.ngay_bien_lai ?
-                              formatDate(participant.ngay_bien_lai) : ''}
+                          <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                            {participant.ngay_bien_lai ? formatDate(participant.ngay_bien_lai) : <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                            {participant.ke_khai.ma_ke_khai || ''}
+                          <td className="px-3 py-4 text-center text-sm font-mono text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '140px', minWidth: '140px'}}>
+                            {participant.ke_khai.ma_ke_khai || <span className="text-gray-400 dark:text-gray-500">-</span>}
                           </td>
-                          <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                            <span className={`px-1 py-1 rounded text-white text-xs whitespace-nowrap ${
-                              participant.ke_khai.trang_thai === 'submitted' ? 'bg-blue-500' :
-                              participant.ke_khai.trang_thai === 'approved' ? 'bg-green-500' :
-                              participant.ke_khai.trang_thai === 'rejected' ? 'bg-red-500' :
-                              participant.ke_khai.trang_thai === 'paid' ? 'bg-green-600' :
-                              participant.ke_khai.trang_thai === 'pending_payment' ? 'bg-orange-500' :
-                              'bg-gray-500'
+                          <td className="px-3 py-4 text-center whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              participant.ke_khai.trang_thai === 'submitted' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                              participant.ke_khai.trang_thai === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                              participant.ke_khai.trang_thai === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
+                              participant.ke_khai.trang_thai === 'paid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300' :
+                              participant.ke_khai.trang_thai === 'pending_payment' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+                              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                             }`}>
                               {getStatusText(participant.ke_khai.trang_thai)}
                             </span>
@@ -1456,6 +1709,62 @@ const KeKhai603: React.FC = () => {
                     </tbody>
                   </table>
                   </div>
+
+                  {/* Pagination Controls */}
+                  {totalParticipants > 0 && (
+                    <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="text-sm text-gray-700 dark:text-gray-300">
+                        Hiển thị {startIndex} đến {endIndex} trong tổng số {totalParticipants} kết quả
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage <= 1}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Trước
+                        </button>
+
+                        <div className="flex items-center space-x-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => handlePageChange(pageNum)}
+                                className={`px-3 py-1 text-sm border rounded ${
+                                  currentPage === pageNum
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage >= totalPages}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Sau
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )
             )}
@@ -1533,6 +1842,141 @@ const KeKhai603: React.FC = () => {
           onClose={handleClosePaymentModal}
           onPaymentConfirmed={handlePaymentConfirmed}
         />
+      )}
+
+      {/* Context Menu */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        items={contextMenu.participant !== null ? getParticipantContextMenuItems(contextMenu.participant) : []}
+        onClose={closeContextMenu}
+      />
+
+      {/* Delete Participant Confirmation Modal */}
+      {deleteParticipantModal.isOpen && deleteParticipantModal.participant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Xác nhận xóa người tham gia
+                </h3>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                Bạn có chắc chắn muốn xóa người tham gia này không?
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  <strong>Họ tên:</strong> {deleteParticipantModal.participant.ho_ten}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <strong>Mã BHXH:</strong> {deleteParticipantModal.participant.ma_so_bhxh || 'Chưa có'}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <strong>Kê khai:</strong> {deleteParticipantModal.participant.ke_khai?.ma_ke_khai}
+                </p>
+              </div>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                ⚠️ Hành động này không thể hoàn tác!
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={cancelDeleteParticipant}
+                disabled={deleteParticipantModal.isDeleting}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDeleteParticipant}
+                disabled={deleteParticipantModal.isDeleting}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 flex items-center justify-center"
+              >
+                {deleteParticipantModal.isDeleting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                    Đang xóa...
+                  </>
+                ) : (
+                  'Xóa'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Xác nhận xóa nhiều người tham gia
+                </h3>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                Bạn có chắc chắn muốn xóa <strong>{selectedParticipants.size}</strong> người tham gia đã chọn không?
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 max-h-32 overflow-y-auto">
+                {participantsList
+                  .filter(p => selectedParticipants.has(p.id))
+                  .map(p => (
+                    <p key={p.id} className="text-sm text-gray-600 dark:text-gray-300">
+                      • {p.ho_ten} ({p.ma_so_bhxh || 'Chưa có mã BHXH'})
+                    </p>
+                  ))
+                }
+              </div>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                ⚠️ Hành động này không thể hoàn tác!
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={cancelBulkDelete}
+                disabled={bulkDeleteModal.isDeleting}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmBulkDelete}
+                disabled={bulkDeleteModal.isDeleting}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 flex items-center justify-center"
+              >
+                {bulkDeleteModal.isDeleting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                    Đang xóa...
+                  </>
+                ) : (
+                  `Xóa ${selectedParticipants.size} người`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

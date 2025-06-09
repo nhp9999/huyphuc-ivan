@@ -760,6 +760,90 @@ class KeKhaiService {
     }
   }
 
+  // Lấy tất cả người tham gia với phân trang
+  async getAllNguoiThamGiaWithPagination(params: {
+    userId: string;
+    page: number;
+    pageSize: number;
+    loaiKeKhai?: string;
+  }): Promise<{ data: any[]; total: number }> {
+    try {
+      console.log('🔍 getAllNguoiThamGiaWithPagination called with:', params);
+
+      // Trước tiên lấy danh sách kê khai của user
+      let keKhaiQuery = supabase
+        .from('danh_sach_ke_khai')
+        .select('id')
+        .eq('created_by', params.userId);
+
+      if (params.loaiKeKhai) {
+        keKhaiQuery = keKhaiQuery.eq('loai_ke_khai', params.loaiKeKhai);
+      }
+
+      const { data: keKhaiList, error: keKhaiError } = await keKhaiQuery;
+
+      if (keKhaiError) {
+        console.error('Error fetching ke khai list:', keKhaiError);
+        throw new Error('Không thể tải danh sách kê khai');
+      }
+
+      if (!keKhaiList || keKhaiList.length === 0) {
+        console.log('👥 No ke khai found for user');
+        return { data: [], total: 0 };
+      }
+
+      const keKhaiIds = keKhaiList.map(kk => kk.id);
+      console.log('📋 Found ke khai IDs:', keKhaiIds);
+
+      // Get total count
+      const { count, error: countError } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select('*', { count: 'exact', head: true })
+        .in('ke_khai_id', keKhaiIds);
+
+      if (countError) {
+        console.error('Error counting participants:', countError);
+        throw new Error('Không thể đếm số lượng người tham gia');
+      }
+
+      // Get paginated data với join
+      const offset = (params.page - 1) * params.pageSize;
+      const { data, error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select(`
+          *,
+          ke_khai:danh_sach_ke_khai(
+            id,
+            ma_ke_khai,
+            ten_ke_khai,
+            loai_ke_khai,
+            trang_thai,
+            created_at,
+            doi_tuong_tham_gia,
+            nguon_dong
+          )
+        `)
+        .in('ke_khai_id', keKhaiIds)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + params.pageSize - 1);
+
+      if (error) {
+        console.error('Error fetching paginated participants:', error);
+        throw new Error('Không thể tải danh sách người tham gia');
+      }
+
+      console.log('👥 Loaded participants:', data?.length, 'of', count);
+
+      return {
+        data: data || [],
+        total: count || 0
+      };
+    } catch (error) {
+      console.error('Error in getAllNguoiThamGiaWithPagination:', error);
+      throw error;
+    }
+  }
+
   // Xóa người tham gia
   async deleteNguoiThamGia(id: number): Promise<void> {
     try {
