@@ -11,6 +11,7 @@ interface KeKhai603ParticipantTableProps {
   onRemoveParticipant: (index: number) => void;
   onAddParticipant: () => void;
   onBulkRemoveParticipants?: (indices: number[]) => void;
+  onEditParticipant?: (index: number) => void; // New prop for editing
   participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
   doiTuongThamGia?: string;
@@ -24,6 +25,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   onRemoveParticipant,
   onAddParticipant,
   onBulkRemoveParticipants,
+  onEditParticipant,
   participantSearchLoading,
   savingData,
   doiTuongThamGia
@@ -251,7 +253,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
               <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
                 Ngày biên lai
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '140px', minWidth: '140px'}}>
                 Thao tác
               </th>
             </tr>
@@ -400,8 +402,23 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded"
                   />
                 </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '140px', minWidth: '140px'}}>
                   <div className="flex items-center justify-center space-x-1">
+                    {/* Edit Button - Load data to form */}
+                    {onEditParticipant && (
+                      <button
+                        onClick={() => onEditParticipant(index)}
+                        disabled={savingData}
+                        className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                        title="Sửa (tải lên form)"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Save Button */}
                     <button
                       onClick={() => onSaveSingleParticipant(index)}
                       disabled={savingData}
@@ -412,6 +429,8 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                     </button>
+
+                    {/* Delete Button */}
                     <button
                       onClick={() => onRemoveParticipant(index)}
                       disabled={savingData}

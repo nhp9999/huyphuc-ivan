@@ -623,11 +623,16 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
   const saveParticipantFromForm = async (formData: any) => {
     console.log('🚀 saveParticipantFromForm called');
     console.log('📋 Form data received:', formData);
+    console.log('🔍 Editing participant ID:', formData.editingParticipantId);
 
     if (!keKhaiId) {
       console.error('❌ No keKhaiId available');
       throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
     }
+
+    // Check if this is an edit operation
+    const isEditing = formData.editingParticipantId && formData.editingParticipantId !== null;
+    console.log('✏️ Is editing mode:', isEditing);
 
     // Validate required fields from the passed formData (not global form state)
     if (!formData.maSoBHXH || !formData.maSoBHXH.trim()) {
@@ -665,7 +670,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         tinh_kcb: formData.tinhKCB || null,
         ma_benh_vien: formData.maBenhVien || null,
         so_thang_dong: formData.soThangDong ? parseInt(formData.soThangDong) : null,
-        stt_ho: formData.sttHo || null,
+        stt_ho: formData.sttHo && formData.sttHo.trim() ? formData.sttHo.trim() : null,
         ngay_bien_lai: formData.ngayBienLai || new Date().toISOString().split('T')[0],
         ma_tinh_nkq: formData.maTinhNkq || null,
         ma_huyen_nkq: formData.maHuyenNkq || null,
@@ -688,23 +693,33 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       };
 
       // Calculate payment amounts if sttHo and soThangDong are available
-      if (formData.sttHo && formData.soThangDong) {
+      console.log('🔍 DEBUG: Checking calculation data:', {
+        sttHo: formData.sttHo,
+        soThangDong: formData.soThangDong,
+        sttHoTrimmed: formData.sttHo && formData.sttHo.trim(),
+        soThangDongTrimmed: formData.soThangDong && formData.soThangDong.trim()
+      });
+
+      if (formData.sttHo && formData.sttHo.trim() && formData.soThangDong && formData.soThangDong.trim()) {
         const mucLuongNumber = 2340000; // Lương cơ sở mặc định
 
         // Calculate tien_dong (new formula)
-        const tienDong = calculateKeKhai603Amount(formData.sttHo, formData.soThangDong, mucLuongNumber);
+        const tienDong = calculateKeKhai603Amount(formData.sttHo.trim(), formData.soThangDong.trim(), mucLuongNumber);
         participantData.tien_dong = tienDong;
 
         // Calculate tien_dong_thuc_te (old formula with 4.5%)
-        const tienDongThucTe = calculateKeKhai603AmountThucTe(formData.sttHo, formData.soThangDong, mucLuongNumber, doiTuongThamGia);
+        const tienDongThucTe = calculateKeKhai603AmountThucTe(formData.sttHo.trim(), formData.soThangDong.trim(), mucLuongNumber, doiTuongThamGia);
         participantData.tien_dong_thuc_te = tienDongThucTe;
 
-        console.log(`💰 Calculated amounts for participant: tien_dong=${tienDong}, tien_dong_thuc_te=${tienDongThucTe}`);
+        console.log(`💰 Calculated amounts for participant: sttHo=${formData.sttHo.trim()}, soThangDong=${formData.soThangDong.trim()}, tien_dong=${tienDong}, tien_dong_thuc_te=${tienDongThucTe}`);
       } else {
         // Set to 0 if calculation data is not available
         participantData.tien_dong = 0;
         participantData.tien_dong_thuc_te = 0;
-        console.log('⚠️ Cannot calculate payment amounts - missing sttHo or soThangDong');
+        console.log('⚠️ Cannot calculate payment amounts - missing sttHo or soThangDong:', {
+          sttHo: formData.sttHo,
+          soThangDong: formData.soThangDong
+        });
       }
 
       // Handle required fields and clean data
@@ -725,10 +740,17 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
 
       console.log('📝 Participant data to save:', participantData);
 
-      // Save to database
-      console.log('💾 Saving to database...');
-      const savedParticipant = await keKhaiService.addNguoiThamGia(participantData);
-      console.log('✅ Saved to database:', savedParticipant);
+      // Save to database - use update if editing, create if new
+      let savedParticipant;
+      if (isEditing) {
+        console.log('💾 Updating existing participant in database...');
+        savedParticipant = await keKhaiService.updateNguoiThamGia(formData.editingParticipantId, participantData);
+        console.log('✅ Updated in database:', savedParticipant);
+      } else {
+        console.log('💾 Creating new participant in database...');
+        savedParticipant = await keKhaiService.addNguoiThamGia(participantData);
+        console.log('✅ Created in database:', savedParticipant);
+      }
 
       // Create participant object for local state
       const newParticipant: KeKhai603Participant = {
@@ -772,14 +794,26 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       // Update local state
       console.log('🔄 Updating local state...');
       console.log('🔍 DEBUG: Current participants before update:', participants.length);
-      console.log('🔍 DEBUG: New participant to add:', { id: newParticipant.id, hoTen: newParticipant.hoTen, maSoBHXH: newParticipant.maSoBHXH });
+      console.log('🔍 DEBUG: Participant data:', { id: newParticipant.id, hoTen: newParticipant.hoTen, maSoBHXH: newParticipant.maSoBHXH });
 
       setParticipants(prev => {
         console.log('🔍 DEBUG: setParticipants callback - prev length:', prev.length);
-        const newArray = [...prev, newParticipant];
-        console.log('📊 New participants array length:', newArray.length);
-        console.log('🔍 DEBUG: New array contents:', newArray.map(p => ({ id: p.id, hoTen: p.hoTen, maSoBHXH: p.maSoBHXH })));
-        return newArray;
+
+        if (isEditing) {
+          // Update existing participant
+          const updatedArray = prev.map(p =>
+            p.id === formData.editingParticipantId ? newParticipant : p
+          );
+          console.log('📊 Updated participants array length:', updatedArray.length);
+          console.log('🔍 DEBUG: Updated array contents:', updatedArray.map(p => ({ id: p.id, hoTen: p.hoTen, maSoBHXH: p.maSoBHXH })));
+          return updatedArray;
+        } else {
+          // Add new participant
+          const newArray = [...prev, newParticipant];
+          console.log('📊 New participants array length:', newArray.length);
+          console.log('🔍 DEBUG: New array contents:', newArray.map(p => ({ id: p.id, hoTen: p.hoTen, maSoBHXH: p.maSoBHXH })));
+          return newArray;
+        }
       });
 
       console.log('🔍 DEBUG: After setParticipants call completed');
@@ -787,7 +821,9 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       console.log('✅ saveParticipantFromForm completed successfully');
       return {
         success: true,
-        message: `Đã lưu thành công người tham gia ${formData.hoTen || 'mới'}!`,
+        message: isEditing
+          ? `Đã cập nhật thành công thông tin của ${formData.hoTen || 'người tham gia'}!`
+          : `Đã lưu thành công người tham gia ${formData.hoTen || 'mới'}!`,
         participant: savedParticipant
       };
     } catch (error) {

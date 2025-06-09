@@ -105,7 +105,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   } = useKeKhai603(pageParams);
 
   // Then use keKhaiInfo in dependent hooks
-  const { formData, handleInputChange, resetForm, forceRecalculate } = useKeKhai603FormData(keKhaiInfo?.doi_tuong_tham_gia);
+  const { formData, handleInputChange, resetForm, forceRecalculate, loadParticipantData } = useKeKhai603FormData(keKhaiInfo?.doi_tuong_tham_gia);
 
   const {
     participants,
@@ -1288,6 +1288,33 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
+  // Handle edit participant - Load participant data to form for editing
+  const handleEditParticipant = (index: number) => {
+    const participant = participants[index];
+    if (!participant) {
+      showToast('Không tìm thấy thông tin người tham gia', 'error');
+      return;
+    }
+
+    console.log('🔄 Loading participant data to form for editing:', participant);
+
+    // Load participant data to form using the dedicated function
+    loadParticipantData(participant);
+
+    // Force recalculate amounts after loading data
+    setTimeout(() => {
+      forceRecalculate();
+    }, 100);
+
+    showToast(`Đã tải thông tin của ${participant.hoTen || 'người tham gia'} lên form để chỉnh sửa`, 'success');
+
+    // Scroll to form
+    const formElement = document.querySelector('.ke-khai-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   // Handle remove participant
   const handleRemoveParticipant = async (index: number) => {
     try {
@@ -1449,7 +1476,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         ) : (
           <>
             {/* Main Form - Matching the image layout */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="ke-khai-form bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
              
 
               {/* Form Content */}
@@ -1917,6 +1944,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
               onRemoveParticipant={handleRemoveParticipant}
               onAddParticipant={handleAddParticipant}
               onBulkRemoveParticipants={handleBulkRemoveParticipants}
+              onEditParticipant={handleEditParticipant}
               participantSearchLoading={participantSearchLoading}
               savingData={savingData}
               doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}

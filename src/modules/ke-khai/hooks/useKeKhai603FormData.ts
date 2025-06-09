@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 
 // Interface for form data
 export interface KeKhai603FormData {
+  // Edit tracking
+  editingParticipantId?: number | null; // ID of participant being edited, null for new participant
+
   // Thông tin cơ bản
   hoTen: string;
   maSoBHXH: string;
@@ -52,6 +55,9 @@ export interface KeKhai603FormData {
 
 // Initial form data
 const initialFormData: KeKhai603FormData = {
+  // Edit tracking
+  editingParticipantId: null,
+
   // Thông tin cơ bản
   hoTen: '',
   maSoBHXH: '',
@@ -272,7 +278,15 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
         const soThangDong = field === 'soThangDong' ? value : prev.soThangDong;
         const mucLuong = field === 'mucLuong' ? value : prev.mucLuong;
 
-        console.log('🔄 Triggering calculation:', { field, value, sttHo, soThangDong, mucLuong });
+        console.log('🔄 Triggering calculation:', {
+          field,
+          value,
+          sttHo,
+          soThangDong,
+          mucLuong,
+          sttHoTrimmed: sttHo && sttHo.trim(),
+          soThangDongTrimmed: soThangDong && soThangDong.trim()
+        });
 
         // Cập nhật tỷ lệ đóng theo STT hộ (% của lương cơ sở)
         if (field === 'sttHo') {
@@ -298,27 +312,39 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
           console.log('📊 Updated tyLeDong:', tyLeDong);
         }
 
-        if (sttHo && soThangDong) {
+        if (sttHo && sttHo.trim() && soThangDong && soThangDong.trim()) {
           // Parse lương cơ sở từ string (loại bỏ dấu phẩy)
           const mucLuongNumber = mucLuong ? parseFloat(mucLuong.replace(/[.,]/g, '')) : 2340000;
 
-          console.log('💰 Calculating with:', { sttHo, soThangDong, mucLuongNumber, doiTuongThamGia });
+          console.log('💰 Calculating with:', {
+            sttHo: sttHo.trim(),
+            soThangDong: soThangDong.trim(),
+            mucLuongNumber,
+            doiTuongThamGia
+          });
 
           // Tính tiền đóng theo công thức mới (lưu vào tien_dong)
-          const soTien = calculateKeKhai603Amount(sttHo, soThangDong, mucLuongNumber);
+          const soTien = calculateKeKhai603Amount(sttHo.trim(), soThangDong.trim(), mucLuongNumber);
           newData.soTienDong = soTien.toLocaleString('vi-VN');
           newData.tienDong = soTien;
 
           // Tính tiền đóng thực tế theo công thức cũ (lưu vào tien_dong_thuc_te)
-          const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, mucLuongNumber, doiTuongThamGia);
+          const soTienThucTe = calculateKeKhai603AmountThucTe(sttHo.trim(), soThangDong.trim(), mucLuongNumber, doiTuongThamGia);
           newData.tienDongThucTe = soTienThucTe;
 
           console.log('✅ Calculated amounts:', {
+            sttHo: sttHo.trim(),
+            soThangDong: soThangDong.trim(),
             soTien: soTien.toLocaleString('vi-VN'),
             soTienThucTe: soTienThucTe.toLocaleString('vi-VN')
           });
         } else {
-          console.log('⚠️ Missing required fields for calculation:', { sttHo, soThangDong });
+          console.log('⚠️ Missing required fields for calculation:', {
+            sttHo,
+            soThangDong,
+            sttHoTrimmed: sttHo && sttHo.trim(),
+            soThangDongTrimmed: soThangDong && soThangDong.trim()
+          });
         }
       }
 
@@ -370,11 +396,55 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
     }
   };
 
+  // Load participant data for editing
+  const loadParticipantData = (participant: any) => {
+    console.log('📝 Loading participant data for editing:', participant);
+
+    setFormData({
+      editingParticipantId: participant.id,
+      hoTen: participant.hoTen || '',
+      maSoBHXH: participant.maSoBHXH || '',
+      ngaySinh: participant.ngaySinh || '',
+      gioiTinh: participant.gioiTinh || '',
+      soCCCD: participant.soCCCD || '',
+      soDienThoai: participant.soDienThoai || '',
+      email: participant.email || '',
+      soTheBHYT: participant.soTheBHYT || '',
+      danToc: participant.danToc || '',
+      quocTich: participant.quocTich || 'VN',
+      noiDangKyKCB: participant.noiDangKyKCB || '',
+      tinhKCB: participant.tinhKCB || '',
+      maBenhVien: participant.maBenhVien || '',
+      soThangDong: participant.soThangDong || '',
+      sttHo: participant.sttHo || '',
+      ngayBienLai: participant.ngayBienLai || new Date().toISOString().split('T')[0],
+      maTinhNkq: participant.maTinhNkq || '',
+      maHuyenNkq: participant.maHuyenNkq || '',
+      maXaNkq: participant.maXaNkq || '',
+      maTinhKS: participant.maTinhKS || '',
+      maHuyenKS: participant.maHuyenKS || '',
+      maXaKS: participant.maXaKS || '',
+      tuNgayTheCu: participant.tuNgayTheCu || '',
+      denNgayTheCu: participant.denNgayTheCu || '',
+      tuNgayTheMoi: participant.tuNgayTheMoi || '',
+      denNgayTheMoi: participant.denNgayTheMoi || '',
+      maHoGiaDinh: participant.maHoGiaDinh || '',
+      phuongAn: participant.phuongAn || '',
+      mucLuong: '2,340,000',
+      tyLeDong: '100',
+      soTienDong: participant.tienDong ? participant.tienDong.toLocaleString('vi-VN') : '',
+      tienDong: participant.tienDong || 0,
+      tienDongThucTe: participant.tienDongThucTe || 0,
+      ghiChuDongPhi: participant.ghiChuDongPhi || ''
+    });
+  };
+
   return {
     formData,
     handleInputChange,
     resetForm,
     updateFormData,
-    forceRecalculate
+    forceRecalculate,
+    loadParticipantData
   };
 };
