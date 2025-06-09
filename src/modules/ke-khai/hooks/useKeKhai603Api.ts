@@ -141,8 +141,8 @@ export const useKeKhai603Api = () => {
           maHuyenNkq: response.data.maHuyenNkq || '',
           maXaNkq: response.data.maXaNkq || '',
 
-          // BHYT information
-          mucLuong: response.data.mucLuong || '',
+          // BHYT information - only include mucLuong if API provides a valid value (not empty, not 0)
+          ...((response.data.mucLuong && response.data.mucLuong.toString().trim() !== '' && response.data.mucLuong.toString().trim() !== '0') ? { mucLuong: response.data.mucLuong.toString() } : {}),
           tyLeDong: response.data.tyLeDong || '4.5',
           soTienDong: response.data.soTienDong || '',
           tinhKCB: response.data.maKV || '',
@@ -242,7 +242,8 @@ export const useKeKhai603Api = () => {
           // Additional data
           maHoGiaDinh: response.data.maHoGiaDinh || '',
           phuongAn: response.data.phuongAn || '',
-          mucLuong: response.data.mucLuong || '',
+          // Only include mucLuong if API provides a valid value (not empty, not 0)
+          ...((response.data.mucLuong && response.data.mucLuong.toString().trim() !== '' && response.data.mucLuong.toString().trim() !== '0') ? { mucLuong: response.data.mucLuong.toString() } : {}),
           tyLeDong: response.data.tyLeDong || '4.5',
           soTienDong: response.data.soTienDong || ''
         };
