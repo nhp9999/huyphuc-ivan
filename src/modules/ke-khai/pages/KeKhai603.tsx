@@ -104,6 +104,9 @@ const KeKhai603: React.FC = () => {
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [errorParticipants, setErrorParticipants] = useState<string | null>(null);
 
+  // State cho selected declaration để filter participants
+  const [selectedDeclarationId, setSelectedDeclarationId] = useState<number | null>(null);
+
   // State cho checkbox selection
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
   const [selectAllParticipants, setSelectAllParticipants] = useState(false);
@@ -250,8 +253,8 @@ const KeKhai603: React.FC = () => {
     }
   };
 
-  // Load danh sách người tham gia từ Supabase
-  const loadParticipantsData = async () => {
+  // Load danh sách người tham gia từ Supabase - chỉ từ kê khai được chọn
+  const loadParticipantsData = async (specificDeclarationId?: number | null) => {
     setLoadingParticipants(true);
     setErrorParticipants(null);
     try {
@@ -260,43 +263,43 @@ const KeKhai603: React.FC = () => {
         return;
       }
 
-      console.log('🔍 Loading participants for user:', user.id);
+      const targetDeclarationId = specificDeclarationId !== undefined ? specificDeclarationId : selectedDeclarationId;
 
-      // Lấy danh sách kê khai của user trước
-      const searchParams: any = {
-        loai_ke_khai: declarationCode,
-        created_by: user.id
-      };
+      console.log('🔍 Loading participants for user:', user.id, 'declaration:', targetDeclarationId);
 
-      const keKhaiData = await keKhaiService.getKeKhaiList(searchParams);
-      console.log('📋 Found ke khai for participants:', keKhaiData.length);
-
-      // Lấy tất cả người tham gia từ các kê khai này
-      const allParticipants: any[] = [];
-
-      for (const keKhai of keKhaiData) {
-        try {
-          const nguoiThamGiaList = await keKhaiService.getNguoiThamGiaByKeKhai(keKhai.id);
-
-          // Thêm thông tin kê khai vào mỗi người tham gia
-          const participantsWithKeKhai = nguoiThamGiaList.map(participant => ({
-            ...participant,
-            ke_khai: keKhai
-          }));
-
-          allParticipants.push(...participantsWithKeKhai);
-        } catch (error) {
-          console.error(`Error loading participants for ke khai ${keKhai.id}:`, error);
-        }
+      // Nếu không có kê khai được chọn, không hiển thị người tham gia nào
+      if (!targetDeclarationId) {
+        console.log('📋 No declaration selected, clearing participants list');
+        setParticipantsList([]);
+        return;
       }
 
-      // Sắp xếp theo ngày tạo mới nhất
-      allParticipants.sort((a, b) =>
-        new Date(b.ke_khai.created_at || '').getTime() - new Date(a.ke_khai.created_at || '').getTime()
-      );
+      // Lấy người tham gia chỉ từ kê khai được chọn
+      try {
+        const nguoiThamGiaList = await keKhaiService.getNguoiThamGiaByKeKhai(targetDeclarationId);
 
-      console.log('👥 Loaded participants count:', allParticipants.length);
-      setParticipantsList(allParticipants);
+        // Lấy thông tin kê khai để thêm vào mỗi người tham gia
+        const keKhaiInfo = keKhaiList.find(kk => kk.id === targetDeclarationId);
+
+        if (!keKhaiInfo) {
+          console.warn('⚠️ Declaration info not found for ID:', targetDeclarationId);
+          setParticipantsList([]);
+          return;
+        }
+
+        // Thêm thông tin kê khai vào mỗi người tham gia
+        const participantsWithKeKhai = nguoiThamGiaList.map(participant => ({
+          ...participant,
+          ke_khai: keKhaiInfo
+        }));
+
+        console.log('👥 Loaded participants count for declaration', targetDeclarationId, ':', participantsWithKeKhai.length);
+        setParticipantsList(participantsWithKeKhai);
+      } catch (error) {
+        console.error(`Error loading participants for ke khai ${targetDeclarationId}:`, error);
+        setErrorParticipants(`Không thể tải danh sách người tham gia cho kê khai ${targetDeclarationId}.`);
+        setParticipantsList([]);
+      }
     } catch (err) {
       console.error('Error loading participants data:', err);
       setErrorParticipants('Không thể tải danh sách người tham gia. Vui lòng thử lại.');
@@ -311,19 +314,28 @@ const KeKhai603: React.FC = () => {
     loadDaiLyData();
     loadBaseSalaryData();
     loadKeKhaiData();
-    loadParticipantsData();
+    // Don't load participants initially - wait for declaration selection
   }, []);
 
-  // Load participants data when component mounts
+  // Load participants when selected declaration changes
   useEffect(() => {
     loadParticipantsData();
-  }, []);
+  }, [selectedDeclarationId, keKhaiList]); // Depend on keKhaiList to ensure we have declaration info
 
   // Reset selection when participants data changes
   useEffect(() => {
     setSelectedParticipants(new Set());
     setSelectAllParticipants(false);
   }, [participantsList]);
+
+  // Auto-select first declaration when keKhaiList loads
+  useEffect(() => {
+    if (keKhaiList.length > 0 && !selectedDeclarationId) {
+      const firstDeclaration = keKhaiList[0];
+      console.log('🎯 Auto-selecting first declaration:', firstDeclaration.id, firstDeclaration.ma_ke_khai);
+      setSelectedDeclarationId(firstDeclaration.id);
+    }
+  }, [keKhaiList, selectedDeclarationId]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -957,7 +969,10 @@ const KeKhai603: React.FC = () => {
               loadDaiLyData();
               loadBaseSalaryData();
               loadKeKhaiData();
-              loadParticipantsData();
+              // Reload participants for currently selected declaration
+              if (selectedDeclarationId) {
+                loadParticipantsData(selectedDeclarationId);
+              }
             }}
             disabled={loadingDonVi || loadingDaiLy || baseSalaryLoading || loadingKeKhai || loadingParticipants}
             className="flex items-center justify-center space-x-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-4 py-3 sm:py-2 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors min-h-[44px] text-sm sm:text-base disabled:opacity-50"
@@ -1049,7 +1064,7 @@ const KeKhai603: React.FC = () => {
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
             <span className="text-red-800 dark:text-red-200">{errorParticipants}</span>
             <button
-              onClick={loadParticipantsData}
+              onClick={() => loadParticipantsData(selectedDeclarationId)}
               className="ml-auto flex items-center space-x-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
             >
               <RefreshCw className="w-4 h-4" />
@@ -1174,22 +1189,49 @@ const KeKhai603: React.FC = () => {
       {/* Table Section */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
             <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 Danh sách người tham gia
               </h3>
+
+              {/* Declaration Selector */}
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Kê khai:
+                </label>
+                <select
+                  value={selectedDeclarationId || ''}
+                  onChange={(e) => {
+                    const newId = e.target.value ? parseInt(e.target.value) : null;
+                    console.log('🎯 Declaration selection changed:', newId);
+                    setSelectedDeclarationId(newId);
+                  }}
+                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">-- Chọn kê khai --</option>
+                  {keKhaiList.map((keKhai) => (
+                    <option key={keKhai.id} value={keKhai.id}>
+                      {keKhai.ma_ke_khai} - {formatDate(keKhai.created_at)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 sm:mt-0">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               {loadingParticipants ? (
                 <span className="flex items-center space-x-1">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   <span>Đang tải...</span>
                 </span>
-              ) : (
+              ) : selectedDeclarationId ? (
                 <span>
                   Có <strong className="text-blue-600 dark:text-blue-400">{participantsList.length}</strong> người tham gia
+                </span>
+              ) : (
+                <span className="text-gray-400">
+                  Chọn kê khai để xem người tham gia
                 </span>
               )}
             </div>
@@ -1207,10 +1249,21 @@ const KeKhai603: React.FC = () => {
             ) : participantsList.length === 0 ? (
               <div className="p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400">
                 <User className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-sm sm:text-base">Chưa có người tham gia nào</p>
-                <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
-                  Tạo kê khai và thêm người tham gia để xem danh sách
-                </p>
+                {selectedDeclarationId ? (
+                  <>
+                    <p className="text-sm sm:text-base">Kê khai này chưa có người tham gia nào</p>
+                    <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
+                      Vào form kê khai để thêm người tham gia
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm sm:text-base">Chọn kê khai để xem người tham gia</p>
+                    <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
+                      Sử dụng dropdown ở trên để chọn kê khai cụ thể
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
               // Participants Content
@@ -1218,14 +1271,6 @@ const KeKhai603: React.FC = () => {
                 <div className="p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400">
                   <RefreshCw className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300 animate-spin" />
                   <p className="text-sm sm:text-base">Đang tải danh sách người tham gia...</p>
-                </div>
-              ) : participantsList.length === 0 ? (
-                <div className="p-6 sm:p-8 text-center text-gray-500 dark:text-gray-400">
-                  <User className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-sm sm:text-base">Chưa có người tham gia nào</p>
-                  <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-2">
-                    Tạo kê khai và thêm người tham gia để xem danh sách
-                  </p>
                 </div>
               ) : (
                 <>
