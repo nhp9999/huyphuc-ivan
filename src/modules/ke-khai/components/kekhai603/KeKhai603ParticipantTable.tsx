@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { KeKhai603Participant } from '../../hooks/useKeKhai603Participants';
+import { ContextMenu, ContextMenuItem } from '../../../../shared/components/ui/ContextMenu';
 import { formatCurrency, formatDate } from '../../../../shared/utils/formatters';
 import { calculateKeKhai603Amount, calculateKeKhai603AmountThucTe } from '../../hooks/useKeKhai603FormData';
 
@@ -32,6 +33,88 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
 }) => {
   const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    participantIndex: number | null;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    participantIndex: null
+  });
+
+  // Handle right-click context menu
+  const handleContextMenu = (e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      participantIndex: index
+    });
+  };
+
+  // Close context menu
+  const closeContextMenu = () => {
+    setContextMenu({
+      isOpen: false,
+      position: { x: 0, y: 0 },
+      participantIndex: null
+    });
+  };
+
+  // Context menu items
+  const getContextMenuItems = (index: number): ContextMenuItem[] => {
+    const participant = participants[index];
+    if (!participant) return [];
+
+    return [
+      {
+        id: 'edit',
+        label: 'Chỉnh sửa',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        ),
+        onClick: () => onEditParticipant?.(index),
+        disabled: savingData || !onEditParticipant
+      },
+      {
+        id: 'save',
+        label: 'Lưu',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        ),
+        onClick: () => onSaveSingleParticipant(index),
+        disabled: savingData
+      },
+      {
+        id: 'search',
+        label: 'Tra cứu BHXH',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        ),
+        onClick: () => onParticipantSearch(index),
+        disabled: savingData || participantSearchLoading[index]
+      },
+      {
+        id: 'delete',
+        label: 'Xóa',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        ),
+        onClick: () => onRemoveParticipant(index),
+        disabled: savingData,
+        divider: true
+      }
+    ];
+  };
 
   // Helper function to calculate and display payment amount
   const getDisplayedPaymentAmount = (participant: KeKhai603Participant): string => {
@@ -260,7 +343,11 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
           </thead>
           <tbody className="bg-white">
             {participants.map((participant, index) => (
-              <tr key={participant.id || index} className="hover:bg-gray-50 border-b border-gray-200">
+              <tr
+                key={participant.id || index}
+                className="hover:bg-gray-50 border-b border-gray-200 cursor-pointer"
+                onContextMenu={(e) => handleContextMenu(e, index)}
+              >
                 <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '40px', minWidth: '40px'}}>
                   <input
                     type="checkbox"
@@ -448,6 +535,14 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
           </tbody>
         </table>
       </div>
+
+      {/* Context Menu */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        items={contextMenu.participantIndex !== null ? getContextMenuItems(contextMenu.participantIndex) : []}
+        onClose={closeContextMenu}
+      />
     </div>
   );
 };

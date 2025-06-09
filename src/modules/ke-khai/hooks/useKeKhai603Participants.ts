@@ -744,6 +744,8 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       let savedParticipant;
       if (isEditing) {
         console.log('💾 Updating existing participant in database...');
+        console.log('🔍 Update ID:', formData.editingParticipantId);
+        console.log('🔍 Update data:', participantData);
         savedParticipant = await keKhaiService.updateNguoiThamGia(formData.editingParticipantId, participantData);
         console.log('✅ Updated in database:', savedParticipant);
       } else {
@@ -798,12 +800,30 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
 
       setParticipants(prev => {
         console.log('🔍 DEBUG: setParticipants callback - prev length:', prev.length);
+        console.log('🔍 DEBUG: Previous participants:', prev.map(p => ({ id: p.id, hoTen: p.hoTen })));
 
         if (isEditing) {
           // Update existing participant
-          const updatedArray = prev.map(p =>
-            p.id === formData.editingParticipantId ? newParticipant : p
-          );
+          console.log('🔄 Updating participant with ID:', formData.editingParticipantId);
+          console.log('🔄 New participant data:', { id: newParticipant.id, hoTen: newParticipant.hoTen });
+
+          const updatedArray = prev.map(p => {
+            console.log('🔍 Checking participant:', {
+              participantId: p.id,
+              participantIdType: typeof p.id,
+              editingId: formData.editingParticipantId,
+              editingIdType: typeof formData.editingParticipantId,
+              isMatch: p.id === formData.editingParticipantId,
+              participantName: p.hoTen
+            });
+
+            if (p.id === formData.editingParticipantId) {
+              console.log('✅ Found and updating participant:', p.id, '→', newParticipant.hoTen);
+              return newParticipant;
+            }
+            return p;
+          });
+
           console.log('📊 Updated participants array length:', updatedArray.length);
           console.log('🔍 DEBUG: Updated array contents:', updatedArray.map(p => ({ id: p.id, hoTen: p.hoTen, maSoBHXH: p.maSoBHXH })));
           return updatedArray;

@@ -1227,9 +1227,13 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           console.log('✅ Participant saved successfully:', participantResult);
           showToast(participantResult.message, 'success');
 
-          // Refresh participants list to show the new participant
-          console.log('🔄 Refreshing participants list...');
-          await loadParticipants();
+          // Only refresh if it was a new participant (not editing)
+          if (!formData.editingParticipantId) {
+            console.log('🔄 Refreshing participants list for new participant...');
+            await loadParticipants();
+          } else {
+            console.log('ℹ️ Skipping refresh for edit operation - local state already updated');
+          }
 
           // Reset the form for next entry
           console.log('🔄 Resetting form...');
@@ -1244,19 +1248,25 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       }
 
       // Step 2: Save all data (declaration + existing participants)
-      console.log('📋 Step 2: Saving all data (declaration + participants)...');
-      const saveAllResult = await saveAllParticipants(participants, formData);
-      console.log('📊 saveAllParticipants result:', saveAllResult);
+      // Skip this step if we just edited a participant to avoid overwriting the update
+      if (!formData.editingParticipantId) {
+        console.log('📋 Step 2: Saving all data (declaration + participants)...');
+        const saveAllResult = await saveAllParticipants(participants, formData);
+        console.log('📊 saveAllParticipants result:', saveAllResult);
 
-      if (saveAllResult.success) {
-        console.log('✅ All data saved successfully');
-        showToast(saveAllResult.message, 'success');
+        if (saveAllResult.success) {
+          console.log('✅ All data saved successfully');
+          showToast(saveAllResult.message, 'success');
 
-        // Final refresh to ensure everything is up to date
-        await loadParticipants();
+          // Final refresh to ensure everything is up to date
+          await loadParticipants();
+        } else {
+          console.log('❌ Save all failed:', saveAllResult);
+          showToast(saveAllResult.message, 'error');
+        }
       } else {
-        console.log('❌ Save all failed:', saveAllResult);
-        showToast(saveAllResult.message, 'error');
+        console.log('ℹ️ Skipping Step 2 for edit operation - participant already updated');
+        showToast('Đã cập nhật thành công thông tin người tham gia!', 'success');
       }
 
     } catch (error) {

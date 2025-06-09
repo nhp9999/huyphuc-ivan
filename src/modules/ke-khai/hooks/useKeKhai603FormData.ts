@@ -266,11 +266,20 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
   }, [doiTuongThamGia]); // Chỉ chạy khi doiTuongThamGia thay đổi
 
   const handleInputChange = (field: keyof KeKhai603FormData, value: string) => {
+    console.log('🔄 handleInputChange called:', { field, value, editingParticipantId: formData.editingParticipantId });
+
     setFormData(prev => {
       const newData = {
         ...prev,
         [field]: value
       };
+
+      console.log('🔄 Form data updated:', {
+        field,
+        oldValue: prev[field],
+        newValue: value,
+        editingParticipantId: newData.editingParticipantId
+      });
 
       // Tự động tính toán số tiền đóng khi thay đổi STT hộ, số tháng, lương cơ sở, hoặc tỷ lệ đóng
       if (field === 'sttHo' || field === 'soThangDong' || field === 'mucLuong' || field === 'tyLeDong') {
@@ -399,8 +408,11 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
   // Load participant data for editing
   const loadParticipantData = (participant: any) => {
     console.log('📝 Loading participant data for editing:', participant);
+    console.log('🔍 Participant fields:', Object.keys(participant));
+    console.log('🔍 Participant ID type:', typeof participant.id, 'Value:', participant.id);
+    console.log('🔍 Participant hoTen:', participant.hoTen);
 
-    setFormData({
+    const newFormData = {
       editingParticipantId: participant.id,
       hoTen: participant.hoTen || '',
       maSoBHXH: participant.maSoBHXH || '',
@@ -413,6 +425,7 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
       danToc: participant.danToc || '',
       quocTich: participant.quocTich || 'VN',
       noiDangKyKCB: participant.noiDangKyKCB || '',
+      noiNhanHoSo: participant.noiNhanHoSo || '', // Added missing field
       tinhKCB: participant.tinhKCB || '',
       maBenhVien: participant.maBenhVien || '',
       soThangDong: participant.soThangDong || '',
@@ -436,7 +449,12 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
       tienDong: participant.tienDong || 0,
       tienDongThucTe: participant.tienDongThucTe || 0,
       ghiChuDongPhi: participant.ghiChuDongPhi || ''
-    });
+    };
+
+    console.log('🔄 Setting form data:', newFormData);
+    setFormData(newFormData);
+
+    console.log('✅ Form data loaded for editing with ID:', participant.id);
   };
 
   return {
