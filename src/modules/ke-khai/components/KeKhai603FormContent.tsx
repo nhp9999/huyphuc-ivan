@@ -11,8 +11,7 @@ import vnpostTokenService from '../../../shared/services/api/vnpostTokenService'
 import { KeKhai603Header } from './kekhai603/KeKhai603Header';
 import { HouseholdBulkInputModal } from './kekhai603/HouseholdBulkInputModal';
 import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable';
-import { AutoErrorCorrection } from '../../../shared/components/AutoErrorCorrection';
-import { TokenReadinessIndicator } from '../../../shared/components/TokenReadinessIndicator';
+
 import { useCSKCBPreloader } from '../hooks/useCSKCBPreloader';
 import { useCSKCBContext } from '../contexts/CSKCBContext';
 import { keKhaiService } from '../services/keKhaiService';
@@ -1417,22 +1416,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           householdProcessing={householdProcessing}
         />
 
-        {/* Token Readiness and Auto Error Correction Panels */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <TokenReadinessIndicator
-            autoInitialize={true}
-            onReadinessChange={(isReady) => {
-              console.log('🔑 Token readiness changed:', isReady);
-            }}
-          />
 
-          <AutoErrorCorrection
-            showDetails={true}
-            onStatusChange={(status) => {
-              console.log('🤖 Auto-fix status changed:', status);
-            }}
-          />
-        </div>
 
       {/* Main Content */}
       <div className="space-y-6">

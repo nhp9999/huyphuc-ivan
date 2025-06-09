@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { KeKhai603Participant } from '../../hooks/useKeKhai603Participants';
 import { formatCurrency, formatDate } from '../../../../shared/utils/formatters';
+import { calculateKeKhai603Amount, calculateKeKhai603AmountThucTe } from '../../hooks/useKeKhai603FormData';
 
 interface KeKhai603ParticipantTableProps {
   participants: KeKhai603Participant[];
@@ -29,6 +30,61 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
 }) => {
   const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+
+  // Helper function to calculate and display payment amount
+  const getDisplayedPaymentAmount = (participant: KeKhai603Participant): string => {
+    // Debug logging for troubleshooting
+    const debugInfo = {
+      id: participant.id,
+      hoTen: participant.hoTen,
+      tienDongThucTe: participant.tienDongThucTe,
+      tienDong: participant.tienDong,
+      sttHo: participant.sttHo,
+      soThangDong: participant.soThangDong,
+      mucLuong: participant.mucLuong
+    };
+
+    // First, try to use pre-calculated values from database
+    if (participant.tienDongThucTe && participant.tienDongThucTe > 0) {
+      console.log(`💰 Using tienDongThucTe for ${participant.hoTen}:`, participant.tienDongThucTe);
+      return formatCurrency(participant.tienDongThucTe);
+    }
+    if (participant.tienDong && participant.tienDong > 0) {
+      console.log(`💰 Using tienDong for ${participant.hoTen}:`, participant.tienDong);
+      return formatCurrency(participant.tienDong);
+    }
+
+    // If no pre-calculated values, calculate on-the-fly if we have required data
+    if (participant.sttHo && participant.soThangDong) {
+      const mucLuongNumber = participant.mucLuong ?
+        parseFloat(participant.mucLuong.replace(/[.,]/g, '')) : 2340000;
+
+      console.log(`🔄 Calculating on-the-fly for ${participant.hoTen}:`, {
+        sttHo: participant.sttHo,
+        soThangDong: participant.soThangDong,
+        mucLuongNumber,
+        doiTuongThamGia
+      });
+
+      // Calculate using the actual formula (prioritize tienDongThucTe for display)
+      const calculatedAmount = calculateKeKhai603AmountThucTe(
+        participant.sttHo,
+        participant.soThangDong,
+        mucLuongNumber,
+        doiTuongThamGia
+      );
+
+      console.log(`✅ Calculated amount for ${participant.hoTen}:`, calculatedAmount);
+
+      if (calculatedAmount > 0) {
+        return formatCurrency(calculatedAmount);
+      }
+    }
+
+    // Log when no calculation is possible
+    console.log(`⚠️ No payment amount available for ${participant.hoTen}:`, debugInfo);
+    return '';
+  };
 
   // Handle individual participant selection
   const handleParticipantSelection = (index: number, checked: boolean) => {
@@ -307,8 +363,9 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   />
                 </td>
                 <td className="px-2 py-2 text-right text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                  {participant.tienDongThucTe ? formatCurrency(participant.tienDongThucTe) :
-                   participant.tienDong ? formatCurrency(participant.tienDong) : ''}
+                  <div className="font-medium text-green-600">
+                    {getDisplayedPaymentAmount(participant)}
+                  </div>
                 </td>
                 <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
                   <input

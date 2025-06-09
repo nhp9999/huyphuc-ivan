@@ -681,13 +681,31 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         phuong_an: formData.phuongAn || null,
         muc_luong: 2340000, // Lương cơ sở mặc định
         ty_le_dong: 100,
-        tien_dong: 0,
-        tien_dong_thuc_te: 0,
         // Add organization fields from ke khai
         cong_ty_id: keKhaiInfo.cong_ty_id,
         co_quan_bhxh_id: keKhaiInfo.co_quan_bhxh_id,
         loai_to_chuc: keKhaiInfo.loai_to_chuc || 'cong_ty'
       };
+
+      // Calculate payment amounts if sttHo and soThangDong are available
+      if (formData.sttHo && formData.soThangDong) {
+        const mucLuongNumber = 2340000; // Lương cơ sở mặc định
+
+        // Calculate tien_dong (new formula)
+        const tienDong = calculateKeKhai603Amount(formData.sttHo, formData.soThangDong, mucLuongNumber);
+        participantData.tien_dong = tienDong;
+
+        // Calculate tien_dong_thuc_te (old formula with 4.5%)
+        const tienDongThucTe = calculateKeKhai603AmountThucTe(formData.sttHo, formData.soThangDong, mucLuongNumber, doiTuongThamGia);
+        participantData.tien_dong_thuc_te = tienDongThucTe;
+
+        console.log(`💰 Calculated amounts for participant: tien_dong=${tienDong}, tien_dong_thuc_te=${tienDongThucTe}`);
+      } else {
+        // Set to 0 if calculation data is not available
+        participantData.tien_dong = 0;
+        participantData.tien_dong_thuc_te = 0;
+        console.log('⚠️ Cannot calculate payment amounts - missing sttHo or soThangDong');
+      }
 
       // Handle required fields and clean data
       Object.keys(participantData).forEach(key => {
@@ -730,9 +748,9 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         tenBenhVien: formData.noiDangKyKCB || '',
         mucLuong: '2,340,000', // Lương cơ sở mặc định
         tyLeDong: '100',
-        soTienDong: '',
-        tienDong: 0,
-        tienDongThucTe: 0,
+        soTienDong: participantData.tien_dong ? participantData.tien_dong.toLocaleString('vi-VN') : '',
+        tienDong: participantData.tien_dong || 0,
+        tienDongThucTe: participantData.tien_dong_thuc_te || 0,
         tuNgayTheCu: formData.tuNgayTheCu || '',
         denNgayTheCu: formData.denNgayTheCu || '',
         tuNgayTheMoi: formData.tuNgayTheMoi || '',
