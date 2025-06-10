@@ -1,5 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
+// Utility function to remove Vietnamese diacritics
+const removeVietnameseDiacritics = (str: string): string => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove combining diacritical marks
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+};
+
 export interface DropdownOption {
   value: string;
   label: string;
@@ -65,22 +74,38 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     }
 
     const term = searchTerm.toLowerCase().trim();
+    const termWithoutDiacritics = removeVietnameseDiacritics(term);
+
     const filtered = options.filter(option => {
       // Search by value (code)
       if (option.value.toLowerCase().includes(term)) {
         return true;
       }
-      
-      // Search by label (name)
+
+      // Search by label (name) - with diacritics
       if (option.label.toLowerCase().includes(term)) {
         return true;
       }
-      
-      // Search by custom search text if provided
+
+      // Search by label (name) - without diacritics
+      const labelWithoutDiacritics = removeVietnameseDiacritics(option.label.toLowerCase());
+      if (labelWithoutDiacritics.includes(termWithoutDiacritics)) {
+        return true;
+      }
+
+      // Search by custom search text if provided - with diacritics
       if (option.searchText && option.searchText.toLowerCase().includes(term)) {
         return true;
       }
-      
+
+      // Search by custom search text if provided - without diacritics
+      if (option.searchText) {
+        const searchTextWithoutDiacritics = removeVietnameseDiacritics(option.searchText.toLowerCase());
+        if (searchTextWithoutDiacritics.includes(termWithoutDiacritics)) {
+          return true;
+        }
+      }
+
       return false;
     });
 
@@ -90,12 +115,20 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
       const bValueMatch = b.value.toLowerCase() === term;
       const aLabelMatch = a.label.toLowerCase() === term;
       const bLabelMatch = b.label.toLowerCase() === term;
-      
+
+      // Check for exact matches without diacritics
+      const aLabelWithoutDiacritics = removeVietnameseDiacritics(a.label.toLowerCase());
+      const bLabelWithoutDiacritics = removeVietnameseDiacritics(b.label.toLowerCase());
+      const aLabelMatchNoDiacritics = aLabelWithoutDiacritics === termWithoutDiacritics;
+      const bLabelMatchNoDiacritics = bLabelWithoutDiacritics === termWithoutDiacritics;
+
       if (aValueMatch && !bValueMatch) return -1;
       if (bValueMatch && !aValueMatch) return 1;
       if (aLabelMatch && !bLabelMatch) return -1;
       if (bLabelMatch && !aLabelMatch) return 1;
-      
+      if (aLabelMatchNoDiacritics && !bLabelMatchNoDiacritics) return -1;
+      if (bLabelMatchNoDiacritics && !aLabelMatchNoDiacritics) return 1;
+
       // Alphabetical sort for same relevance
       return a.label.localeCompare(b.label, 'vi');
     });
@@ -108,6 +141,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     if (!disabled) {
       setIsOpen(true);
       setSearchTerm('');
+      setDisplayValue(''); // Clear display value to allow fresh input
       setHighlightedIndex(-1);
     }
   };
@@ -181,6 +215,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         setIsOpen(false);
         setHighlightedIndex(-1);
         setSearchTerm('');
+        // Restore original display value
         if (value) {
           const selectedOption = options.find(opt => opt.value === value);
           setDisplayValue(selectedOption ? selectedOption.label : '');
@@ -199,6 +234,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         setIsOpen(false);
         setHighlightedIndex(-1);
         setSearchTerm('');
+        // Restore original display value when clicking outside
         if (value) {
           const selectedOption = options.find(opt => opt.value === value);
           setDisplayValue(selectedOption ? selectedOption.label : '');

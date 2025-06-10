@@ -56,7 +56,7 @@ export interface KeKhai603Participant {
 const DEFAULT_CSKCB = {
   value: '006',
   ten: 'Trung tâm Y tế thị xã Tịnh Biên',
-  maTinh: '89'
+  maTinh: '' // No default province
 };
 
 // Initial participant data

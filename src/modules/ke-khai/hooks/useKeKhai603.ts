@@ -187,6 +187,17 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
       throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
     }
 
+    // Validate that declaration has participants before submission
+    try {
+      const participants = await keKhaiService.getNguoiThamGiaByKeKhai(keKhaiInfo.id);
+      if (!participants || participants.length === 0) {
+        throw new Error('Không thể nộp kê khai mà không có người tham gia. Vui lòng thêm ít nhất một người tham gia trước khi nộp.');
+      }
+    } catch (error) {
+      console.error('Error checking participants:', error);
+      throw new Error('Không thể kiểm tra danh sách người tham gia. Vui lòng thử lại.');
+    }
+
     try {
       setSubmitting(true);
 
@@ -303,10 +314,10 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
 
       console.log('👥 Processing participants...');
       if (participants.length === 0) {
-        console.log('ℹ️ No participants to save, declaration data saved successfully');
+        console.log('⚠️ Warning: Saving declaration without participants');
         return {
           success: true,
-          message: 'Đã lưu thông tin kê khai 603 thành công!'
+          message: 'Đã lưu thông tin kê khai 603 thành công! Lưu ý: Bạn cần thêm ít nhất một người tham gia trước khi có thể nộp kê khai.'
         };
       }
 

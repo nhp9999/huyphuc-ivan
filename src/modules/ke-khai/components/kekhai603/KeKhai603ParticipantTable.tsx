@@ -15,8 +15,7 @@ interface KeKhai603ParticipantTableProps {
   onRemoveParticipant: (index: number) => void;
   onAddParticipant: () => void;
   onBulkRemoveParticipants?: (indices: number[]) => void;
-  onBulkSubmitParticipants?: (indices: number[]) => void; // New prop for bulk submit
-  onBulkSubmitParticipantsWithPayment?: (indices: number[]) => void; // New prop for bulk submit with payment
+  onBulkSubmitParticipantsWithPayment?: (indices: number[]) => void; // Create new declaration and submit with payment
   onEditParticipant?: (index: number) => void; // New prop for editing
   participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
@@ -34,7 +33,6 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   onRemoveParticipant,
   onAddParticipant,
   onBulkRemoveParticipants,
-  onBulkSubmitParticipants,
   onBulkSubmitParticipantsWithPayment,
   onEditParticipant,
   participantSearchLoading,
@@ -340,12 +338,9 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   if (participants.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-              <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+            <h3 className="text-md font-semibold text-gray-900 dark:text-white">
               Danh sách người tham gia
             </h3>
             <button
@@ -388,13 +383,10 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-md font-semibold text-gray-900 dark:text-white">
               Danh sách người tham gia
             </h3>
             <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
@@ -408,26 +400,9 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                   <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
                     Đã chọn {selectedParticipants.size} người
                   </span>
-                  {/* Bulk Submit Button */}
-                  {onBulkSubmitParticipants && (
-                    <button
-                      onClick={() => {
-                        const indices = Array.from(selectedParticipants);
-                        onBulkSubmitParticipants(indices);
-                        setSelectedParticipants(new Set());
-                        setSelectAll(false);
-                      }}
-                      disabled={savingData}
-                      className="flex items-center justify-center space-x-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                      <span>Nộp đã chọn</span>
-                    </button>
-                  )}
 
-                  {/* Bulk Submit with Payment Button */}
+
+                  {/* Submit Selected Participants (Create New Declaration) Button */}
                   {onBulkSubmitParticipantsWithPayment && (
                     <button
                       onClick={() => {
@@ -437,14 +412,16 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                         setSelectAll(false);
                       }}
                       disabled={savingData}
-                      className="flex items-center justify-center space-x-2 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+                      className="flex items-center justify-center space-x-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span>Nộp & Thanh toán</span>
+                      <span>Nộp đã chọn</span>
                     </button>
                   )}
+
+
 
                   {/* Bulk Remove Button */}
                   {onBulkRemoveParticipants && (
@@ -482,67 +459,67 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto bg-gray-50 dark:bg-gray-900/50">
-        <table className="min-w-full border-collapse" style={{minWidth: '2000px'}}>
-          <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
+      <div className="overflow-x-auto shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" style={{minWidth: '2100px'}}>
+          <thead className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800">
             <tr>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap shadow-sm" style={{width: '50px', minWidth: '50px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '50px', minWidth: '50px'}}>
                 <input
                   type="checkbox"
-                  className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                  className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                   checked={selectAll}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '60px', minWidth: '60px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '60px', minWidth: '60px'}}>
                 STT
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '160px', minWidth: '160px'}}>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '160px', minWidth: '160px'}}>
                 Họ và tên
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
-                Mã số BHXH
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '140px', minWidth: '140px'}}>
+                Mã BHXH
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
                 Số CCCD
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
                 Ngày sinh
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
                 Giới tính
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
-                Số điện thoại
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                Số ĐT
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
-                Số thẻ BHYT
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '140px', minWidth: '140px'}}>
+                Thẻ BHYT
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '220px', minWidth: '220px'}}>
-                Nơi đăng ký KCB
+              <th className="px-3 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '180px', minWidth: '180px'}}>
+                Nơi KCB
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
+              <th className="px-3 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
                 Mức lương
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
+              <th className="px-3 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
                 Tiền đóng
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
                 Số tháng
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
                 STT hộ
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                Ngày biên lai
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
+                Ngày Biên lai
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                Trạng thái nộp
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                Trạng thái
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
                 Thanh toán
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '180px', minWidth: '180px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider whitespace-nowrap" style={{width: '180px', minWidth: '180px'}}>
                 Thao tác
               </th>
             </tr>
@@ -551,31 +528,37 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
             {participants.map((participant, index) => (
               <tr
                 key={participant.id || index}
-                className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer group"
+                className={`
+                  transition-all duration-200 cursor-pointer
+                  ${selectedParticipants.has(index)
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }
+                  border-b border-gray-200 dark:border-gray-700
+                `}
                 onContextMenu={(e) => handleContextMenu(e, index)}
+                title="Chuột phải để xem menu"
               >
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '50px', minWidth: '50px'}}>
+                <td className="px-3 py-4 text-center whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '50px', minWidth: '50px'}}>
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                    className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                     checked={selectedParticipants.has(index)}
                     onChange={(e) => handleParticipantSelection(index, e.target.checked)}
                   />
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap font-medium text-gray-900 dark:text-gray-100" style={{width: '60px', minWidth: '60px'}}>
-                  <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs font-semibold">
-                    {index + 1}
-                  </span>
+                <td className="px-3 py-4 text-center text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '60px', minWidth: '60px'}}>
+                  {index + 1}
                 </td>
-                <td className="px-3 py-3 text-left text-xs border border-gray-200 dark:border-gray-600" style={{width: '160px', minWidth: '160px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.hoTen || <span className="text-gray-400 italic">Chưa có thông tin</span>}
+                <td className="px-3 py-4 text-left border-r border-gray-200 dark:border-gray-700" style={{width: '160px', minWidth: '160px'}}>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={participant.hoTen}>
+                    {participant.hoTen || <span className="text-gray-400 dark:text-gray-500">-</span>}
                   </div>
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 font-mono whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '140px', minWidth: '140px'}}>
                   <div className="flex items-center justify-center">
-                    <span className="text-gray-900 dark:text-gray-100 font-medium">
-                      {participant.maSoBHXH || <span className="text-gray-400 italic">Chưa có</span>}
+                    <span>
+                      {participant.maSoBHXH || <span className="text-gray-400 dark:text-gray-500">-</span>}
                     </span>
                     {participant.maSoBHXH && (
                       <button
@@ -595,62 +578,42 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 font-mono whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.soCCCD || <span className="text-gray-400 italic">Chưa có</span>}
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '130px', minWidth: '130px'}}>
+                  {participant.soCCCD || <span className="text-gray-400 dark:text-gray-500">-</span>}
+                </td>
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                  {participant.ngaySinh ? new Date(participant.ngaySinh).toLocaleDateString('vi-VN') : <span className="text-gray-400 dark:text-gray-500">-</span>}
+                </td>
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '90px', minWidth: '90px'}}>
+                  {participant.gioiTinh || <span className="text-gray-400 dark:text-gray-500">-</span>}
+                </td>
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
+                  {participant.soDienThoai || <span className="text-gray-400 dark:text-gray-500">-</span>}
+                </td>
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '140px', minWidth: '140px'}}>
+                  {participant.soTheBHYT || <span className="text-gray-400 dark:text-gray-500">-</span>}
+                </td>
+                <td className="px-3 py-4 text-left text-sm border-r border-gray-200 dark:border-gray-700" style={{width: '180px', minWidth: '180px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 text-sm truncate" title={participant.noiDangKyKCB}>
+                    {participant.noiDangKyKCB || <span className="text-gray-400 dark:text-gray-500">-</span>}
                   </div>
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.ngaySinh ? new Date(participant.ngaySinh).toLocaleDateString('vi-VN') : <span className="text-gray-400 italic">Chưa có</span>}
-                  </div>
+                <td className="px-3 py-4 text-right text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
+                  {participant.mucLuong || <span className="text-gray-400 dark:text-gray-500">-</span>}
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.gioiTinh || <span className="text-gray-400 italic">Chưa có</span>}
-                  </div>
+                <td className="px-3 py-4 text-right text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
+                  {getDisplayedPaymentAmount(participant) || <span className="text-gray-400 dark:text-gray-500">0</span>}
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.soDienThoai || <span className="text-gray-400 italic">Chưa có</span>}
-                  </div>
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                  {participant.soThangDong || <span className="text-gray-400 dark:text-gray-500">-</span>}
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 font-mono whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.soTheBHYT || <span className="text-gray-400 italic">Chưa có</span>}
-                  </div>
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '80px', minWidth: '80px'}}>
+                  {participant.sttHo || <span className="text-gray-400 dark:text-gray-500">-</span>}
                 </td>
-                <td className="px-3 py-3 text-left text-xs border border-gray-200 dark:border-gray-600" style={{width: '220px', minWidth: '220px'}}>
-                  <div className="truncate text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 px-2 py-1.5 rounded-md" title={participant.noiDangKyKCB}>
-                    {participant.noiDangKyKCB || <span className="text-gray-400 italic">Chưa có thông tin</span>}
-                  </div>
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                  {participant.ngayBienLai ? new Date(participant.ngayBienLai).toLocaleDateString('vi-VN') : <span className="text-gray-400 dark:text-gray-500">-</span>}
                 </td>
-                <td className="px-3 py-3 text-right text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium text-right">
-                    {participant.mucLuong || <span className="text-gray-400 italic">Chưa có</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-right text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
-                  <div className="font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1.5 rounded-md">
-                    {getDisplayedPaymentAmount(participant) || <span className="text-gray-400">--</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.soThangDong || <span className="text-gray-400 italic">--</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.sttHo || <span className="text-gray-400 italic">--</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
-                    {participant.ngayBienLai ? new Date(participant.ngayBienLai).toLocaleDateString('vi-VN') : <span className="text-gray-400 italic">Chưa có</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                <td className="px-3 py-4 text-center whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
                   <div className="flex items-center justify-center">
                     {(() => {
                       const status = participant.participantStatus || 'draft';
@@ -710,12 +673,12 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     })()}
                   </div>
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                <td className="px-3 py-4 text-center whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
                   <div className="flex items-center justify-center">
                     {getPaymentStatusBadge(participant.paymentStatus)}
                   </div>
                 </td>
-                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '180px', minWidth: '180px'}}>
+                <td className="px-3 py-4 text-center whitespace-nowrap" style={{width: '180px', minWidth: '180px'}}>
                   <div className="flex items-center justify-center space-x-1">
                     {(() => {
                       const isSubmitted = participant.participantStatus === 'submitted';

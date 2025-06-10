@@ -24,14 +24,17 @@ import { DmCSKCB, supabase } from '../../../shared/services/api/supabaseClient';
 import SearchableDropdown, { DropdownOption } from './SearchableDropdown';
 import { useAuth } from '../../auth';
 import ConfirmBulkSubmitWithPaymentModal from './ConfirmBulkSubmitWithPaymentModal';
-import PaymentStatusSummary from './PaymentStatusSummary';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 
 interface KeKhai603FormContentProps {
   pageParams: any;
+  onNavigateToDeclaration?: (keKhaiId: number, maKeKhai: string) => void;
 }
 
-export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ pageParams }) => {
+export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
+  pageParams,
+  onNavigateToDeclaration
+}) => {
   // Preload CSKCB data for better performance
   useCSKCBPreloader();
 
@@ -48,12 +51,21 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   const [submittingWithPayment, setSubmittingWithPayment] = React.useState(false);
   const [submittingParticipantWithPayment, setSubmittingParticipantWithPayment] = React.useState<number | null>(null);
   const [showSubmitConfirmModal, setShowSubmitConfirmModal] = React.useState(false);
-  const [pendingSubmitAction, setPendingSubmitAction] = React.useState<'submit' | 'submitWithPayment' | null>(null);
+  const [pendingSubmitAction, setPendingSubmitAction] = React.useState<'submitWithPayment' | null>(null);
 
   // State for bulk submit with payment
   const [showBulkSubmitWithPaymentModal, setShowBulkSubmitWithPaymentModal] = React.useState(false);
   const [pendingBulkSubmitIndices, setPendingBulkSubmitIndices] = React.useState<number[]>([]);
   const [bulkSubmittingWithPayment, setBulkSubmittingWithPayment] = React.useState(false);
+
+  // State for create new declaration functionality
+  const [creatingNewDeclaration, setCreatingNewDeclaration] = React.useState(false);
+
+  // State for moved participants (for new declaration submission after payment)
+  const [movedParticipantsForSubmission, setMovedParticipantsForSubmission] = React.useState<any[]>([]);
+
+  // State for bulk submit notes
+  const [pendingBulkSubmitNotes, setPendingBulkSubmitNotes] = React.useState<string>('');
 
 
 
@@ -186,7 +198,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   // Optimized: Load Nkq district data when province changes
   React.useEffect(() => {
     const loadHuyenNkqData = async () => {
-      if (!formData.tinhKCB) {
+      if (!formData.maTinhNkq) {
         setLocationData(prev => ({
           ...prev,
           huyenNkqOptions: [],
@@ -197,8 +209,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
       try {
         setLoadingStates(prev => ({ ...prev, huyenNkq: true }));
-        console.log('🏘️ Loading Nkq district data for province:', formData.tinhKCB);
-        const options = await huyenService.getHuyenOptionsByTinh(formData.tinhKCB);
+        console.log('🏘️ Loading Nkq district data for province:', formData.maTinhNkq);
+        const options = await huyenService.getHuyenOptionsByTinh(formData.maTinhNkq);
         console.log('🏘️ Nkq District data loaded:', options.length, 'districts');
 
         // Create Map for O(1) lookup
@@ -225,12 +237,12 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     };
 
     loadHuyenNkqData();
-  }, [formData.tinhKCB]);
+  }, [formData.maTinhNkq]);
 
   // Optimized: Load Nkq ward data when district changes
   React.useEffect(() => {
     const loadXaNkqData = async () => {
-      if (!formData.maHuyenNkq || !formData.tinhKCB) {
+      if (!formData.maHuyenNkq || !formData.maTinhNkq) {
         setLocationData(prev => ({
           ...prev,
           xaNkqOptions: [],
@@ -241,8 +253,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
       try {
         setLoadingStates(prev => ({ ...prev, xaNkq: true }));
-        console.log('🏠 Loading Nkq ward data for district:', formData.maHuyenNkq, 'in province:', formData.tinhKCB);
-        const options = await xaService.getXaOptionsByHuyen(formData.maHuyenNkq, formData.tinhKCB);
+        console.log('🏠 Loading Nkq ward data for district:', formData.maHuyenNkq, 'in province:', formData.maTinhNkq);
+        const options = await xaService.getXaOptionsByHuyen(formData.maHuyenNkq, formData.maTinhNkq);
         console.log('🏠 Nkq Ward data loaded:', options.length, 'wards');
 
         // Create Map for O(1) lookup
@@ -269,7 +281,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     };
 
     loadXaNkqData();
-  }, [formData.maHuyenNkq, formData.tinhKCB]);
+  }, [formData.maHuyenNkq, formData.maTinhNkq]);
 
   // Optimized: Load KS district data when KS province changes
   React.useEffect(() => {
@@ -398,22 +410,17 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     };
   }, [loadParticipants]);
 
-  // Load CSKCB data when Nkq province changes
+  // Load all CSKCB data on component mount (not dependent on province)
   React.useEffect(() => {
     const loadCSKCBData = async () => {
-      if (!formData.tinhKCB) {
-        setLocationData(prev => ({
-          ...prev,
-          cskcbOptions: [],
-          cskcbMap: new Map()
-        }));
-        return;
-      }
-
       try {
         setLoadingStates(prev => ({ ...prev, cskcb: true }));
-        console.log('🏥 Loading CSKCB data for province:', formData.tinhKCB);
-        const options = await cskcbService.getCSKCBList({ ma_tinh: formData.tinhKCB });
+        console.log('🏥 Loading all CSKCB data...');
+        // Load all medical facilities without province filtering
+        const options = await cskcbService.getCSKCBList({
+          trang_thai: 'active',
+          limit: 500 // Limit to avoid loading too many
+        });
         console.log('🏥 CSKCB data loaded:', options.length, 'facilities');
 
         // Create Map for O(1) lookup
@@ -440,7 +447,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     };
 
     loadCSKCBData();
-  }, [formData.tinhKCB]);
+  }, []); // Only run once on mount
 
   // Note: Removed individual helper functions as they're replaced by dropdown options
 
@@ -541,7 +548,14 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       });
     }
 
-    return options.sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+    // Sort but keep 006 at the top
+    const sorted = options.sort((a, b) => {
+      if (a.value === '006') return -1;
+      if (b.value === '006') return 1;
+      return a.label.localeCompare(b.label, 'vi');
+    });
+
+    return sorted;
   }, [locationData.cskcbOptions, cleanLabel]);
 
   // Helper function for Số tháng đóng dropdown (only 3, 6, 12 months)
@@ -567,7 +581,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
   // Handle cascading dropdown changes with reset
   const handleTinhNkqChange = React.useCallback((value: string) => {
-    handleInputChange('tinhKCB', value);
+    handleInputChange('maTinhNkq', value);
     // Reset dependent dropdowns
     handleInputChange('maHuyenNkq', '');
     handleInputChange('maXaNkq', '');
@@ -608,13 +622,14 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       handleInputChange('noiDangKyKCB', 'Trung tâm Y tế thị xã Tịnh Biên');
       handleInputChange('maBenhVien', '006');
       handleInputChange('tenBenhVien', 'Trung tâm Y tế thị xã Tịnh Biên');
-      handleInputChange('tinhKCB', '89');
+      // Don't auto-set province - let user choose
       console.log('🏥 Default medical facility selected: Trung tâm Y tế thị xã Tịnh Biên (006)');
     } else {
       // Clear medical facility fields if no selection
       handleInputChange('noiDangKyKCB', '');
       handleInputChange('maBenhVien', '');
       handleInputChange('tenBenhVien', '');
+      handleInputChange('tinhKCB', '');
     }
   }, [handleInputChange, locationData.cskcbOptions]);
 
@@ -675,10 +690,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       const result = await searchKeKhai603(formData.maSoBHXH);
 
       if (result.success && result.data) {
-        // ALWAYS keep default hospital (006) when searching BHXH - ignore API medical facility data
-        console.log('🏥 Keeping default hospital 006 - ignoring API medical facility data');
-
-        // Update form data with search results (excluding ALL medical facility fields to preserve default hospital)
+        // Update form data with search results (excluding medical facility fields to preserve default hospital 006)
         Object.entries(result.data).forEach(([key, value]) => {
           if (!['noiDangKyKCB', 'tinhKCB', 'maBenhVien', 'tenBenhVien'].includes(key)) {
             handleInputChange(key as any, value as string);
@@ -694,7 +706,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           result.data.trangThaiThe.includes('⚠️') &&
           result.data.trangThaiThe.toLowerCase().includes('không có thẻ');
 
-        // Create success message - always mention that default hospital is kept
+        // Create success message
         let successMessage = 'Đã tìm thấy và cập nhật thông tin BHYT! Bệnh viện mặc định 006 được giữ nguyên.';
 
         if (hasCardWarning) {
@@ -724,35 +736,25 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       const result = await searchParticipantData(participant.maSoBHXH, index);
 
       if (result.success && result.data) {
-        // Handle medical facility matching for participant search
-        let facilityUpdated = false;
-        if (result.data.noiDangKyKCB) {
-          const matchedFacility = await findMatchingMedicalFacility(result.data.noiDangKyKCB);
-          if (matchedFacility) {
-            // Update participant with matched facility data
-            result.data.noiDangKyKCB = matchedFacility.ten;
-            result.data.tinhKCB = matchedFacility.ma_tinh;
-            result.data.maBenhVien = matchedFacility.value;
-            result.data.tenBenhVien = matchedFacility.ten;
-            facilityUpdated = true;
-            console.log(`✅ Matched medical facility for participant ${index + 1}:`, matchedFacility.ten);
-          } else {
-            console.log(`⚠️ No exact match found for participant ${index + 1} facility:`, result.data.noiDangKyKCB);
-          }
-        }
+        // Keep default hospital 006 - don't update medical facility data from participant search
+        console.log('🏥 Keeping default hospital 006 - ignoring API medical facility data for participant search');
 
-        updateParticipantWithApiData(index, result.data);
+        // Remove medical facility fields from API data to preserve default hospital
+        const cleanedData = { ...result.data };
+        delete cleanedData.noiDangKyKCB;
+        delete cleanedData.tinhKCB;
+        delete cleanedData.maBenhVien;
+        delete cleanedData.tenBenhVien;
+
+        updateParticipantWithApiData(index, cleanedData);
 
         // Kiểm tra nếu có cảnh báo về trạng thái thẻ
         const hasCardWarning = result.data.trangThaiThe &&
           result.data.trangThaiThe.includes('⚠️') &&
           result.data.trangThaiThe.toLowerCase().includes('không có thẻ');
 
-        // Create success message based on facility matching and card status
-        let successMessage = 'Đã cập nhật thông tin người tham gia!';
-        if (facilityUpdated) {
-          successMessage += ' Cơ sở KCB đã được tự động chọn.';
-        }
+        // Create success message
+        let successMessage = 'Đã cập nhật thông tin người tham gia! Bệnh viện mặc định 006 được giữ nguyên.';
 
         if (hasCardWarning) {
           showToast('Đã cập nhật Thông tin cơ bản! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
@@ -1061,24 +1063,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     await handleCombinedSave();
   };
 
-  // Handle submit declaration
-  const handleSubmit = async () => {
-    // Check if keKhaiInfo is available
-    if (!keKhaiInfo) {
-      showToast('Chưa có thông tin kê khai để nộp. Vui lòng tạo kê khai mới từ trang chính.', 'error');
-      return;
-    }
 
-    // Check if there are participants
-    if (participants.length === 0) {
-      showToast('Chưa có người tham gia nào trong kê khai. Vui lòng thêm người tham gia trước khi nộp.', 'error');
-      return;
-    }
-
-    // Show custom confirmation modal instead of direct submission
-    setPendingSubmitAction('submit');
-    setShowSubmitConfirmModal(true);
-  };
 
   // Handle submit declaration with immediate payment
   const handleSubmitWithPayment = async () => {
@@ -1115,27 +1100,12 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
     if (pendingSubmitAction === 'submitWithPayment') {
       await executeSubmitWithPayment();
-    } else if (pendingSubmitAction === 'submit') {
-      await executeSubmit();
     }
 
     setPendingSubmitAction(null);
   };
 
-  // Execute submit (for regular submission)
-  const executeSubmit = async () => {
-    try {
-      const result = await submitDeclaration();
-      if (result.success) {
-        showToast(result.message, 'success');
-      } else {
-        showToast(result.message, 'error');
-      }
-    } catch (error) {
-      console.error('Submit error:', error);
-      showToast('Có lỗi xảy ra khi nộp kê khai. Vui lòng thử lại.', 'error');
-    }
-  };
+
 
   // Execute submit with payment (extracted from handleSubmitWithPayment)
   const executeSubmitWithPayment = async () => {
@@ -1148,16 +1118,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
     setSubmittingWithPayment(true);
     try {
-      // Step 1: Submit declaration
-      console.log('🚀 Step 1: Submitting declaration...');
-      const submitResult = await submitDeclaration();
-      if (!submitResult.success) {
-        showToast(submitResult.message, 'error');
-        return;
-      }
-
-      // Step 2: Create payment immediately
-      console.log('🚀 Step 2: Creating payment...', {
+      // Step 1: Create payment first (without submitting declaration)
+      console.log('🚀 Step 1: Creating payment...', {
         keKhaiId: keKhaiInfo.id,
         totalAmount,
         participantsCount: participants.length,
@@ -1192,9 +1154,11 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         qr_code_url: payment.qr_code_url
       });
 
-      // Step 3: Show payment QR modal immediately
-      console.log('🔄 Setting payment modal state...');
+      // Store payment info for later submission after payment confirmation
       setSelectedPayment(payment);
+
+      // Step 2: Show payment QR modal immediately (submission will happen after payment confirmation)
+      console.log('🔄 Setting payment modal state...');
       setShowPaymentModal(true);
 
       // Debug modal state and add fallback
@@ -1216,7 +1180,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         }
       }, 1000);
 
-      showToast(`Đã nộp kê khai và tạo thanh toán thành công! Tổng tiền: ${totalAmount.toLocaleString('vi-VN')} ₫`, 'success');
+      showToast(`Đã tạo thanh toán thành công! Tổng tiền: ${totalAmount.toLocaleString('vi-VN')} ₫. Vui lòng xác nhận thanh toán để hoàn tất nộp kê khai.`, 'success');
 
       // Also show alert with payment info for debugging
       setTimeout(() => {
@@ -1400,51 +1364,9 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
-  // Handle bulk submit participants
-  const handleBulkSubmitParticipants = async (indices: number[]) => {
-    if (!keKhaiInfo) {
-      showToast('Chưa có thông tin kê khai. Vui lòng thử lại.', 'error');
-      return;
-    }
 
-    if (indices.length === 0) {
-      showToast('Chưa chọn người tham gia nào để nộp.', 'error');
-      return;
-    }
 
-    try {
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const index of indices) {
-        try {
-          const result = await submitIndividualParticipant(index);
-          if (result.success) {
-            successCount++;
-          } else {
-            errorCount++;
-          }
-        } catch (error) {
-          errorCount++;
-        }
-      }
-
-      if (successCount > 0) {
-        showToast(`Đã nộp thành công ${successCount} người tham gia!`, 'success');
-        await loadParticipants();
-      }
-
-      if (errorCount > 0) {
-        showToast(`Có ${errorCount} người tham gia không thể nộp. Vui lòng kiểm tra lại.`, 'warning');
-      }
-
-    } catch (error) {
-      console.error('Bulk submit participants error:', error);
-      showToast('Có lỗi xảy ra khi nộp hàng loạt. Vui lòng thử lại.', 'error');
-    }
-  };
-
-  // Handle bulk submit participants with payment
+  // Handle bulk submit participants with payment - Direct create new declaration
   const handleBulkSubmitParticipantsWithPayment = async (indices: number[]) => {
     if (!keKhaiInfo || !user?.id) {
       showToast('Chưa có thông tin kê khai hoặc người dùng. Vui lòng thử lại.', 'error');
@@ -1456,9 +1378,92 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       return;
     }
 
-    // Store indices and show confirmation modal
+    // Store selected indices for confirmation modal
     setPendingBulkSubmitIndices(indices);
     setShowBulkSubmitWithPaymentModal(true);
+  };
+
+
+
+
+
+  // Handle create new declaration and submit with payment
+  const handleCreateNewDeclarationAndSubmitWithPayment = async (indices: number[], notes?: string) => {
+    if (!keKhaiInfo || !user?.id) {
+      showToast('Chưa có thông tin kê khai hoặc người dùng. Vui lòng thử lại.', 'error');
+      return;
+    }
+
+    const selectedParticipants = indices.map(i => participants[i]).filter(Boolean);
+    const participantNames = selectedParticipants.map(p => p.hoTen).join(', ');
+
+    try {
+      setCreatingNewDeclaration(true);
+
+      // Get participant IDs
+      const participantIds = selectedParticipants.map(p => p.id).filter(id => id > 0);
+
+      if (participantIds.length === 0) {
+        showToast('Không tìm thấy ID hợp lệ của người tham gia được chọn.', 'error');
+        return;
+      }
+
+      console.log('🚀 Creating new declaration and submitting with payment:', {
+        originalKeKhaiId: keKhaiInfo.id,
+        participantIds,
+        participantNames
+      });
+
+      // Step 1: Create new declaration and move participants
+      const result = await keKhaiService.createDeclarationAndMoveParticipants(
+        keKhaiInfo.id,
+        participantIds,
+        user.id,
+        notes || `Tách từ kê khai ${keKhaiInfo.ma_ke_khai} - ${indices.length} người tham gia`
+      );
+
+      console.log('✅ New declaration created successfully:', result);
+
+      // Step 2: Calculate total amount for payment
+      const totalAmount = selectedParticipants.reduce((sum, participant) => {
+        return sum + (participant.tienDongThucTe || participant.tienDong || 0);
+      }, 0);
+
+      if (totalAmount <= 0) {
+        showToast('Tổng số tiền thanh toán phải lớn hơn 0. Vui lòng kiểm tra lại thông tin người tham gia.', 'error');
+        return;
+      }
+
+      // Step 3: Submit participants immediately (since we're already after payment confirmation)
+      console.log('🚀 Submitting participants in new declaration after payment confirmation...');
+
+      for (const participant of result.movedParticipants) {
+        try {
+          await keKhaiService.submitIndividualParticipant(
+            participant.id,
+            user.id,
+            notes || 'Nộp sau xác nhận thanh toán'
+          );
+          console.log(`✅ Submitted participant ${participant.id} in new declaration`);
+        } catch (error) {
+          console.error(`❌ Failed to submit participant ${participant.id}:`, error);
+        }
+      }
+
+      showToast(
+        `Đã tạo kê khai mới "${result.newKeKhai.ma_ke_khai}" và nộp thành công ${result.movedParticipants.length} người tham gia!`,
+        'success'
+      );
+
+      // Refresh current participants list
+      await loadParticipants();
+
+    } catch (error) {
+      console.error('Error creating new declaration and submitting with payment:', error);
+      showToast('Có lỗi xảy ra khi tạo kê khai mới và thanh toán. Vui lòng thử lại.', 'error');
+    } finally {
+      setCreatingNewDeclaration(false);
+    }
   };
 
   // Handle confirm bulk submit with payment
@@ -1471,43 +1476,21 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     setShowBulkSubmitWithPaymentModal(false);
 
     try {
-      // Step 1: Submit all selected participants
-      console.log('🚀 Step 1: Bulk submitting participants...', {
+      // Step 1: Get selected participants for payment calculation (don't create new declaration yet)
+      console.log('🚀 Step 1: Preparing bulk payment for participants...', {
         count: pendingBulkSubmitIndices.length,
         indices: pendingBulkSubmitIndices
       });
 
-      let successCount = 0;
-      let errorCount = 0;
-      const submittedParticipants: any[] = [];
+      const selectedParticipants = pendingBulkSubmitIndices.map(index => participants[index]).filter(Boolean);
 
-      for (const index of pendingBulkSubmitIndices) {
-        try {
-          const participant = participants[index];
-          if (!participant || !participant.id) {
-            errorCount++;
-            continue;
-          }
-
-          const result = await submitIndividualParticipant(index, notes);
-          if (result.success) {
-            successCount++;
-            submittedParticipants.push(participant);
-          } else {
-            errorCount++;
-          }
-        } catch (error) {
-          errorCount++;
-        }
-      }
-
-      if (successCount === 0) {
-        showToast('Không có người tham gia nào được nộp thành công. Vui lòng thử lại.', 'error');
+      if (selectedParticipants.length === 0) {
+        showToast('Không tìm thấy người tham gia được chọn.', 'error');
         return;
       }
 
       // Step 2: Calculate total payment amount
-      const totalAmount = submittedParticipants.reduce((sum, participant) => {
+      const totalAmount = selectedParticipants.reduce((sum, participant) => {
         return sum + (participant.tienDongThucTe || participant.tienDong || 0);
       }, 0);
 
@@ -1516,64 +1499,37 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         return;
       }
 
-      // Step 3: Create payment for all submitted participants
+      // Step 3: Create payment first (new declaration will be created after payment confirmation)
       console.log('🚀 Step 2: Creating bulk payment...', {
         totalAmount,
-        participantCount: successCount
+        participantCount: selectedParticipants.length
       });
 
       const payment = await paymentService.createPayment({
         ke_khai_id: keKhaiInfo.id,
         so_tien: totalAmount,
         phuong_thuc_thanh_toan: 'bank_transfer',
-        payment_description: `Thanh toán hàng loạt ${successCount} người tham gia - Kê khai ${keKhaiInfo.ma_ke_khai}`,
+        payment_description: `Thanh toán hàng loạt ${selectedParticipants.length} người tham gia - Kê khai ${keKhaiInfo.ma_ke_khai}`,
         created_by: user.id
       });
 
       console.log('✅ Bulk payment created successfully:', payment);
 
-      // Step 4: Update payment_id for all submitted participants in database
-      try {
-        const participantIds = submittedParticipants.map(p => p.id).filter(Boolean);
-        if (participantIds.length > 0) {
-          const { error: updateError } = await supabase
-            .from('danh_sach_nguoi_tham_gia')
-            .update({
-              payment_id: payment.id,
-              payment_status: 'pending',
-              updated_at: new Date().toISOString()
-            })
-            .in('id', participantIds);
+      // Step 4: Store notes for later use when creating new declaration
+      setPendingBulkSubmitNotes(notes || `Tách từ kê khai ${keKhaiInfo.ma_ke_khai} - ${pendingBulkSubmitIndices.length} người tham gia`);
 
-          if (updateError) {
-            console.error('Error updating participants payment_id:', updateError);
-          } else {
-            console.log(`✅ Updated payment_id for ${participantIds.length} participants in database`);
-          }
-        }
-      } catch (error) {
-        console.error('Error updating participants payment_id:', error);
-      }
-
-      // Step 5: Show payment QR modal immediately
+      // Step 5: Show payment QR modal immediately (new declaration will be created after payment confirmation)
       setSelectedPayment(payment);
       setShowPaymentModal(true);
 
-      showToast(`Đã nộp thành công ${successCount} người tham gia và tạo thanh toán! Tổng tiền: ${totalAmount.toLocaleString('vi-VN')} ₫`, 'success');
-
-      if (errorCount > 0) {
-        showToast(`Có ${errorCount} người tham gia không thể nộp. Vui lòng kiểm tra lại.`, 'warning');
-      }
-
-      // Refresh participants list to show updated status
-      await loadParticipants();
+      showToast(`Đã tạo thanh toán cho ${selectedParticipants.length} người tham gia! Tổng tiền: ${totalAmount.toLocaleString('vi-VN')} ₫. Vui lòng xác nhận thanh toán để tạo kê khai mới và hoàn tất nộp.`, 'success');
 
     } catch (error) {
       console.error('Bulk submit with payment error:', error);
-      showToast('Có lỗi xảy ra khi nộp hàng loạt và tạo thanh toán. Vui lòng thử lại.', 'error');
+      showToast('Có lỗi xảy ra khi tạo thanh toán. Vui lòng thử lại.', 'error');
     } finally {
       setBulkSubmittingWithPayment(false);
-      setPendingBulkSubmitIndices([]);
+      // Don't clear pendingBulkSubmitIndices here - we need them for after payment confirmation
     }
   };
 
@@ -1581,6 +1537,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   const handleCancelBulkSubmitWithPayment = () => {
     setShowBulkSubmitWithPaymentModal(false);
     setPendingBulkSubmitIndices([]);
+    setPendingBulkSubmitNotes('');
   };
 
   // Handle save single participant
@@ -1698,7 +1655,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       setSelectedPayment(payment);
       setShowPaymentModal(true);
 
-      showToast(`Đã nộp và tạo thanh toán thành công cho ${participant.hoTen}! Số tiền: ${paymentAmount.toLocaleString('vi-VN')} ₫`, 'success');
+      showToast(`Đã nộp và tạo thanh toán thành công cho ${participant.hoTen}! Số tiền: ${paymentAmount.toLocaleString('vi-VN')} ₫. Thanh toán đã được xác nhận tự động.`, 'success');
 
       // Refresh participants list to show updated status
       await loadParticipants();
@@ -1734,9 +1691,72 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
   // Handle payment confirmed
   const handlePaymentConfirmed = async () => {
+    console.log('🎉 Payment confirmed! Now submitting declaration...');
+
+    try {
+      // Check if this is a bulk submit (has pending bulk submit indices)
+      if (pendingBulkSubmitIndices.length > 0) {
+        console.log('🚀 Creating new declaration and moving participants after payment confirmation:', pendingBulkSubmitIndices);
+
+        // Now create new declaration and move participants after payment confirmation
+        await handleCreateNewDeclarationAndSubmitWithPayment(
+          pendingBulkSubmitIndices,
+          pendingBulkSubmitNotes
+        );
+
+        // Clear pending data
+        setPendingBulkSubmitIndices([]);
+        setPendingBulkSubmitNotes('');
+
+        showToast(`Thanh toán thành công! Đã tạo kê khai mới và chuyển ${pendingBulkSubmitIndices.length} người tham gia.`, 'success');
+
+      } else if (movedParticipantsForSubmission.length > 0) {
+        // Submit moved participants in new declaration
+        console.log('🚀 Submitting moved participants after payment confirmation:', movedParticipantsForSubmission);
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const participant of movedParticipantsForSubmission) {
+          try {
+            await keKhaiService.submitIndividualParticipant(
+              participant.id,
+              user?.id || '',
+              'Nộp sau xác nhận thanh toán'
+            );
+            console.log(`✅ Submitted moved participant ${participant.id} in new declaration`);
+            successCount++;
+          } catch (error) {
+            console.error(`❌ Failed to submit moved participant ${participant.id}:`, error);
+            errorCount++;
+          }
+        }
+
+        // Clear moved participants
+        setMovedParticipantsForSubmission([]);
+
+        if (successCount > 0) {
+          showToast(`Thanh toán và nộp thành công ${successCount} người tham gia trong kê khai mới!`, 'success');
+        }
+        if (errorCount > 0) {
+          showToast(`Có ${errorCount} người tham gia không thể nộp. Vui lòng kiểm tra lại.`, 'warning');
+        }
+      } else {
+        // Single submit - submit entire declaration
+        const submitResult = await submitDeclaration();
+        if (!submitResult.success) {
+          showToast(`Thanh toán thành công nhưng có lỗi khi nộp kê khai: ${submitResult.message}`, 'warning');
+        } else {
+          showToast('Thanh toán và nộp kê khai thành công!', 'success');
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting after payment:', error);
+      showToast('Thanh toán thành công nhưng có lỗi khi nộp kê khai. Vui lòng thử nộp lại.', 'warning');
+    }
+
     setShowPaymentModal(false);
     setSelectedPayment(null);
-    showToast('Thanh toán đã được xác nhận thành công!', 'success');
 
     // Refresh participants list to show updated status from database
     // The database update is already handled by keKhaiService.confirmPayment()
@@ -1791,14 +1811,13 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         <KeKhai603Header
           keKhaiInfo={keKhaiInfo}
           onSaveAll={handleSaveAll}
-          onSubmit={handleSubmit}
           onSubmitWithPayment={handleSubmitWithPayment}
           saving={saving}
-          submitting={submitting}
           submittingWithPayment={submittingWithPayment}
           savingData={savingData}
           onHouseholdBulkInput={() => setShowHouseholdBulkInputModal(true)}
           householdProcessing={householdProcessing}
+          participantCount={participants.length}
         />
 
 
@@ -1933,7 +1952,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                       </div>
 
                       {/* Số điện thoại */}
-                      <div className="col-span-1">
+                      <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Số điện thoại
                         </label>
@@ -1946,8 +1965,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                         />
                       </div>
 
-                      {/* Dân tộc */}
-                      <div className="col-span-1">
+                      {/* Dân tộc - HIDDEN */}
+                      {/* <div className="col-span-1">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Dân tộc <span className="text-red-500">*</span>
                         </label>
@@ -1958,7 +1977,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                           placeholder="01 - Kinh"
                         />
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* Row 2: Location Information */}
@@ -1970,13 +1989,13 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                         </label>
                         <SearchableDropdown
                           options={getTinhDropdownOptions}
-                          value={formData.tinhKCB}
+                          value={formData.maTinhNkq}
                           onChange={handleTinhNkqChange}
                           placeholder="Chọn hoặc tìm tỉnh..."
                           loading={loadingStates.tinh}
                           disabled={false}
                           maxResults={15}
-                          allowClear={true}
+                          allowClear={false}
                         />
                       </div>
 
@@ -1993,7 +2012,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                           loading={loadingStates.huyenNkq}
                           disabled={false}
                           maxResults={15}
-                          allowClear={true}
+                          allowClear={false}
                         />
                       </div>
 
@@ -2010,7 +2029,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                           loading={loadingStates.xaNkq}
                           disabled={false}
                           maxResults={15}
-                          allowClear={true}
+                          allowClear={false}
                         />
                       </div>
 
@@ -2141,7 +2160,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                           <option value="2">2</option>
                           <option value="3">3</option>
                           <option value="4">4</option>
-                          <option value="5">5</option>
+                          <option value="5+">5+</option>
                         </select>
                       </div>
 
@@ -2254,8 +2273,25 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                         />
                       </div>
 
-                      {/* Tiền đóng thực tế */}
+                      {/* Phương án */}
                       <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Phương án
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.phuongAn}
+                          onChange={(e) => handleInputChange('phuongAn', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="Phương án"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 3: Additional Information */}
+                    <div className="grid grid-cols-12 gap-4 mt-4">
+                      {/* Tiền đóng thực tế */}
+                      <div className="col-span-3">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Tiền đóng thực tế
                         </label>
@@ -2267,12 +2303,9 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                           readOnly
                         />
                       </div>
-                    </div>
 
-                    {/* Row 3: Additional Information */}
-                    <div className="grid grid-cols-12 gap-4 mt-4">
                       {/* Ghi chú đóng phí */}
-                      <div className="col-span-12">
+                      <div className="col-span-9">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           Ghi chú
                         </label>
@@ -2285,15 +2318,14 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                         />
                       </div>
                     </div>
+
+
                   </div>
                 </div>
 
                 {/* Save Participant Button - REMOVED (merged with header button) */}
               </div>
             </div>
-
-            {/* Payment Status Summary */}
-            <PaymentStatusSummary participants={participants} />
 
             {/* Participant Table */}
             {/* DEBUG: Participants length = {participants.length} */}
@@ -2306,11 +2338,10 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
               onRemoveParticipant={handleRemoveParticipant}
               onAddParticipant={handleAddParticipant}
               onBulkRemoveParticipants={handleBulkRemoveParticipants}
-              onBulkSubmitParticipants={handleBulkSubmitParticipants}
               onBulkSubmitParticipantsWithPayment={handleBulkSubmitParticipantsWithPayment}
               onEditParticipant={handleEditParticipant}
               participantSearchLoading={participantSearchLoading}
-              savingData={savingData}
+              savingData={savingData || creatingNewDeclaration}
               submittingParticipant={submittingParticipant}
               submittingParticipantWithPayment={submittingParticipantWithPayment}
               doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
@@ -2363,15 +2394,13 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                {pendingSubmitAction === 'submitWithPayment' ? 'Xác nhận nộp & thanh toán' : 'Xác nhận nộp kê khai'}
+                Xác nhận nộp & thanh toán
               </h3>
 
               <div className="mb-6">
-                {pendingSubmitAction === 'submitWithPayment' ? (
-                  <>
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Bạn có chắc chắn muốn nộp kê khai và tạo thanh toán ngay lập tức?
-                    </p>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  Bạn có chắc chắn muốn nộp kê khai và tạo thanh toán ngay lập tức?
+                </p>
 
                     <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
                       <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Thông tin thanh toán:</h4>
@@ -2386,12 +2415,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Sau khi nộp, bạn sẽ được chuyển đến trang thanh toán QR code để thanh toán ngay.
                     </p>
-                  </>
-                ) : (
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Bạn có chắc chắn muốn nộp kê khai này? Kê khai sẽ được chuyển sang trạng thái chờ duyệt.
-                  </p>
-                )}
               </div>
 
               <div className="flex space-x-3">
@@ -2406,10 +2429,10 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                 </button>
                 <button
                   onClick={handleConfirmSubmitAction}
-                  disabled={submitting || submittingWithPayment}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  disabled={submittingWithPayment}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {submitting || submittingWithPayment ? 'Đang xử lý...' : 'Xác nhận'}
+                  {submittingWithPayment ? 'Đang xử lý...' : 'Xác nhận nộp & thanh toán'}
                 </button>
               </div>
             </div>
@@ -2427,6 +2450,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         onCancel={handleCancelBulkSubmitWithPayment}
         loading={bulkSubmittingWithPayment}
       />
+
+
     </div>
   );
 };

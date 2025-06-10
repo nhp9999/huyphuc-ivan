@@ -947,6 +947,225 @@ class KeKhaiService {
     }
   }
 
+  // Lấy thông tin người tham gia theo ID
+  async getNguoiThamGiaById(participantId: number): Promise<DanhSachNguoiThamGia | null> {
+    try {
+      const { data, error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select('*')
+        .eq('id', participantId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching participant by ID:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in getNguoiThamGiaById:', error);
+      return null;
+    }
+  }
+
+  // Validate if declaration has participants (for participant requirement enforcement)
+  async validateKeKhaiHasParticipants(keKhaiId: number): Promise<{ isValid: boolean; message: string; participantCount: number }> {
+    try {
+      const participants = await this.getNguoiThamGiaByKeKhai(keKhaiId);
+      const participantCount = participants.length;
+
+      if (participantCount === 0) {
+        return {
+          isValid: false,
+          message: 'Kê khai này chưa có người tham gia nào. Vui lòng thêm ít nhất một người tham gia trước khi thực hiện thao tác này.',
+          participantCount: 0
+        };
+      }
+
+      return {
+        isValid: true,
+        message: `Kê khai có ${participantCount} người tham gia.`,
+        participantCount
+      };
+    } catch (error) {
+      console.error('Error validating participants:', error);
+      return {
+        isValid: false,
+        message: 'Không thể kiểm tra danh sách người tham gia. Vui lòng thử lại.',
+        participantCount: 0
+      };
+    }
+  }
+
+  // Create new declaration with selected participants
+  async createNewDeclarationWithParticipants(
+    originalKeKhaiId: number,
+    participantIds: number[],
+    userId: string,
+    notes?: string
+  ): Promise<{ newKeKhai: DanhSachKeKhai; movedParticipants: DanhSachNguoiThamGia[] }> {
+    try {
+      console.log('🚀 Creating new declaration with participants:', {
+        originalKeKhaiId,
+        participantIds,
+        userId,
+        notes
+      });
+
+      // Step 1: Get original declaration info
+      const originalKeKhai = await this.getKeKhaiById(originalKeKhaiId);
+      if (!originalKeKhai) {
+        throw new Error('Không tìm thấy kê khai gốc');
+      }
+
+      // Step 2: Get participants to move
+      const participantsToMoveRaw = await Promise.all(
+        participantIds.map(id => this.getNguoiThamGiaById(id))
+      );
+
+      // Filter out null values and validate
+      const participantsToMove: DanhSachNguoiThamGia[] = [];
+      for (let i = 0; i < participantsToMoveRaw.length; i++) {
+        const participant = participantsToMoveRaw[i];
+        if (!participant) {
+          throw new Error(`Không tìm thấy thông tin người tham gia ID ${participantIds[i]}`);
+        }
+        if (participant.ke_khai_id !== originalKeKhaiId) {
+          throw new Error('Người tham gia không thuộc kê khai này');
+        }
+        participantsToMove.push(participant);
+      }
+
+      // Step 3: Create new declaration with same info as original
+      const newKeKhaiData: CreateKeKhaiRequest = {
+        ten_ke_khai: `${originalKeKhai.ten_ke_khai} - Tách ${participantIds.length} người`,
+        loai_ke_khai: originalKeKhai.loai_ke_khai,
+        dai_ly_id: originalKeKhai.dai_ly_id,
+        don_vi_id: originalKeKhai.don_vi_id,
+        doi_tuong_tham_gia: originalKeKhai.doi_tuong_tham_gia,
+        hinh_thuc_tinh: originalKeKhai.hinh_thuc_tinh,
+        luong_co_so: originalKeKhai.luong_co_so,
+        nguon_dong: originalKeKhai.nguon_dong,
+        noi_dang_ky_kcb_ban_dau: originalKeKhai.noi_dang_ky_kcb_ban_dau,
+        bien_lai_ngay_tham_gia: originalKeKhai.bien_lai_ngay_tham_gia,
+        so_thang: originalKeKhai.so_thang,
+        ty_le_nsnn_ho_tro: originalKeKhai.ty_le_nsnn_ho_tro,
+        ghi_chu: notes || `Tách từ kê khai ${originalKeKhai.ma_ke_khai}`,
+        created_by: userId,
+        cong_ty_id: originalKeKhai.cong_ty_id,
+        co_quan_bhxh_id: originalKeKhai.co_quan_bhxh_id
+      };
+
+      const newKeKhai = await this.createKeKhai(newKeKhaiData);
+      console.log('✅ New declaration created:', newKeKhai);
+
+      return { newKeKhai, movedParticipants: participantsToMove };
+    } catch (error) {
+      console.error('Error creating new declaration with participants:', error);
+      throw error;
+    }
+  }
+
+  // Move participants to new declaration
+  async moveParticipantsToNewDeclaration(
+    participantIds: number[],
+    newKeKhaiId: number,
+    userId: string
+  ): Promise<DanhSachNguoiThamGia[]> {
+    try {
+      console.log('🔄 Moving participants to new declaration:', {
+        participantIds,
+        newKeKhaiId,
+        userId
+      });
+
+      const movedParticipants: DanhSachNguoiThamGia[] = [];
+
+      for (const participantId of participantIds) {
+        // Update participant's ke_khai_id to new declaration
+        const { data: updatedParticipant, error } = await supabase
+          .from('danh_sach_nguoi_tham_gia')
+          .update({
+            ke_khai_id: newKeKhaiId,
+            updated_at: new Date().toISOString(),
+            updated_by: userId,
+            // Reset submission status since this is a new declaration
+            participant_status: 'draft',
+            submitted_at: null,
+            submitted_by: null,
+            individual_submission_notes: null,
+            payment_status: 'unpaid',
+            payment_id: null,
+            paid_at: null
+          })
+          .eq('id', participantId)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error moving participant:', error);
+          throw new Error(`Không thể di chuyển người tham gia ID ${participantId}`);
+        }
+
+        movedParticipants.push(updatedParticipant);
+        console.log(`✅ Moved participant ${participantId} to declaration ${newKeKhaiId}`);
+      }
+
+      return movedParticipants;
+    } catch (error) {
+      console.error('Error moving participants:', error);
+      throw error;
+    }
+  }
+
+  // Complete workflow: Create new declaration and move selected participants
+  async createDeclarationAndMoveParticipants(
+    originalKeKhaiId: number,
+    participantIds: number[],
+    userId: string,
+    notes?: string
+  ): Promise<{
+    newKeKhai: DanhSachKeKhai;
+    movedParticipants: DanhSachNguoiThamGia[];
+    originalKeKhai: DanhSachKeKhai;
+  }> {
+    try {
+      console.log('🚀 Starting complete workflow: create declaration and move participants');
+
+      // Step 1: Create new declaration with participant info
+      const { newKeKhai, movedParticipants } = await this.createNewDeclarationWithParticipants(
+        originalKeKhaiId,
+        participantIds,
+        userId,
+        notes
+      );
+
+      // Step 2: Move participants to new declaration
+      const actuallyMovedParticipants = await this.moveParticipantsToNewDeclaration(
+        participantIds,
+        newKeKhai.id,
+        userId
+      );
+
+      // Step 3: Get updated original declaration info
+      const originalKeKhai = await this.getKeKhaiById(originalKeKhaiId);
+
+      console.log('✅ Complete workflow finished successfully:', {
+        newDeclarationId: newKeKhai.id,
+        movedParticipantsCount: actuallyMovedParticipants.length
+      });
+
+      return {
+        newKeKhai,
+        movedParticipants: actuallyMovedParticipants,
+        originalKeKhai: originalKeKhai!
+      };
+    } catch (error) {
+      console.error('Error in complete workflow:', error);
+      throw error;
+    }
+  }
+
 
 
   // Debug method để kiểm tra dữ liệu
@@ -1007,6 +1226,16 @@ class KeKhaiService {
     toDate?: string;
     participantStatus?: string;
     searchTerm?: string;
+    // Advanced filters
+    maDonVi?: string;
+    maTinh?: string;
+    maHuyen?: string;
+    maBhxh?: string;
+    ketQua?: string;
+    daiLyId?: string;
+    coQuanBhxhId?: string;
+    hinhThuc?: string;
+    soHoSo?: string;
   }): Promise<{ data: any[]; total: number }> {
     try {
       console.log('🔍 getUnprocessedNguoiThamGiaWithPagination called with:', params);
@@ -1028,6 +1257,23 @@ class KeKhaiService {
       }
       if (params.toDate) {
         keKhaiQuery = keKhaiQuery.lte('created_at', params.toDate);
+      }
+
+      // Apply advanced filters for ke khai
+      if (params.maDonVi) {
+        keKhaiQuery = keKhaiQuery.eq('don_vi_id', params.maDonVi);
+      }
+
+      if (params.daiLyId) {
+        keKhaiQuery = keKhaiQuery.eq('dai_ly_id', parseInt(params.daiLyId));
+      }
+
+      if (params.coQuanBhxhId) {
+        keKhaiQuery = keKhaiQuery.eq('co_quan_bhxh_id', parseInt(params.coQuanBhxhId));
+      }
+
+      if (params.soHoSo) {
+        keKhaiQuery = keKhaiQuery.ilike('ma_ho_so', `%${params.soHoSo}%`);
       }
 
       const { data: keKhaiData, error: keKhaiError } = await keKhaiQuery;
@@ -1072,6 +1318,19 @@ class KeKhaiService {
         countQuery = countQuery.or(`ho_ten.ilike.%${params.searchTerm}%,ma_so_bhxh.ilike.%${params.searchTerm}%`);
       }
 
+      // Advanced filters for participants
+      if (params.maBhxh) {
+        countQuery = countQuery.ilike('ma_so_bhxh', `%${params.maBhxh}%`);
+      }
+
+      if (params.maTinh) {
+        countQuery = countQuery.eq('ma_tinh_nkq', params.maTinh);
+      }
+
+      if (params.maHuyen) {
+        countQuery = countQuery.eq('ma_huyen_nkq', params.maHuyen);
+      }
+
       const { count, error: countError } = await countQuery;
 
       if (countError) {
@@ -1107,6 +1366,19 @@ class KeKhaiService {
 
       if (params.searchTerm) {
         dataQuery = dataQuery.or(`ho_ten.ilike.%${params.searchTerm}%,ma_so_bhxh.ilike.%${params.searchTerm}%`);
+      }
+
+      // Apply same advanced filters as count query
+      if (params.maBhxh) {
+        dataQuery = dataQuery.ilike('ma_so_bhxh', `%${params.maBhxh}%`);
+      }
+
+      if (params.maTinh) {
+        dataQuery = dataQuery.eq('ma_tinh_nkq', params.maTinh);
+      }
+
+      if (params.maHuyen) {
+        dataQuery = dataQuery.eq('ma_huyen_nkq', params.maHuyen);
       }
 
       dataQuery = dataQuery

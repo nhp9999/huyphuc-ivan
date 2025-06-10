@@ -57,7 +57,7 @@ export interface KeKhai603FormData {
 const DEFAULT_CSKCB = {
   value: '006',
   ten: 'Trung tâm Y tế thị xã Tịnh Biên',
-  maTinh: '89'
+  maTinh: '' // No default province
 };
 
 // Initial form data
@@ -92,7 +92,7 @@ const initialFormData: KeKhai603FormData = {
   soTienDong: '',
   tienDong: 0, // Khởi tạo giá trị từ database = 0
   tienDongThucTe: 0, // Khởi tạo giá trị số = 0
-  tinhKCB: DEFAULT_CSKCB.maTinh, // Default province for hospital
+  tinhKCB: '', // No default province
   noiNhanHoSo: '',
   maBenhVien: DEFAULT_CSKCB.value, // Default hospital code
   tenBenhVien: DEFAULT_CSKCB.ten, // Default hospital name
@@ -117,10 +117,19 @@ const initialFormData: KeKhai603FormData = {
 export const calculateKeKhai603Amount = (sttHo: string, soThangDong: string, mucLuongCoSo: number = 2340000): number => {
   if (!sttHo) return 0;
 
+  // Normalize STT hộ: convert numbers >= 5 to "5+"
+  const normalizedSttHo = (() => {
+    const sttHoNum = parseInt(sttHo);
+    if (!isNaN(sttHoNum) && sttHoNum >= 5) {
+      return '5+';
+    }
+    return sttHo;
+  })();
+
   // Tỷ lệ theo STT hộ (áp dụng trực tiếp lên lương cơ sở)
   let tyLe = 1; // Người thứ 1: 100%
 
-  switch (sttHo) {
+  switch (normalizedSttHo) {
     case '1':
       tyLe = 1; // 100%
       break;
@@ -137,8 +146,12 @@ export const calculateKeKhai603Amount = (sttHo: string, soThangDong: string, muc
       tyLe = 0.4; // 40%
       break;
     default:
+      // For any unexpected values, default to person 1 rate
+      console.warn(`Unexpected STT hộ value: ${sttHo}, using default rate 100%`);
       tyLe = 1;
   }
+
+  console.log(`💰 calculateKeKhai603Amount: sttHo=${sttHo} -> normalized=${normalizedSttHo}, tyLe=${tyLe}`);
 
   // Công thức: Lương cơ sở × Tỷ lệ (KHÔNG nhân với số tháng)
   const soTienDong = mucLuongCoSo * tyLe;
@@ -169,7 +182,16 @@ export const calculateKeKhai603AmountThucTe = (sttHo: string, soThangDong: strin
   // Tỷ lệ giảm theo STT hộ (cho các đối tượng khác)
   let tyLeGiam = 1; // Người thứ 1: 100%
 
-  switch (sttHo) {
+  // Normalize STT hộ: convert numbers >= 5 to "5+"
+  const normalizedSttHo = (() => {
+    const sttHoNum = parseInt(sttHo);
+    if (!isNaN(sttHoNum) && sttHoNum >= 5) {
+      return '5+';
+    }
+    return sttHo;
+  })();
+
+  switch (normalizedSttHo) {
     case '1':
       tyLeGiam = 1; // 100%
       break;
@@ -186,8 +208,12 @@ export const calculateKeKhai603AmountThucTe = (sttHo: string, soThangDong: strin
       tyLeGiam = 0.4; // 40%
       break;
     default:
+      // For any unexpected values, default to person 1 rate
+      console.warn(`Unexpected STT hộ value: ${sttHo}, using default rate 100%`);
       tyLeGiam = 1;
   }
+
+  console.log(`💰 calculateKeKhai603AmountThucTe: sttHo=${sttHo} -> normalized=${normalizedSttHo}, tyLeGiam=${tyLeGiam}, soThang=${soThang}`);
 
   // Công thức cũ: Lương cơ sở × 4.5% × Tỷ lệ giảm × Số tháng
   const soTienDongThucTe = mucDongCoBan * tyLeGiam * soThang;
@@ -315,8 +341,17 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
 
         // Cập nhật tỷ lệ đóng theo STT hộ (% của lương cơ sở)
         if (field === 'sttHo') {
+          // Normalize STT hộ: convert numbers >= 5 to "5+"
+          const normalizedValue = (() => {
+            const sttHoNum = parseInt(value);
+            if (!isNaN(sttHoNum) && sttHoNum >= 5) {
+              return '5+';
+            }
+            return value;
+          })();
+
           let tyLeDong = '100';
-          switch (value) {
+          switch (normalizedValue) {
             case '1':
               tyLeDong = '100'; // 100% lương cơ sở
               break;
@@ -332,9 +367,12 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
             case '5+':
               tyLeDong = '40'; // 40% lương cơ sở
               break;
+            default:
+              tyLeDong = '100'; // Default to 100%
+              break;
           }
           newData.tyLeDong = tyLeDong;
-          console.log('📊 Updated tyLeDong:', tyLeDong);
+          console.log('📊 Updated tyLeDong:', { originalValue: value, normalizedValue, tyLeDong });
         }
 
         if (sttHo && sttHo.trim() && soThangDong && soThangDong.trim()) {
@@ -424,7 +462,7 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
       soTienDong: '',
       tienDong: 0,
       tienDongThucTe: 0,
-      tinhKCB: DEFAULT_CSKCB.maTinh, // Default province for hospital
+      tinhKCB: '', // No default province
       noiNhanHoSo: '',
       maBenhVien: DEFAULT_CSKCB.value, // Default hospital code
       tenBenhVien: DEFAULT_CSKCB.ten, // Default hospital name

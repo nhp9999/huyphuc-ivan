@@ -54,3 +54,11 @@ export interface KeKhai603Response {
   message?: string;
   error?: string;
 }
+
+// Validation result interface for participant requirements
+export interface KeKhai603ValidationResult {
+  isValid: boolean;
+  message: string;
+  hasParticipants: boolean;
+  participantCount?: number;
+}

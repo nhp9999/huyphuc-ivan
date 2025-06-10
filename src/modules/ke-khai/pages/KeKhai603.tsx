@@ -776,6 +776,15 @@ const KeKhai603: React.FC = () => {
     console.log('User organizations:', user?.organizations);
     console.log('Current organization:', user?.currentOrganization);
 
+    // Show warning about participant requirement
+    const confirmCreate = window.confirm(
+      'Lưu ý: Bạn đang tạo kê khai mới. Sau khi tạo, bạn cần thêm ít nhất một người tham gia trước khi có thể nộp kê khai.\n\nBạn có muốn tiếp tục tạo kê khai không?'
+    );
+
+    if (!confirmCreate) {
+      return;
+    }
+
     // Validate required fields first
     if (!formData.chonDonVi) {
       // For testing purposes, allow creating declaration without selecting unit

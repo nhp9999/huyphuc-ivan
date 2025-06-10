@@ -15,28 +15,27 @@ interface KeKhai603HeaderProps {
   keKhaiInfo: DanhSachKeKhai | null;
   // New props for save and submit actions
   onSaveAll?: () => void;
-  onSubmit?: () => void;
   onSubmitWithPayment?: () => void;
   saving?: boolean;
-  submitting?: boolean;
   submittingWithPayment?: boolean;
   savingData?: boolean;
   // Household bulk input props
   onHouseholdBulkInput?: () => void;
   householdProcessing?: boolean;
+  // Participant count for validation
+  participantCount?: number;
 }
 
 export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
   keKhaiInfo,
   onSaveAll,
-  onSubmit,
   onSubmitWithPayment,
   saving = false,
-  submitting = false,
   submittingWithPayment = false,
   savingData = false,
   onHouseholdBulkInput,
-  householdProcessing = false
+  householdProcessing = false,
+  participantCount = 0
 }) => {
 
   return (
@@ -88,7 +87,7 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
             {onHouseholdBulkInput && keKhaiInfo && (
               <button
                 onClick={onHouseholdBulkInput}
-                disabled={saving || savingData || householdProcessing || submitting}
+                disabled={saving || savingData || householdProcessing || submittingWithPayment}
                 className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                 title="Nhập hộ gia đình - tự động tăng STT hộ"
               >
@@ -110,7 +109,7 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
             {onSaveAll && keKhaiInfo && (
               <button
                 onClick={onSaveAll}
-                disabled={submitting || saving || savingData || householdProcessing}
+                disabled={submittingWithPayment || saving || savingData || householdProcessing}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
               >
                 {saving ? (
@@ -127,32 +126,13 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
               </button>
             )}
 
-            {/* Submit Button */}
-            {onSubmit && keKhaiInfo && (
-              <button
-                onClick={onSubmit}
-                disabled={submitting || submittingWithPayment || saving || savingData || householdProcessing}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Đang nộp...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4" />
-                    <span>Nộp kê khai</span>
-                  </>
-                )}
-              </button>
-            )}
 
-            {/* Submit with Payment Button */}
+
+            {/* Submit with Payment Button - For entire declaration */}
             {onSubmitWithPayment && keKhaiInfo && (
               <button
                 onClick={onSubmitWithPayment}
-                disabled={submitting || submittingWithPayment || saving || savingData || householdProcessing}
+                disabled={submittingWithPayment || saving || savingData || householdProcessing}
                 className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                 title="Nộp kê khai và tạo thanh toán ngay lập tức"
               >
@@ -177,6 +157,21 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
         </div>
       </div>
 
+      {/* Participant Requirement Warning */}
+      {keKhaiInfo && participantCount === 0 && (
+        <div className="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800">
+          <div className="flex items-center space-x-2 text-amber-800 dark:text-amber-200">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="text-sm">
+              <span className="font-medium">Lưu ý:</span> Kê khai này chưa có người tham gia nào. Bạn cần thêm ít nhất một người tham gia trước khi có thể nộp kê khai.
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

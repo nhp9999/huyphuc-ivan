@@ -14,15 +14,30 @@ import {
   FileX,
   User,
   Users,
-  Building
+  Building,
+  MapPin,
+  Hash,
+  FileCheck,
+  Briefcase
 } from 'lucide-react';
-import { DanhSachKeKhai, DanhSachNguoiThamGia, ThanhToan, supabase } from '../../../shared/services/api/supabaseClient';
+import {
+  DanhSachKeKhai,
+  DanhSachNguoiThamGia,
+  ThanhToan,
+  supabase,
+  VDonViChiTiet,
+  VDaiLyChiTiet,
+  VCoQuanBhxhChiTiet
+} from '../../../shared/services/api/supabaseClient';
 
 // Interface for unprocessed participant with declaration info
 interface UnprocessedParticipant extends DanhSachNguoiThamGia {
   ke_khai: DanhSachKeKhai;
 }
 import keKhaiService, { KeKhaiSearchParams } from '../services/keKhaiService';
+import { donViService } from '../../quan-ly/services/donViService';
+import { daiLyService } from '../../quan-ly/services/daiLyService';
+import { coQuanBhxhService } from '../../quan-ly/services/coQuanBhxhService';
 import { useAuth } from '../../auth';
 import { useToast } from '../../../shared/hooks/useToast';
 import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
@@ -44,6 +59,26 @@ const HoSoChuaXuLy: React.FC = () => {
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [itemsPerPage] = useState(20);
 
+  // Advanced filter states
+  const [maDonVi, setMaDonVi] = useState('');
+  const [maTinh, setMaTinh] = useState('');
+  const [maHuyen, setMaHuyen] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [maBhxh, setMaBhxh] = useState('');
+  const [ketQua, setKetQua] = useState('all');
+  const [daiLyId, setDaiLyId] = useState('');
+  const [coQuanBhxhId, setCoQuanBhxhId] = useState('');
+  const [hinhThuc, setHinhThuc] = useState('all');
+  const [soHoSo, setSoHoSo] = useState('');
+
+  // Data for dropdowns
+  const [donViList, setDonViList] = useState<VDonViChiTiet[]>([]);
+  const [daiLyList, setDaiLyList] = useState<VDaiLyChiTiet[]>([]);
+  const [coQuanBhxhList, setCoQuanBhxhList] = useState<VCoQuanBhxhChiTiet[]>([]);
+  const [tinhList, setTinhList] = useState<any[]>([]);
+  const [huyenList, setHuyenList] = useState<any[]>([]);
+
   // Selection state
   const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,6 +91,7 @@ const HoSoChuaXuLy: React.FC = () => {
   const [selectedKeKhai, setSelectedKeKhai] = useState<DanhSachKeKhai | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
   const [submittedParticipants, setSubmittedParticipants] = useState<UnprocessedParticipant[]>([]);
+  const [pendingPaymentParticipants, setPendingPaymentParticipants] = useState<UnprocessedParticipant[]>([]);
 
   // Load unprocessed participants data
   const loadUnprocessedParticipantsData = async () => {
@@ -68,20 +104,43 @@ const HoSoChuaXuLy: React.FC = () => {
         page: currentPage,
         pageSize: itemsPerPage,
         searchTerm,
-        filterStatus
+        filterStatus,
+        maDonVi,
+        maTinh,
+        maHuyen,
+        fromDate,
+        toDate,
+        maBhxh,
+        ketQua,
+        daiLyId,
+        coQuanBhxhId,
+        hinhThuc,
+        soHoSo
       });
 
       // Debug: Check user data first
       await keKhaiService.debugUserData(user.id);
 
-      // Load unprocessed participants using the new service method
+      // Load unprocessed participants using the new service method with advanced filters
       const result = await keKhaiService.getUnprocessedNguoiThamGiaWithPagination({
         userId: user.id,
         page: currentPage,
         pageSize: itemsPerPage,
         // loaiKeKhai: '603', // Tạm thời bỏ filter để test
         searchTerm: searchTerm || undefined,
-        participantStatus: filterStatus !== 'all' ? filterStatus : undefined
+        participantStatus: filterStatus !== 'all' ? filterStatus : undefined,
+        // Advanced filters
+        maDonVi: maDonVi || undefined,
+        maTinh: maTinh || undefined,
+        maHuyen: maHuyen || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+        maBhxh: maBhxh || undefined,
+        ketQua: ketQua !== 'all' ? ketQua : undefined,
+        daiLyId: daiLyId || undefined,
+        coQuanBhxhId: coQuanBhxhId || undefined,
+        hinhThuc: hinhThuc !== 'all' ? hinhThuc : undefined,
+        soHoSo: soHoSo || undefined
       });
 
       console.log('HoSoChuaXuLy: Loaded unprocessed participants:', result.data.length, 'of', result.total);
@@ -98,11 +157,76 @@ const HoSoChuaXuLy: React.FC = () => {
     }
   };
 
+  // Load dropdown data
+  const loadDropdownData = async () => {
+    try {
+      // Load đơn vị
+      const donViData = await donViService.getAllDonVi();
+      setDonViList(donViData);
+
+      // Load đại lý
+      const daiLyData = await daiLyService.getAllDaiLy();
+      setDaiLyList(daiLyData);
+
+      // Load cơ quan BHXH
+      const coQuanData = await coQuanBhxhService.getCoQuanBhxhChiTiet();
+      setCoQuanBhxhList(coQuanData);
+
+      // Load tỉnh thành (mock data - có thể thay bằng API thực tế)
+      const mockTinhList = [
+        { ma: '01', ten: 'Hà Nội' },
+        { ma: '79', ten: 'TP. Hồ Chí Minh' },
+        { ma: '48', ten: 'Đà Nẵng' },
+        { ma: '92', ten: 'Cần Thơ' },
+        { ma: '31', ten: 'Hải Phòng' }
+      ];
+      setTinhList(mockTinhList);
+
+    } catch (error) {
+      console.error('Error loading dropdown data:', error);
+    }
+  };
+
+  // Load huyện based on selected tỉnh
+  const loadHuyenData = async (maTinhSelected: string) => {
+    try {
+      // Mock data - có thể thay bằng API thực tế
+      const mockHuyenList = [
+        { ma: '001', ten: 'Quận Ba Đình', ma_tinh: '01' },
+        { ma: '002', ten: 'Quận Hoàn Kiếm', ma_tinh: '01' },
+        { ma: '003', ten: 'Quận Tây Hồ', ma_tinh: '01' },
+        { ma: '760', ten: 'Quận 1', ma_tinh: '79' },
+        { ma: '761', ten: 'Quận 3', ma_tinh: '79' },
+        { ma: '762', ten: 'Quận 4', ma_tinh: '79' }
+      ];
+
+      const filteredHuyen = mockHuyenList.filter(h => h.ma_tinh === maTinhSelected);
+      setHuyenList(filteredHuyen);
+    } catch (error) {
+      console.error('Error loading huyen data:', error);
+    }
+  };
+
+  // Load dropdown data on component mount
+  useEffect(() => {
+    loadDropdownData();
+  }, []);
+
+  // Load huyện when tỉnh changes
+  useEffect(() => {
+    if (maTinh) {
+      loadHuyenData(maTinh);
+    } else {
+      setHuyenList([]);
+      setMaHuyen(''); // Reset huyện when tỉnh is cleared
+    }
+  }, [maTinh]);
+
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
     setSelectedParticipants(new Set()); // Clear selection when filters change
-  }, [searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus, maDonVi, maTinh, maHuyen, fromDate, toDate, maBhxh, ketQua, daiLyId, coQuanBhxhId, hinhThuc, soHoSo]);
 
   // Clear selection when page changes
   useEffect(() => {
@@ -112,7 +236,7 @@ const HoSoChuaXuLy: React.FC = () => {
   // Load data on component mount and when filters change
   useEffect(() => {
     loadUnprocessedParticipantsData();
-  }, [user?.id, searchTerm, filterStatus, currentPage]);
+  }, [user?.id, searchTerm, filterStatus, currentPage, maDonVi, maTinh, maHuyen, fromDate, toDate, maBhxh, ketQua, daiLyId, coQuanBhxhId, hinhThuc, soHoSo]);
 
   // Listen for payment confirmation events to auto-reload data
   useEffect(() => {
@@ -356,60 +480,30 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
     showToast('Không thể xử lý cùng lúc người tham gia ở các trạng thái khác nhau. Vui lòng chọn một loại', 'warning');
   };
 
-  // Handle confirm submission (with or without payment)
-  const handleConfirmSubmission = async (createPayment: boolean = false) => {
+  // Handle confirm submission with payment
+  const handleConfirmSubmission = async (createPayment: boolean = true) => {
     setIsSubmitting(true);
     setShowPaymentConfirmModal(false);
 
     try {
       const selectedIds = submittedParticipants.map(p => p.id);
-      console.log('Submitting participants:', selectedIds);
+      console.log('Submitting participants for payment:', selectedIds);
 
-      // Update participant status to 'submitted'
-      for (const participantId of selectedIds) {
-        try {
-          // Test update first
-          console.log(`🧪 Testing update for participant ${participantId}...`);
-          const testResult = await keKhaiService.testUpdateParticipant(participantId);
-          console.log(`🧪 Test result:`, testResult);
-
-          if (!testResult.success) {
-            throw new Error(`Test update failed: ${testResult.error?.message || 'Unknown error'}`);
-          }
-
-          // Now do the actual update
-          await keKhaiService.updateParticipantStatus(
-            participantId,
-            'submitted',
-            user?.id || '',
-            'Nộp cá nhân từ giao diện người tham gia nháp'
-          );
-          console.log(`✅ Successfully updated participant ${participantId}`);
-        } catch (participantError) {
-          console.error(`❌ Failed to update participant ${participantId}:`, participantError);
-          throw new Error(`Không thể cập nhật người tham gia ID ${participantId}: ${participantError.message}`);
-        }
-      }
-
-      showToast(`Đã nộp thành công ${selectedIds.length} người tham gia`, 'success');
+      // Create payment and show QR modal
+      // Status will be updated when payment is confirmed
+      await handleCreatePaymentForSubmitted();
+      // Don't clear submittedParticipants yet - will be cleared after payment confirmation
       setSelectedParticipants(new Set());
-
-      // If user wants to create payment immediately
-      if (createPayment) {
-        await handleCreatePaymentForSubmitted();
-      }
-
-      loadUnprocessedParticipantsData();
     } catch (error) {
       console.error('Error submitting participants:', error);
-      showToast('Có lỗi xảy ra khi nộp người tham gia', 'error');
+      showToast('Có lỗi xảy ra khi tạo thanh toán', 'error');
     } finally {
       setIsSubmitting(false);
-      setSubmittedParticipants([]);
+      // submittedParticipants will be cleared after payment confirmation
     }
   };
 
-  // Handle create payment for submitted participants
+  // Handle create payment for submitted participants - Show QR modal for confirmation
   const handleCreatePaymentForSubmitted = async () => {
     try {
       // Calculate total amount for submitted participants
@@ -429,21 +523,25 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
         return;
       }
 
-      // Create payment
+      // Create payment (without updating ke khai status yet)
       const payment = await paymentService.createPayment({
         ke_khai_id: firstParticipant.ke_khai.id,
         so_tien: totalAmount,
-        phuong_thuc_thanh_toan: 'bank_transfer',
+        phuong_thuc_thanh_toan: 'qr_code',
         payment_description: `Thanh toán cho ${submittedParticipants.length} người tham gia`,
         created_by: user?.id
       });
 
-      // Show payment QR modal
+      // Save participants for later status update when payment is confirmed
+      setPendingPaymentParticipants(submittedParticipants);
+
+      // Show payment QR modal for user confirmation
+      // Status will be updated when payment is confirmed
       setSelectedKeKhai(firstParticipant.ke_khai);
       setSelectedPayment(payment);
       setShowPaymentModal(true);
 
-      showToast('Đã tạo thanh toán thành công', 'success');
+      showToast('Vui lòng thực hiện thanh toán để hoàn tất quá trình nộp hồ sơ.', 'info');
     } catch (error) {
       console.error('Error creating payment:', error);
       showToast('Có lỗi xảy ra khi tạo thanh toán', 'error');
@@ -638,16 +736,22 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
-  // Helper functions for selection
+  // Helper functions for selection - ưu tiên trạng thái kê khai
   const getDraftParticipants = () => {
-    const result = participantsList.filter(p => p.participant_status === 'draft');
+    const result = participantsList.filter(p =>
+      p.participant_status === 'draft' &&
+      p.ke_khai.trang_thai !== 'pending_payment' &&
+      p.ke_khai.trang_thai !== 'processing'
+    );
     console.log('📊 Draft Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
     return result;
   };
 
   const getSubmittedParticipants = () => {
     const result = participantsList.filter(p =>
-      p.participant_status === 'submitted' && p.ke_khai.trang_thai !== 'pending_payment'
+      p.participant_status === 'submitted' &&
+      p.ke_khai.trang_thai !== 'pending_payment' &&
+      p.ke_khai.trang_thai !== 'processing'
     );
     console.log('📊 Submitted Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
     return result;
@@ -742,41 +846,265 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Advanced Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên hoặc mã BHXH..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
+        <div className="space-y-4">
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Mã đơn vị */}
+            <div className="relative">
+              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={maDonVi}
+                onChange={(e) => setMaDonVi(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="">Mã đơn vị</option>
+                {donViList.map((donVi) => (
+                  <option key={donVi.id} value={donVi.ma_don_vi}>
+                    {donVi.ma_don_vi} - {donVi.ten_don_vi}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tỉnh/TP */}
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={maTinh}
+                onChange={(e) => setMaTinh(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="">Tỉnh/TP</option>
+                {tinhList.map((tinh) => (
+                  <option key={tinh.ma} value={tinh.ma}>
+                    {tinh.ma} - {tinh.ten}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Từ ngày */}
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="date"
+                placeholder="Từ ngày"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* Đến ngày */}
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="date"
+                placeholder="Đến ngày"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
           </div>
 
-          {/* Status Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
-            >
-              <option value="all">Tất cả người tham gia</option>
-              <option value="draft">Nháp</option>
-              <option value="submitted">Đã nộp</option>
-              <option value="pending_payment">Chờ thanh toán</option>
-              <option value="processing">Đang xử lý</option>
-            </select>
+          {/* Row 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Mã BHXH */}
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Mã BHXH"
+                value={maBhxh}
+                onChange={(e) => setMaBhxh(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* Trạng thái */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="all">Trạng thái</option>
+                <option value="draft">Nháp</option>
+                <option value="submitted">Đã nộp</option>
+                <option value="pending_payment">Chờ thanh toán</option>
+                <option value="processing">Đang xử lý</option>
+              </select>
+            </div>
+
+            {/* Kết quả */}
+            <div className="relative">
+              <FileCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={ketQua}
+                onChange={(e) => setKetQua(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="all">Kết quả</option>
+                <option value="approved">Đã duyệt</option>
+                <option value="rejected">Từ chối</option>
+                <option value="pending">Chờ xử lý</option>
+              </select>
+            </div>
+
+            {/* Quận/Huyện */}
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={maHuyen}
+                onChange={(e) => setMaHuyen(e.target.value)}
+                disabled={!maTinh}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none disabled:opacity-50"
+              >
+                <option value="">Quận/Huyện</option>
+                {huyenList.map((huyen) => (
+                  <option key={huyen.ma} value={huyen.ma}>
+                    {huyen.ma} - {huyen.ten}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Results count */}
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-            <Users className="w-4 h-4 mr-2" />
-            Tìm thấy {totalParticipants} người tham gia ({getTotalDraftCount()} nháp, {getTotalSubmittedCount()} đã nộp, {getTotalPendingPaymentCount()} chờ thanh toán, {getTotalProcessingCount()} đang xử lý)
+          {/* Row 3 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Đại lý/CTV */}
+            <div className="relative">
+              <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={daiLyId}
+                onChange={(e) => setDaiLyId(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="">Đại lý/CTV</option>
+                {daiLyList.map((daiLy) => (
+                  <option key={daiLy.id} value={daiLy.id}>
+                    {daiLy.ma} - {daiLy.ten}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Đơn vị */}
+            <div className="relative">
+              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={maDonVi}
+                onChange={(e) => setMaDonVi(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="">Đơn vị</option>
+                {donViList.map((donVi) => (
+                  <option key={donVi.id} value={donVi.ma_don_vi}>
+                    {donVi.ma_don_vi} - {donVi.ten_don_vi}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Cơ quan BHXH */}
+            <div className="relative">
+              <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={coQuanBhxhId}
+                onChange={(e) => setCoQuanBhxhId(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="">Cơ quan BHXH</option>
+                {coQuanBhxhList.map((coQuan) => (
+                  <option key={coQuan.id} value={coQuan.id}>
+                    {coQuan.ma_co_quan} - {coQuan.ten_co_quan}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Hình thức */}
+            <div className="relative">
+              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={hinhThuc}
+                onChange={(e) => setHinhThuc(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="all">Hình thức</option>
+                <option value="online">Trực tuyến</option>
+                <option value="offline">Trực tiếp</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Row 4 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Số hồ sơ */}
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Số hồ sơ"
+                value={soHoSo}
+                onChange={(e) => setSoHoSo(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên hoặc mã BHXH..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  // Reset all filters
+                  setMaDonVi('');
+                  setMaTinh('');
+                  setMaHuyen('');
+                  setFromDate('');
+                  setToDate('');
+                  setMaBhxh('');
+                  setFilterStatus('all');
+                  setKetQua('all');
+                  setDaiLyId('');
+                  setCoQuanBhxhId('');
+                  setHinhThuc('all');
+                  setSoHoSo('');
+                  setSearchTerm('');
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Xóa bộ lọc
+              </button>
+              <button
+                onClick={loadUnprocessedParticipantsData}
+                disabled={loading}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Tìm kiếm
+              </button>
+            </div>
+
+            {/* Results count */}
+            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <Users className="w-4 h-4 mr-2" />
+              Tìm thấy {totalParticipants} người tham gia ({getTotalDraftCount()} nháp, {getTotalSubmittedCount()} đã nộp, {getTotalPendingPaymentCount()} chờ thanh toán, {getTotalProcessingCount()} đang xử lý)
+            </div>
           </div>
         </div>
       </div>
@@ -821,7 +1149,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
 
                   // Only draft participants selected
                   if (draftCount > 0 && submittedCount === 0 && pendingPaymentCount === 0) {
-                    return `Nộp ${draftCount} người tham gia nháp`;
+                    return `Nộp và tạo thanh toán cho ${draftCount} người tham gia nháp`;
                   }
 
                   // Only submitted participants selected
@@ -1194,7 +1522,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Xác nhận nộp hồ sơ
+                Xác nhận nộp hồ sơ và thanh toán
               </h3>
 
               <div className="mb-6">
@@ -1212,8 +1540,22 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                   </div>
                 </div>
 
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                    </div>
+                    <div className="ml-3">
+                      <h5 className="text-sm font-medium text-blue-900 dark:text-blue-100">Luồng thanh toán</h5>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        Hệ thống sẽ hiển thị mã QR để bạn thanh toán. Sau khi xác nhận thanh toán thành công, trạng thái sẽ chuyển thẳng thành "Đã nộp và đã thanh toán" (Đang xử lý).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Bạn có muốn tạo thanh toán ngay sau khi nộp không?
+                  Bạn có muốn tiếp tục nộp hồ sơ và thanh toán không?
                 </p>
               </div>
 
@@ -1223,13 +1565,6 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                   className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                   Hủy
-                </button>
-                <button
-                  onClick={() => handleConfirmSubmission(false)}
-                  disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSubmitting ? 'Đang nộp...' : 'Chỉ nộp'}
                 </button>
                 <button
                   onClick={() => handleConfirmSubmission(true)}
@@ -1274,13 +1609,49 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
             setShowPaymentModal(false);
             setSelectedKeKhai(null);
             setSelectedPayment(null);
+            // Clear pending data when modal is closed without payment
+            setPendingPaymentParticipants([]);
+            setSubmittedParticipants([]);
+            showToast('Đã hủy thanh toán. Vui lòng thử lại nếu muốn nộp hồ sơ.', 'info');
           }}
-          onPaymentConfirmed={() => {
-            setShowPaymentModal(false);
-            setSelectedKeKhai(null);
-            setSelectedPayment(null);
-            showToast('Thanh toán đã được xác nhận thành công', 'success');
-            loadUnprocessedParticipantsData();
+          onPaymentConfirmed={async () => {
+            // When payment is confirmed, update participant status to submitted
+            try {
+              const selectedIds = pendingPaymentParticipants.map(p => p.id);
+
+              // Update participant status to 'submitted' now that payment is confirmed
+              for (const participantId of selectedIds) {
+                try {
+                  await keKhaiService.updateParticipantStatus(
+                    participantId,
+                    'submitted',
+                    user?.id || '',
+                    'Nộp cá nhân sau khi xác nhận thanh toán thành công'
+                  );
+                  console.log(`✅ Successfully updated participant ${participantId} after payment confirmation`);
+                } catch (participantError) {
+                  console.error(`❌ Failed to update participant ${participantId} after payment:`, participantError);
+                }
+              }
+
+              setShowPaymentModal(false);
+              setSelectedKeKhai(null);
+              setSelectedPayment(null);
+              setSelectedParticipants(new Set());
+              setPendingPaymentParticipants([]); // Clear pending participants
+              setSubmittedParticipants([]); // Clear submitted participants
+              showToast('Thanh toán đã được xác nhận thành công. Hồ sơ đã được nộp và chuyển sang xử lý.', 'success');
+              loadUnprocessedParticipantsData();
+            } catch (error) {
+              console.error('Error updating participants after payment confirmation:', error);
+              setShowPaymentModal(false);
+              setSelectedKeKhai(null);
+              setSelectedPayment(null);
+              setPendingPaymentParticipants([]); // Clear pending participants even on error
+              setSubmittedParticipants([]); // Clear submitted participants even on error
+              showToast('Thanh toán thành công nhưng có lỗi khi cập nhật trạng thái người tham gia', 'warning');
+              loadUnprocessedParticipantsData();
+            }
           }}
         />
       )}
