@@ -76,7 +76,7 @@ const createInitialParticipant = (doiTuongThamGia?: string): KeKhai603Participan
   denNgayTheMoi: '',
   ngayBienLai: new Date().toISOString().split('T')[0],
   sttHo: doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : '', // Mặc định STT hộ = 1 cho đối tượng DS
-  soThangDong: '',
+  soThangDong: '12', // Mặc định 12 tháng
   maTinhNkq: '',
   maHuyenNkq: '',
   maXaNkq: '',
@@ -319,7 +319,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         tien_dong: 0, // Sử dụng tien_dong thay vì so_tien_dong
         tien_dong_thuc_te: 0, // Khởi tạo tien_dong_thuc_te = 0
         ngay_bien_lai: new Date().toISOString().split('T')[0],
-        so_thang_dong: 0,
+        so_thang_dong: 12, // Mặc định 12 tháng
         stt_ho: doiTuongThamGia && doiTuongThamGia.includes('DS') ? '1' : undefined, // Mặc định STT hộ = 1 cho đối tượng DS
         // Add organization fields from ke khai
         cong_ty_id: keKhaiInfo.cong_ty_id,

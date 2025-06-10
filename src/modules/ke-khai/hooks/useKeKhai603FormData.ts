@@ -53,6 +53,13 @@ export interface KeKhai603FormData {
   ghiChuDongPhi: string;
 }
 
+// Default CSKCB - Trung tâm Y tế thị xã Tịnh Biên (Hospital code 006)
+const DEFAULT_CSKCB = {
+  value: '006',
+  ten: 'Trung tâm Y tế thị xã Tịnh Biên',
+  maTinh: '89'
+};
+
 // Initial form data
 const initialFormData: KeKhai603FormData = {
   // Edit tracking
@@ -64,7 +71,7 @@ const initialFormData: KeKhai603FormData = {
   ngaySinh: '',
   gioiTinh: '',
   soCCCD: '',
-  noiDangKyKCB: '',
+  noiDangKyKCB: DEFAULT_CSKCB.ten, // Default hospital name
   soDienThoai: '',
   email: '',
   soTheBHYT: '',
@@ -85,10 +92,10 @@ const initialFormData: KeKhai603FormData = {
   soTienDong: '',
   tienDong: 0, // Khởi tạo giá trị từ database = 0
   tienDongThucTe: 0, // Khởi tạo giá trị số = 0
-  tinhKCB: '',
+  tinhKCB: DEFAULT_CSKCB.maTinh, // Default province for hospital
   noiNhanHoSo: '',
-  maBenhVien: '',
-  tenBenhVien: '',
+  maBenhVien: DEFAULT_CSKCB.value, // Default hospital code
+  tenBenhVien: DEFAULT_CSKCB.ten, // Default hospital name
   maHoGiaDinh: '',
   phuongAn: '',
   trangThai: '',
@@ -98,7 +105,7 @@ const initialFormData: KeKhai603FormData = {
   denNgayTheCu: '',
   
   // Thông tin đóng BHYT mới
-  soThangDong: '',
+  soThangDong: '12', // Mặc định 12 tháng
   sttHo: '',
   tuNgayTheMoi: '',
   denNgayTheMoi: '',
@@ -396,7 +403,7 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
       ngaySinh: '',
       gioiTinh: '',
       soCCCD: '',
-      noiDangKyKCB: '',
+      noiDangKyKCB: DEFAULT_CSKCB.ten, // Default hospital name
       soDienThoai: '',
       email: '',
       soTheBHYT: '',
@@ -417,10 +424,10 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
       soTienDong: '',
       tienDong: 0,
       tienDongThucTe: 0,
-      tinhKCB: '',
+      tinhKCB: DEFAULT_CSKCB.maTinh, // Default province for hospital
       noiNhanHoSo: '',
-      maBenhVien: '',
-      tenBenhVien: '',
+      maBenhVien: DEFAULT_CSKCB.value, // Default hospital code
+      tenBenhVien: DEFAULT_CSKCB.ten, // Default hospital name
       maHoGiaDinh: '',
       phuongAn: '',
       trangThai: '',
@@ -430,7 +437,7 @@ export const useKeKhai603FormData = (doiTuongThamGia?: string) => {
       denNgayTheCu: '',
 
       // Thông tin đóng BHYT mới
-      soThangDong: '',
+      soThangDong: '12', // Mặc định 12 tháng
       sttHo: '',
       tuNgayTheMoi: '',
       denNgayTheMoi: '',

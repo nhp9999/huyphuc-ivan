@@ -467,11 +467,23 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
   // Helper function for CSKCB (Medical facility) dropdown
   const getCSKCBDropdownOptions = React.useMemo((): DropdownOption[] => {
-    return locationData.cskcbOptions.map(option => ({
+    const options = locationData.cskcbOptions.map(option => ({
       value: option.value,
       label: cleanLabel(option.value, option.ten),
       searchText: `${option.value} ${option.ten} ${option.ma}` // Include ma for search
-    })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+    }));
+
+    // Always include default hospital (006) if not already in the list
+    const hasDefaultHospital = options.some(option => option.value === '006');
+    if (!hasDefaultHospital) {
+      options.unshift({
+        value: '006',
+        label: '006 - Trung tâm Y tế thị xã Tịnh Biên',
+        searchText: '006 Trung tâm Y tế thị xã Tịnh Biên'
+      });
+    }
+
+    return options.sort((a, b) => a.label.localeCompare(b.label, 'vi'));
   }, [locationData.cskcbOptions, cleanLabel]);
 
   // Helper function for Số tháng đóng dropdown (only 3, 6, 12 months)
@@ -527,12 +539,24 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     // Find the selected facility to get its name
     const selectedFacility = locationData.cskcbOptions.find(option => option.value === value);
     if (selectedFacility) {
-      // Update both the value and the display name
+      // Update all related medical facility fields
       handleInputChange('noiDangKyKCB', selectedFacility.ten);
-      // Store the facility code separately if needed
-      // handleInputChange('maBenhVien', selectedFacility.value);
+      handleInputChange('maBenhVien', selectedFacility.value);
+      handleInputChange('tenBenhVien', selectedFacility.ten);
+      handleInputChange('tinhKCB', selectedFacility.ma_tinh);
+      console.log('🏥 Medical facility updated:', selectedFacility.ten, 'Code:', selectedFacility.value);
+    } else if (value === '006') {
+      // Handle default hospital (006) even if not in loaded options
+      handleInputChange('noiDangKyKCB', 'Trung tâm Y tế thị xã Tịnh Biên');
+      handleInputChange('maBenhVien', '006');
+      handleInputChange('tenBenhVien', 'Trung tâm Y tế thị xã Tịnh Biên');
+      handleInputChange('tinhKCB', '89');
+      console.log('🏥 Default medical facility selected: Trung tâm Y tế thị xã Tịnh Biên (006)');
     } else {
+      // Clear medical facility fields if no selection
       handleInputChange('noiDangKyKCB', '');
+      handleInputChange('maBenhVien', '');
+      handleInputChange('tenBenhVien', '');
     }
   }, [handleInputChange, locationData.cskcbOptions]);
 
@@ -593,26 +617,12 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       const result = await searchKeKhai603(formData.maSoBHXH);
 
       if (result.success && result.data) {
-        // Handle medical facility matching first
-        let facilityUpdated = false;
-        if (result.data.noiDangKyKCB) {
-          const matchedFacility = await findMatchingMedicalFacility(result.data.noiDangKyKCB);
-          if (matchedFacility) {
-            // Update with matched facility data
-            handleInputChange('noiDangKyKCB', matchedFacility.ten);
-            handleInputChange('tinhKCB', matchedFacility.ma_tinh);
-            facilityUpdated = true;
-            console.log('✅ Matched medical facility:', matchedFacility.ten, 'Province:', matchedFacility.ma_tinh);
-          } else {
-            // Use original facility name if no match found
-            handleInputChange('noiDangKyKCB', result.data.noiDangKyKCB);
-            console.log('⚠️ No exact match found for facility:', result.data.noiDangKyKCB);
-          }
-        }
+        // ALWAYS keep default hospital (006) when searching BHXH - ignore API medical facility data
+        console.log('🏥 Keeping default hospital 006 - ignoring API medical facility data');
 
-        // Update form data with search results (excluding noiDangKyKCB since we handled it above)
+        // Update form data with search results (excluding ALL medical facility fields to preserve default hospital)
         Object.entries(result.data).forEach(([key, value]) => {
-          if (key !== 'noiDangKyKCB') { // Skip noiDangKyKCB since we handled it specially
+          if (!['noiDangKyKCB', 'tinhKCB', 'maBenhVien', 'tenBenhVien'].includes(key)) {
             handleInputChange(key as any, value as string);
           }
         });
@@ -626,11 +636,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           result.data.trangThaiThe.includes('⚠️') &&
           result.data.trangThaiThe.toLowerCase().includes('không có thẻ');
 
-        // Create success message based on facility matching and card status
-        let successMessage = 'Đã tìm thấy và cập nhật thông tin BHYT!';
-        if (facilityUpdated) {
-          successMessage += ' Cơ sở KCB đã được tự động chọn.';
-        }
+        // Create success message - always mention that default hospital is kept
+        let successMessage = 'Đã tìm thấy và cập nhật thông tin BHYT! Bệnh viện mặc định 006 được giữ nguyên.';
 
         if (hasCardWarning) {
           showToast('Đã tìm thấy Thông tin cơ bản! ⚠️ Lưu ý: Người này chưa có thẻ BHYT', 'warning');
@@ -1519,7 +1526,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
                         </label>
                         <SearchableDropdown
                           options={getCSKCBDropdownOptions}
-                          value={locationData.cskcbOptions.find(option => option.ten === formData.noiDangKyKCB)?.value || ''}
+                          value={locationData.cskcbOptions.find(option => option.ten === formData.noiDangKyKCB)?.value || (formData.maBenhVien || '')}
                           onChange={handleCSKCBChange}
                           placeholder="Chọn hoặc tìm bệnh viện..."
                           loading={loadingStates.cskcb}
