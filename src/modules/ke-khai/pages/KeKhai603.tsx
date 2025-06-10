@@ -84,6 +84,7 @@ const KeKhai603: React.FC = () => {
 
   // State cho export Excel
   const [exportingExcel, setExportingExcel] = useState<number | null>(null);
+  const [exportingParticipant, setExportingParticipant] = useState<number | null>(null);
 
   // State cho copy mã hồ sơ
   const [copiedKeKhaiId, setCopiedKeKhaiId] = useState<number | null>(null);
@@ -399,6 +400,35 @@ const KeKhai603: React.FC = () => {
             keKhaiId: participant.ke_khai.id
           });
         }
+      },
+      {
+        id: 'export-d03-tk1-single',
+        label: exportingParticipant === participant.id ? 'Đang xuất D03 TK1...' : 'Xuất D03 TK1 VNPT (cá nhân)',
+        icon: exportingParticipant === participant.id ? (
+          <RefreshCw className="w-4 h-4 animate-spin" />
+        ) : (
+          <FileSpreadsheet className="w-4 h-4 text-green-600" />
+        ),
+        onClick: () => {
+          closeContextMenu();
+          handleExportSingleParticipantD03TK1(participant);
+        },
+        disabled: exportingParticipant === participant.id
+      },
+      {
+        id: 'export-d03-tk1-full',
+        label: exportingExcel === participant.ke_khai.id ? 'Đang xuất toàn bộ kê khai...' : 'Xuất D03 TK1 (toàn bộ kê khai)',
+        icon: exportingExcel === participant.ke_khai.id ? (
+          <RefreshCw className="w-4 h-4 animate-spin" />
+        ) : (
+          <FileSpreadsheet className="w-4 h-4 text-green-600" />
+        ),
+        onClick: () => {
+          closeContextMenu();
+          handleExportD03TK1Excel(participant.ke_khai);
+        },
+        disabled: exportingExcel === participant.ke_khai.id,
+        divider: true
       },
       {
         id: 'copy-info',
@@ -1246,6 +1276,70 @@ const KeKhai603: React.FC = () => {
       showToast(errorMessage, 'error');
     } finally {
       setExportingExcel(null);
+    }
+  };
+
+  // Xuất Excel D03-TK1-VNPT cho một người tham gia cụ thể
+  const handleExportSingleParticipantD03TK1 = async (participant: any) => {
+    try {
+      setExportingParticipant(participant.id);
+
+      // Lấy thông tin mã nhân viên từ user hiện tại
+      let maNhanVienThu = '';
+      if (user?.id) {
+        try {
+          // Import nguoiDungService để lấy thông tin user đầy đủ
+          const { default: nguoiDungService } = await import('../../quan-ly/services/nguoiDungService');
+          const userInfo = await nguoiDungService.getNguoiDungById(parseInt(user.id));
+          maNhanVienThu = userInfo?.ma_nhan_vien || '';
+        } catch (error) {
+          console.warn('Could not get user employee code:', error);
+          maNhanVienThu = user.id; // Fallback to user ID
+        }
+      }
+
+      // Convert participant data to match the expected format
+      const convertedParticipant = {
+        id: participant.id,
+        hoTen: participant.ho_ten || '',
+        maSoBHXH: participant.ma_so_bhxh || '',
+        ngaySinh: participant.ngay_sinh || '',
+        gioiTinh: participant.gioi_tinh || 'Nam',
+        noiDangKyKCB: participant.noi_dang_ky_kcb || '',
+        tinhKCB: participant.tinh_kcb || '',
+        maBenhVien: participant.ma_benh_vien || '',
+        tenBenhVien: participant.noi_dang_ky_kcb || '',
+        mucLuong: participant.muc_luong?.toString() || '',
+        tyLeDong: participant.ty_le_dong?.toString() || '100',
+        soTienDong: participant.tien_dong?.toString() || '',
+        tienDongThucTe: participant.tien_dong_thuc_te,
+        tuNgayTheCu: participant.tu_ngay_the_cu || '',
+        denNgayTheCu: participant.den_ngay_the_cu || '',
+        ngayBienLai: participant.ngay_bien_lai || new Date().toISOString().split('T')[0],
+        sttHo: participant.stt_ho || '',
+        soThangDong: participant.so_thang_dong?.toString() || '',
+        maTinhNkq: participant.ma_tinh_nkq || '',
+        maHuyenNkq: participant.ma_huyen_nkq || '',
+        maXaNkq: participant.ma_xa_nkq || '',
+        noiNhanHoSo: participant.noi_nhan_ho_so || '',
+        soCCCD: participant.so_cccd || '',
+        maHoGiaDinh: participant.ma_ho_gia_dinh || '',
+        phuongAn: participant.phuong_an || 'ON',
+        maTinhKS: participant.ma_tinh_ks || '',
+        maHuyenKS: participant.ma_huyen_ks || '',
+        maXaKS: participant.ma_xa_ks || ''
+      };
+
+      // Xuất Excel với mã nhân viên thu (chỉ 1 người tham gia)
+      await exportD03TK1VNPTExcel([convertedParticipant], participant.ke_khai, maNhanVienThu);
+
+      showToast(`Đã xuất file Excel D03-TK1-VNPT cho ${participant.ho_ten} thành công!`, 'success');
+    } catch (error) {
+      console.error('Error exporting single participant D03-TK1-VNPT Excel:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi xuất Excel';
+      showToast(errorMessage, 'error');
+    } finally {
+      setExportingParticipant(null);
     }
   };
 

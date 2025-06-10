@@ -9,7 +9,11 @@ import {
   AlertCircle,
   Calendar,
   User,
-  CreditCard
+  CreditCard,
+  FileSpreadsheet,
+  Download,
+  Trash2,
+  Play
 } from 'lucide-react';
 import { DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
 import keKhaiService, { KeKhaiSearchParams } from '../services/keKhaiService';
@@ -21,6 +25,8 @@ import PaymentQRModal from '../components/PaymentQRModal';
 import DebugKeKhaiList from '../components/DebugKeKhaiList';
 import paymentService from '../services/paymentService';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
+import nguoiDungService from '../../quan-ly/services/nguoiDungService';
+import { exportD03TK1VNPTExcel } from '../../../shared/utils/excelExport';
 
 const KeKhaiManagement: React.FC = () => {
   const { user } = useAuth();
@@ -30,6 +36,10 @@ const KeKhaiManagement: React.FC = () => {
   const [keKhaiList, setKeKhaiList] = useState<DanhSachKeKhai[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // User names mapping state
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [loadingUserNames, setLoadingUserNames] = useState(false);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,6 +50,8 @@ const KeKhaiManagement: React.FC = () => {
 
   // Loading states for specific actions
   const [completingKeKhaiId, setCompletingKeKhaiId] = useState<number | null>(null);
+  const [exportingKeKhaiId, setExportingKeKhaiId] = useState<number | null>(null);
+  const [processingKeKhaiId, setProcessingKeKhaiId] = useState<number | null>(null);
   
   // Modal states
   const [selectedKeKhai, setSelectedKeKhai] = useState<DanhSachKeKhai | null>(null);
@@ -48,6 +60,58 @@ const KeKhaiManagement: React.FC = () => {
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<any>(null);
+
+  // Delete modal state
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    keKhai: DanhSachKeKhai | null;
+    isDeleting: boolean;
+  }>({
+    isOpen: false,
+    keKhai: null,
+    isDeleting: false
+  });
+
+  // Function to fetch user names
+  const fetchUserNames = async (userIds: string[]) => {
+    if (userIds.length === 0) return;
+
+    setLoadingUserNames(true);
+    try {
+      const uniqueUserIds = [...new Set(userIds)].filter(id => id && !userNames[id]);
+
+      if (uniqueUserIds.length === 0) {
+        setLoadingUserNames(false);
+        return;
+      }
+
+      console.log('🔍 Fetching user names for IDs:', uniqueUserIds);
+
+      const userPromises = uniqueUserIds.map(async (userId) => {
+        try {
+          const user = await nguoiDungService.getNguoiDungById(parseInt(userId));
+          return { id: userId, name: user?.ho_ten || `User ${userId}` };
+        } catch (error) {
+          console.error(`Error fetching user ${userId}:`, error);
+          return { id: userId, name: `User ${userId}` };
+        }
+      });
+
+      const userResults = await Promise.all(userPromises);
+
+      const newUserNames = { ...userNames };
+      userResults.forEach(({ id, name }) => {
+        newUserNames[id] = name;
+      });
+
+      setUserNames(newUserNames);
+      console.log('🔍 Updated user names:', newUserNames);
+    } catch (error) {
+      console.error('Error fetching user names:', error);
+    } finally {
+      setLoadingUserNames(false);
+    }
+  };
 
   // Load data
   const loadKeKhaiData = async () => {
@@ -138,6 +202,15 @@ const KeKhaiManagement: React.FC = () => {
       }
 
       setKeKhaiList(data);
+
+      // Fetch user names for creators
+      const userIds = data
+        .map(item => item.created_by)
+        .filter(id => id) as string[];
+
+      if (userIds.length > 0) {
+        await fetchUserNames(userIds);
+      }
     } catch (err) {
       console.error('Error loading ke khai data:', err);
       setError('Không thể tải danh sách kê khai. Vui lòng thử lại.');
@@ -351,6 +424,232 @@ const KeKhaiManagement: React.FC = () => {
     showToast('Thanh toán đã được xác nhận', 'success');
   };
 
+  // Helper function to convert participant data for export
+  const convertParticipantToExportFormat = (item: any, keKhaiInfo: DanhSachKeKhai) => {
+    return {
+      id: item.id,
+      hoTen: item.ho_ten || '',
+      maSoBHXH: item.ma_so_bhxh || '',
+      ngaySinh: item.ngay_sinh || '',
+      gioiTinh: item.gioi_tinh || '',
+      soCCCD: item.so_cccd || '',
+      noiDangKyKCB: item.noi_dang_ky_kcb || '',
+      soDienThoai: item.so_dien_thoai || '',
+      soTheBHYT: item.so_the_bhyt || '',
+      maTinhNkq: item.ma_tinh_nkq || '',
+      maHuyenNkq: item.ma_huyen_nkq || '',
+      maXaNkq: item.ma_xa_nkq || '',
+      noiNhanHoSo: item.noi_nhan_ho_so || '',
+      mucLuong: item.muc_luong || 0,
+      tyLeDong: item.ty_le_dong || 0,
+      soTienDong: item.tien_dong || 0,
+      tienDong: item.tien_dong || 0,
+      tienDongThucTe: item.tien_dong_thuc_te || 0,
+      tinhKCB: item.tinh_kcb || '',
+      maBenhVien: item.ma_benh_vien || '',
+      phuongAn: item.phuong_an || '',
+      soThangDong: item.so_thang_dong || 0,
+      sttHo: item.stt_ho || '',
+      tuNgayTheMoi: item.tu_ngay_the_moi || '',
+      denNgayTheMoi: item.den_ngay_the_moi || '',
+      ngayBienLai: item.ngay_bien_lai || '',
+      // Additional fields for export
+      danToc: item.dan_toc || '',
+      quocTich: item.quoc_tich || 'VN',
+      maTinhKS: item.ma_tinh_ks || '',
+      maHuyenKS: item.ma_huyen_ks || '',
+      maXaKS: item.ma_xa_ks || '',
+      maHoGiaDinh: item.ma_ho_gia_dinh || '',
+      tuNgayTheCu: item.tu_ngay_the_cu || '',
+      denNgayTheCu: item.den_ngay_the_cu || '',
+      tenBenhVien: '', // Will be resolved from ma_benh_vien if needed
+      ke_khai: keKhaiInfo
+    };
+  };
+
+  // Get employee code for export tracking
+  const getEmployeeCode = async (): Promise<string> => {
+    try {
+      if (user?.id) {
+        const userData = await nguoiDungService.getNguoiDungById(parseInt(user.id));
+        return userData?.ma_nhan_vien || user.id;
+      }
+      return 'UNKNOWN';
+    } catch (error) {
+      console.error('Error getting employee code:', error);
+      return user?.id || 'UNKNOWN';
+    }
+  };
+
+  // Handle export D03 TK1 VNPT for a specific ke khai
+  const handleExportD03TK1VNPT = async (keKhai: DanhSachKeKhai) => {
+    if (exportingKeKhaiId === keKhai.id) return;
+
+    setExportingKeKhaiId(keKhai.id);
+
+    try {
+      console.log('Starting D03 TK1 VNPT export for ke khai:', keKhai.id);
+
+      // Get participants for this ke khai
+      const participants = await keKhaiService.getNguoiThamGiaByKeKhai(keKhai.id);
+
+      if (!participants || participants.length === 0) {
+        showToast('Kê khai này chưa có người tham gia nào để xuất Excel', 'warning');
+        return;
+      }
+
+      console.log('Found participants for export:', participants.length);
+
+      // Convert participants to export format
+      const convertedParticipants = participants.map(participant =>
+        convertParticipantToExportFormat(participant, keKhai)
+      );
+
+      // Get employee code for tracking
+      const maNhanVienThu = await getEmployeeCode();
+
+      // Generate filename
+      const currentDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      const fileName = `D03-TK1-VNPT_${keKhai.ma_ke_khai}_${currentDate}.xlsx`;
+
+      // Export Excel
+      await exportD03TK1VNPTExcel(convertedParticipants, keKhai, maNhanVienThu, fileName);
+
+      showToast(`Đã xuất file Excel D03-TK1-VNPT cho kê khai ${keKhai.ma_ke_khai} thành công!`, 'success');
+    } catch (error) {
+      console.error('Error exporting D03-TK1-VNPT Excel:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi xuất Excel';
+      showToast(`Lỗi xuất Excel: ${errorMessage}`, 'error');
+    } finally {
+      setExportingKeKhaiId(null);
+    }
+  };
+
+  // Handle bulk export D03 TK1 VNPT for all visible ke khai
+  const handleBulkExportD03TK1VNPT = async () => {
+    if (exportingKeKhaiId !== null || keKhaiList.length === 0) return;
+
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const keKhai of keKhaiList) {
+        try {
+          await handleExportD03TK1VNPT(keKhai);
+          successCount++;
+          // Add a small delay between exports to prevent overwhelming the system
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Error exporting ke khai ${keKhai.ma_ke_khai}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        showToast(`Đã xuất thành công ${successCount} file D03-TK1-VNPT${errorCount > 0 ? `, ${errorCount} file lỗi` : ''}`, 'success');
+      } else {
+        showToast('Không thể xuất file nào', 'error');
+      }
+    } catch (error) {
+      console.error('Error in bulk export:', error);
+      showToast('Có lỗi xảy ra khi xuất hàng loạt', 'error');
+    }
+  };
+
+  // Handle delete ke khai
+  const handleDeleteKeKhai = (keKhai: DanhSachKeKhai) => {
+    setDeleteModal({
+      isOpen: true,
+      keKhai,
+      isDeleting: false
+    });
+  };
+
+  // Close delete modal
+  const closeDeleteModal = () => {
+    setDeleteModal({
+      isOpen: false,
+      keKhai: null,
+      isDeleting: false
+    });
+  };
+
+  // Confirm delete ke khai
+  const confirmDeleteKeKhai = async () => {
+    if (!deleteModal.keKhai) return;
+
+    setDeleteModal(prev => ({ ...prev, isDeleting: true }));
+
+    try {
+      console.log('Deleting ke khai:', deleteModal.keKhai.id);
+
+      await keKhaiService.deleteKeKhai(deleteModal.keKhai.id);
+
+      // Remove from local list
+      setKeKhaiList(prev => prev.filter(kk => kk.id !== deleteModal.keKhai!.id));
+
+      showToast(`Đã xóa kê khai ${deleteModal.keKhai.ma_ke_khai} thành công`, 'success');
+
+      // Close modal
+      closeDeleteModal();
+    } catch (error) {
+      console.error('Error deleting ke khai:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi xóa kê khai';
+      showToast(`Lỗi xóa kê khai: ${errorMessage}`, 'error');
+    } finally {
+      setDeleteModal(prev => ({ ...prev, isDeleting: false }));
+    }
+  };
+
+  // Handle set ke khai to processing status
+  const handleSetProcessing = async (keKhai: DanhSachKeKhai) => {
+    if (processingKeKhaiId === keKhai.id) return;
+
+    setProcessingKeKhaiId(keKhai.id);
+
+    try {
+      console.log('Setting ke khai to processing:', keKhai.id);
+
+      const result = await keKhaiService.setKeKhaiProcessing(
+        keKhai.id,
+        user?.id || '',
+        'Chuyển sang trạng thái đang xử lý'
+      );
+
+      // Update local list
+      setKeKhaiList(prev =>
+        prev.map(kk =>
+          kk.id === keKhai.id
+            ? { ...kk, trang_thai: 'processing', updated_at: result.updated_at }
+            : kk
+        )
+      );
+
+      showToast(`Đã chuyển kê khai ${keKhai.ma_ke_khai} sang trạng thái đang xử lý`, 'success');
+
+      // Emit events để đồng bộ dữ liệu
+      eventEmitter.emit(EVENTS.KE_KHAI_STATUS_CHANGED, {
+        keKhaiId: keKhai.id,
+        oldStatus: keKhai.trang_thai,
+        newStatus: 'processing',
+        keKhaiData: result,
+        timestamp: new Date().toISOString()
+      });
+
+      eventEmitter.emit(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, {
+        reason: 'ke_khai_set_processing',
+        keKhaiId: keKhai.id,
+        keKhaiData: result
+      });
+    } catch (error) {
+      console.error('Error setting ke khai to processing:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi chuyển trạng thái';
+      showToast(`Lỗi chuyển trạng thái: ${errorMessage}`, 'error');
+    } finally {
+      setProcessingKeKhaiId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Debug Component - Remove in production */}
@@ -366,9 +665,37 @@ const KeKhaiManagement: React.FC = () => {
             Duyệt và quản lý các kê khai từ nhân viên thu
           </p>
         </div>
-        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-          <FileText className="w-4 h-4" />
-          <span>{keKhaiList.length} kê khai</span>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+            <FileText className="w-4 h-4" />
+            <span>{keKhaiList.length} kê khai</span>
+          </div>
+
+          {/* Bulk Export Button */}
+          {keKhaiList.length > 0 && (
+            <button
+              onClick={handleBulkExportD03TK1VNPT}
+              disabled={exportingKeKhaiId !== null}
+              className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
+                exportingKeKhaiId !== null
+                  ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                  : 'text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'
+              }`}
+              title="Xuất D03 TK1 VNPT cho tất cả kê khai hiển thị"
+            >
+              {exportingKeKhaiId !== null ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mr-2" />
+                  Đang xuất...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Xuất tất cả D03 TK1
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -522,7 +849,15 @@ const KeKhaiManagement: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex items-center">
                           <User className="w-4 h-4 mr-1" />
-                          {keKhai.created_by || 'N/A'}
+                          {keKhai.created_by ? (
+                            loadingUserNames ? (
+                              <span className="text-gray-400">Đang tải...</span>
+                            ) : (
+                              userNames[keKhai.created_by] || keKhai.created_by
+                            )
+                          ) : (
+                            'N/A'
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -535,6 +870,7 @@ const KeKhaiManagement: React.FC = () => {
                             <Eye className="w-4 h-4" />
                           </button>
 
+                          {/* Approval/Action buttons - available for all statuses */}
                           {keKhai.trang_thai === 'submitted' && (
                             <>
                               <button
@@ -587,15 +923,128 @@ const KeKhaiManagement: React.FC = () => {
                             </>
                           )}
 
-                          {keKhai.trang_thai === 'pending_payment' && (
+                          {/* Approval buttons for other statuses */}
+                          {(keKhai.trang_thai === 'draft' ||
+                            keKhai.trang_thai === 'approved' ||
+                            keKhai.trang_thai === 'completed' ||
+                            keKhai.trang_thai === 'paid') && (
+                            <>
+                              <button
+                                onClick={() => handleApprovalAction(keKhai, 'approve')}
+                                className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                                title={
+                                  keKhai.trang_thai === 'draft' ? 'Duyệt kê khai nháp' :
+                                  keKhai.trang_thai === 'approved' ? 'Duyệt lại' :
+                                  keKhai.trang_thai === 'completed' ? 'Duyệt lại kê khai đã hoàn thành' :
+                                  keKhai.trang_thai === 'paid' ? 'Duyệt lại kê khai đã thanh toán' :
+                                  'Duyệt'
+                                }
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleApprovalAction(keKhai, 'reject')}
+                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                title={
+                                  keKhai.trang_thai === 'draft' ? 'Từ chối kê khai nháp' :
+                                  keKhai.trang_thai === 'approved' ? 'Hủy duyệt' :
+                                  keKhai.trang_thai === 'completed' ? 'Từ chối kê khai đã hoàn thành' :
+                                  keKhai.trang_thai === 'paid' ? 'Từ chối kê khai đã thanh toán' :
+                                  'Từ chối'
+                                }
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+
+                          {/* Special handling for rejected status */}
+                          {keKhai.trang_thai === 'rejected' && (
                             <button
-                              onClick={() => handleViewPayment(keKhai)}
-                              className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
-                              title="Xem thông tin thanh toán"
+                              onClick={() => handleApprovalAction(keKhai, 'approve')}
+                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                              title="Duyệt lại kê khai đã bị từ chối"
                             >
-                              <CreditCard className="w-4 h-4" />
+                              <CheckCircle className="w-4 h-4" />
                             </button>
                           )}
+
+                          {keKhai.trang_thai === 'pending_payment' && (
+                            <>
+                              <button
+                                onClick={() => handleApprovalAction(keKhai, 'approve')}
+                                className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                                title="Duyệt kê khai chờ thanh toán"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleApprovalAction(keKhai, 'reject')}
+                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                title="Từ chối kê khai chờ thanh toán"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleViewPayment(keKhai)}
+                                className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
+                                title="Xem thông tin thanh toán"
+                              >
+                                <CreditCard className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+
+                          {/* Export D03 TK1 VNPT button - available for all statuses */}
+                          <button
+                            onClick={() => handleExportD03TK1VNPT(keKhai)}
+                            disabled={exportingKeKhaiId === keKhai.id}
+                            className={`${
+                              exportingKeKhaiId === keKhai.id
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
+                            }`}
+                            title={exportingKeKhaiId === keKhai.id ? 'Đang xuất Excel...' : 'Xuất D03 TK1 VNPT'}
+                          >
+                            {exportingKeKhaiId === keKhai.id ? (
+                              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <FileSpreadsheet className="w-4 h-4" />
+                            )}
+                          </button>
+
+                          {/* Set Processing button - available for non-processing statuses */}
+                          {keKhai.trang_thai !== 'processing' && (
+                            <button
+                              onClick={() => handleSetProcessing(keKhai)}
+                              disabled={processingKeKhaiId === keKhai.id}
+                              className={`${
+                                processingKeKhaiId === keKhai.id
+                                  ? 'text-gray-400 cursor-not-allowed'
+                                  : 'text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300'
+                              }`}
+                              title={
+                                processingKeKhaiId === keKhai.id
+                                  ? 'Đang chuyển trạng thái...'
+                                  : 'Chuyển sang trạng thái đang xử lý'
+                              }
+                            >
+                              {processingKeKhaiId === keKhai.id ? (
+                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Play className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
+
+                          {/* Delete button - available for all statuses */}
+                          <button
+                            onClick={() => handleDeleteKeKhai(keKhai)}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            title="Xóa kê khai"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -639,6 +1088,69 @@ const KeKhaiManagement: React.FC = () => {
           }}
           onPaymentConfirmed={handlePaymentConfirmed}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && deleteModal.keKhai && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    Xác nhận xóa kê khai
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Hành động này không thể hoàn tác
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Bạn có chắc chắn muốn xóa kê khai{' '}
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                    {deleteModal.keKhai.ma_ke_khai}
+                  </span>{' '}
+                  không?
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Tên kê khai: {deleteModal.keKhai.ten_ke_khai}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Trạng thái: {deleteModal.keKhai.trang_thai}
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={closeDeleteModal}
+                  disabled={deleteModal.isDeleting}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={confirmDeleteKeKhai}
+                  disabled={deleteModal.isDeleting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteModal.isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 inline-block" />
+                      Đang xóa...
+                    </>
+                  ) : (
+                    'Xóa kê khai'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

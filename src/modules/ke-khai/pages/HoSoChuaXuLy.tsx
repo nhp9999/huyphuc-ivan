@@ -16,7 +16,7 @@ import {
   Users,
   Building
 } from 'lucide-react';
-import { DanhSachKeKhai, DanhSachNguoiThamGia, ThanhToan } from '../../../shared/services/api/supabaseClient';
+import { DanhSachKeKhai, DanhSachNguoiThamGia, ThanhToan, supabase } from '../../../shared/services/api/supabaseClient';
 
 // Interface for unprocessed participant with declaration info
 interface UnprocessedParticipant extends DanhSachNguoiThamGia {
@@ -272,7 +272,12 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
         setSelectedPayment(existingPayment);
         setShowPaymentModal(true);
       } else {
-        showToast('Chưa có thông tin thanh toán cho kê khai này', 'warning');
+        // If no payment exists and ke khai is submitted, create payment
+        if (keKhai.trang_thai === 'submitted') {
+          await handleCreatePaymentForSubmittedKeKhai(keKhai);
+        } else {
+          showToast('Chưa có thông tin thanh toán cho kê khai này', 'warning');
+        }
       }
     } catch (error) {
       console.error('Error checking payment:', error);
@@ -302,12 +307,12 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
   // Handle select all participants on current page
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set(selectedParticipants);
-    const draftParticipants = getDraftParticipants();
+    const selectableParticipants = getSelectableParticipants();
 
     if (checked) {
-      draftParticipants.forEach(p => newSelected.add(p.id));
+      selectableParticipants.forEach(p => newSelected.add(p.id));
     } else {
-      draftParticipants.forEach(p => newSelected.delete(p.id));
+      selectableParticipants.forEach(p => newSelected.delete(p.id));
     }
     setSelectedParticipants(newSelected);
   };
@@ -316,15 +321,39 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
   const handleSubmitSelected = async () => {
     const selectedDraftParticipants = getDraftParticipants()
       .filter(p => selectedParticipants.has(p.id));
+    const selectedSubmittedParticipants = getSubmittedParticipants()
+      .filter(p => selectedParticipants.has(p.id));
+    const selectedPendingPaymentParticipants = getPendingPaymentParticipants()
+      .filter(p => selectedParticipants.has(p.id));
 
-    if (selectedDraftParticipants.length === 0) {
-      showToast('Vui lòng chọn ít nhất một người tham gia nháp để nộp', 'warning');
+    const totalSelected = selectedDraftParticipants.length + selectedSubmittedParticipants.length + selectedPendingPaymentParticipants.length;
+
+    if (totalSelected === 0) {
+      showToast('Vui lòng chọn ít nhất một người tham gia', 'warning');
       return;
     }
 
-    // Store selected participants for payment confirmation
-    setSubmittedParticipants(selectedDraftParticipants);
-    setShowPaymentConfirmModal(true);
+    // If only draft participants are selected, proceed with normal submission
+    if (selectedDraftParticipants.length > 0 && selectedSubmittedParticipants.length === 0 && selectedPendingPaymentParticipants.length === 0) {
+      setSubmittedParticipants(selectedDraftParticipants);
+      setShowPaymentConfirmModal(true);
+      return;
+    }
+
+    // If only submitted participants are selected, create payment directly
+    if (selectedDraftParticipants.length === 0 && selectedSubmittedParticipants.length > 0 && selectedPendingPaymentParticipants.length === 0) {
+      await handleCreatePaymentForSelectedSubmitted(selectedSubmittedParticipants);
+      return;
+    }
+
+    // If only pending payment participants are selected, show existing payment
+    if (selectedDraftParticipants.length === 0 && selectedSubmittedParticipants.length === 0 && selectedPendingPaymentParticipants.length > 0) {
+      await handleViewPaymentForSelectedPendingPayment(selectedPendingPaymentParticipants);
+      return;
+    }
+
+    // If mixed types are selected, show error
+    showToast('Không thể xử lý cùng lúc người tham gia ở các trạng thái khác nhau. Vui lòng chọn một loại', 'warning');
   };
 
   // Handle confirm submission (with or without payment)
@@ -385,7 +414,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
     try {
       // Calculate total amount for submitted participants
       const totalAmount = submittedParticipants.reduce((sum, participant) => {
-        return sum + (participant.tien_dong || participant.tien_dong_thuc_te || 0);
+        return sum + (participant.tien_dong_thuc_te || participant.tien_dong || 0);
       }, 0);
 
       if (totalAmount <= 0) {
@@ -421,6 +450,179 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
     }
   };
 
+  // Handle create payment for submitted ke khai (individual ke khai payment)
+  const handleCreatePaymentForSubmittedKeKhai = async (keKhai: DanhSachKeKhai) => {
+    try {
+      // Get all participants in this ke khai to calculate total amount
+      const { data: participants, error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select('*')
+        .eq('ke_khai_id', keKhai.id);
+
+      if (error) {
+        console.error('Error fetching participants:', error);
+        showToast('Không thể lấy danh sách người tham gia', 'error');
+        return;
+      }
+
+      // Calculate total amount
+      const totalAmount = participants.reduce((sum, participant) => {
+        return sum + (participant.tien_dong_thuc_te || participant.tien_dong || 0);
+      }, 0);
+
+      if (totalAmount <= 0) {
+        showToast('Không thể tạo thanh toán: Số tiền không hợp lệ', 'error');
+        return;
+      }
+
+      // Create payment
+      const payment = await paymentService.createPayment({
+        ke_khai_id: keKhai.id,
+        so_tien: totalAmount,
+        phuong_thuc_thanh_toan: 'qr_code',
+        payment_description: `Thanh toán kê khai ${keKhai.ma_ke_khai}`,
+        created_by: user?.id
+      });
+
+      // Update ke khai status to pending_payment
+      await keKhaiService.updateKeKhaiStatus(
+        keKhai.id,
+        'pending_payment',
+        user?.id,
+        'Tạo thanh toán cho kê khai đã nộp'
+      );
+
+      // Show payment QR modal
+      setSelectedKeKhai(keKhai);
+      setSelectedPayment(payment);
+      setShowPaymentModal(true);
+
+      showToast('Đã tạo thanh toán thành công', 'success');
+
+      // Reload data to reflect status change
+      loadUnprocessedParticipantsData();
+    } catch (error) {
+      console.error('Error creating payment for submitted ke khai:', error);
+      showToast('Có lỗi xảy ra khi tạo thanh toán', 'error');
+    }
+  };
+
+  // Handle create payment for selected submitted participants
+  const handleCreatePaymentForSelectedSubmitted = async (selectedSubmittedParticipants: UnprocessedParticipant[]) => {
+    try {
+      // Group participants by ke_khai_id
+      const participantsByKeKhai = selectedSubmittedParticipants.reduce((acc, participant) => {
+        const keKhaiId = participant.ke_khai.id;
+        if (!acc[keKhaiId]) {
+          acc[keKhaiId] = {
+            keKhai: participant.ke_khai,
+            participants: []
+          };
+        }
+        acc[keKhaiId].participants.push(participant);
+        return acc;
+      }, {} as Record<number, { keKhai: DanhSachKeKhai, participants: UnprocessedParticipant[] }>);
+
+      // If participants belong to multiple ke khai, show error
+      const keKhaiIds = Object.keys(participantsByKeKhai);
+      if (keKhaiIds.length > 1) {
+        showToast('Không thể tạo thanh toán cho người tham gia từ nhiều kê khai khác nhau', 'warning');
+        return;
+      }
+
+      // Get the single ke khai
+      const keKhaiData = Object.values(participantsByKeKhai)[0];
+      const keKhai = keKhaiData.keKhai;
+
+      // Calculate total amount for selected participants
+      const totalAmount = selectedSubmittedParticipants.reduce((sum, participant) => {
+        return sum + (participant.tien_dong_thuc_te || participant.tien_dong || 0);
+      }, 0);
+
+      if (totalAmount <= 0) {
+        showToast('Không thể tạo thanh toán: Số tiền không hợp lệ', 'error');
+        return;
+      }
+
+      // Create payment
+      const payment = await paymentService.createPayment({
+        ke_khai_id: keKhai.id,
+        so_tien: totalAmount,
+        phuong_thuc_thanh_toan: 'qr_code',
+        payment_description: `Thanh toán cho ${selectedSubmittedParticipants.length} người tham gia từ kê khai ${keKhai.ma_ke_khai}`,
+        created_by: user?.id
+      });
+
+      // Update ke khai status to pending_payment
+      await keKhaiService.updateKeKhaiStatus(
+        keKhai.id,
+        'pending_payment',
+        user?.id,
+        'Tạo thanh toán cho người tham gia đã nộp'
+      );
+
+      // Show payment QR modal
+      setSelectedKeKhai(keKhai);
+      setSelectedPayment(payment);
+      setShowPaymentModal(true);
+
+      showToast('Đã tạo thanh toán thành công', 'success');
+
+      // Clear selection and reload data
+      setSelectedParticipants(new Set());
+      loadUnprocessedParticipantsData();
+    } catch (error) {
+      console.error('Error creating payment for selected submitted participants:', error);
+      showToast('Có lỗi xảy ra khi tạo thanh toán', 'error');
+    }
+  };
+
+  // Handle view payment for selected pending payment participants
+  const handleViewPaymentForSelectedPendingPayment = async (selectedPendingPaymentParticipants: UnprocessedParticipant[]) => {
+    try {
+      // Group participants by ke_khai_id
+      const participantsByKeKhai = selectedPendingPaymentParticipants.reduce((acc, participant) => {
+        const keKhaiId = participant.ke_khai.id;
+        if (!acc[keKhaiId]) {
+          acc[keKhaiId] = {
+            keKhai: participant.ke_khai,
+            participants: []
+          };
+        }
+        acc[keKhaiId].participants.push(participant);
+        return acc;
+      }, {} as Record<number, { keKhai: DanhSachKeKhai, participants: UnprocessedParticipant[] }>);
+
+      // If participants belong to multiple ke khai, show error
+      const keKhaiIds = Object.keys(participantsByKeKhai);
+      if (keKhaiIds.length > 1) {
+        showToast('Không thể xem thanh toán cho người tham gia từ nhiều kê khai khác nhau', 'warning');
+        return;
+      }
+
+      // Get the single ke khai
+      const keKhaiData = Object.values(participantsByKeKhai)[0];
+      const keKhai = keKhaiData.keKhai;
+
+      // Get existing payment
+      const existingPayment = await paymentService.getPaymentByKeKhaiId(keKhai.id);
+
+      if (existingPayment) {
+        setSelectedKeKhai(keKhai);
+        setSelectedPayment(existingPayment);
+        setShowPaymentModal(true);
+
+        // Clear selection
+        setSelectedParticipants(new Set());
+      } else {
+        showToast('Không tìm thấy thông tin thanh toán cho kê khai này', 'warning');
+      }
+    } catch (error) {
+      console.error('Error viewing payment for selected pending payment participants:', error);
+      showToast('Có lỗi xảy ra khi xem thanh toán', 'error');
+    }
+  };
+
   // Format currency
   const formatCurrency = (amount: number | null | undefined) => {
     if (!amount) return '0 ₫';
@@ -437,13 +639,83 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
   };
 
   // Helper functions for selection
-  const getDraftParticipants = () => participantsList.filter(p => p.participant_status === 'draft');
-  const getSelectedDraftCount = () => getDraftParticipants().filter(p => selectedParticipants.has(p.id)).length;
+  const getDraftParticipants = () => {
+    const result = participantsList.filter(p => p.participant_status === 'draft');
+    console.log('📊 Draft Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
+    return result;
+  };
+
+  const getSubmittedParticipants = () => {
+    const result = participantsList.filter(p =>
+      p.participant_status === 'submitted' && p.ke_khai.trang_thai !== 'pending_payment'
+    );
+    console.log('📊 Submitted Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
+    return result;
+  };
+
+  const getPendingPaymentParticipants = () => {
+    const result = participantsList.filter(p => p.ke_khai.trang_thai === 'pending_payment');
+    console.log('📊 Pending Payment Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
+    return result;
+  };
+
+  const getProcessingParticipants = () => {
+    const result = participantsList.filter(p => p.ke_khai.trang_thai === 'processing');
+    console.log('📊 Processing Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
+    return result;
+  };
+
+  const getSelectableParticipants = () => {
+    const result = participantsList.filter(p =>
+      p.participant_status === 'draft' ||
+      (p.participant_status === 'submitted' && p.ke_khai.trang_thai !== 'pending_payment' && p.ke_khai.trang_thai !== 'processing') ||
+      p.ke_khai.trang_thai === 'pending_payment' ||
+      p.ke_khai.trang_thai === 'processing'
+    );
+    console.log('📊 Selectable Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
+    return result;
+  };
+
+  const getSelectedDraftCount = () => {
+    const count = getDraftParticipants().filter(p => selectedParticipants.has(p.id)).length;
+    console.log('🔍 Selected Draft Count:', count);
+    return count;
+  };
+
+  const getSelectedSubmittedCount = () => {
+    const count = getSubmittedParticipants().filter(p => selectedParticipants.has(p.id)).length;
+    console.log('🔍 Selected Submitted Count:', count);
+    return count;
+  };
+
+  const getSelectedPendingPaymentCount = () => {
+    const count = getPendingPaymentParticipants().filter(p => selectedParticipants.has(p.id)).length;
+    console.log('🔍 Selected Pending Payment Count:', count);
+    return count;
+  };
+
+  const getSelectedProcessingCount = () => {
+    const count = getProcessingParticipants().filter(p => selectedParticipants.has(p.id)).length;
+    console.log('🔍 Selected Processing Count:', count);
+    return count;
+  };
+
+  const getSelectedSelectableCount = () => {
+    const count = getSelectableParticipants().filter(p => selectedParticipants.has(p.id)).length;
+    console.log('🔍 Selected Selectable Count:', count);
+    return count;
+  };
+
   const getTotalDraftCount = () => getDraftParticipants().length;
+  const getTotalSubmittedCount = () => getSubmittedParticipants().length;
+  const getTotalPendingPaymentCount = () => getPendingPaymentParticipants().length;
+  const getTotalProcessingCount = () => getProcessingParticipants().length;
+  const getTotalSelectableCount = () => getSelectableParticipants().length;
+
   const getSelectedAmount = () => {
-    return getDraftParticipants()
+    return getSelectableParticipants()
       .filter(p => selectedParticipants.has(p.id))
-      .reduce((sum, p) => sum + (p.tien_dong || p.tien_dong_thuc_te || 0), 0);
+      .reduce((sum, p) => sum + (p.tien_dong_thuc_te || p.tien_dong || 0), 0);
   };
 
   return (
@@ -496,13 +768,15 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
               <option value="all">Tất cả người tham gia</option>
               <option value="draft">Nháp</option>
               <option value="submitted">Đã nộp</option>
+              <option value="pending_payment">Chờ thanh toán</option>
+              <option value="processing">Đang xử lý</option>
             </select>
           </div>
 
           {/* Results count */}
           <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
             <Users className="w-4 h-4 mr-2" />
-            Tìm thấy {totalParticipants} người tham gia ({getTotalDraftCount()} có thể nộp)
+            Tìm thấy {totalParticipants} người tham gia ({getTotalDraftCount()} nháp, {getTotalSubmittedCount()} đã nộp, {getTotalPendingPaymentCount()} chờ thanh toán, {getTotalProcessingCount()} đang xử lý)
           </div>
         </div>
       </div>
@@ -514,7 +788,11 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
             <div className="flex items-center space-x-4">
               <div className="text-sm text-blue-900 dark:text-blue-100">
                 <div className="font-medium">
-                  Đã chọn {getSelectedDraftCount()} / {getTotalDraftCount()} người tham gia nháp
+                  Đã chọn {getSelectedSelectableCount()} người tham gia
+                  {getSelectedDraftCount() > 0 && ` (${getSelectedDraftCount()} nháp`}
+                  {getSelectedSubmittedCount() > 0 && ` ${getSelectedDraftCount() > 0 ? ', ' : '('}${getSelectedSubmittedCount()} đã nộp`}
+                  {getSelectedPendingPaymentCount() > 0 && ` ${(getSelectedDraftCount() > 0 || getSelectedSubmittedCount() > 0) ? ', ' : '('}${getSelectedPendingPaymentCount()} chờ thanh toán`}
+                  {(getSelectedDraftCount() > 0 || getSelectedSubmittedCount() > 0 || getSelectedPendingPaymentCount() > 0) && ')'}
                 </div>
                 <div className="text-xs text-blue-700 dark:text-blue-300">
                   Tổng tiền: {formatCurrency(getSelectedAmount())}
@@ -530,21 +808,103 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
             <div className="flex items-center space-x-2">
               <button
                 onClick={handleSubmitSelected}
-                disabled={isSubmitting || getSelectedDraftCount() === 0}
-                title={getSelectedDraftCount() === 0 ? 'Vui lòng chọn ít nhất một người tham gia' : `Nộp ${getSelectedDraftCount()} người tham gia và tạo thanh toán ${formatCurrency(getSelectedAmount())}`}
+                disabled={isSubmitting || getSelectedSelectableCount() === 0}
+                title={(() => {
+                  const selectedCount = getSelectedSelectableCount();
+                  const draftCount = getSelectedDraftCount();
+                  const submittedCount = getSelectedSubmittedCount();
+                  const pendingPaymentCount = getSelectedPendingPaymentCount();
+
+                  if (selectedCount === 0) {
+                    return 'Vui lòng chọn ít nhất một người tham gia';
+                  }
+
+                  // Only draft participants selected
+                  if (draftCount > 0 && submittedCount === 0 && pendingPaymentCount === 0) {
+                    return `Nộp ${draftCount} người tham gia nháp`;
+                  }
+
+                  // Only submitted participants selected
+                  if (draftCount === 0 && submittedCount > 0 && pendingPaymentCount === 0) {
+                    return `Tạo thanh toán cho ${submittedCount} người tham gia đã nộp`;
+                  }
+
+                  // Only pending payment participants selected
+                  if (draftCount === 0 && submittedCount === 0 && pendingPaymentCount > 0) {
+                    return `Xem thanh toán cho ${pendingPaymentCount} người tham gia chờ thanh toán`;
+                  }
+
+                  // Mixed selection
+                  return 'Không thể xử lý cùng lúc người tham gia ở các trạng thái khác nhau';
+                })()}
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isSubmitting ? (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Đang nộp...
+                    Đang xử lý...
                   </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Nộp & Thanh toán
-                  </>
-                )}
+                ) : (() => {
+                  const draftCount = getSelectedDraftCount();
+                  const submittedCount = getSelectedSubmittedCount();
+                  const pendingPaymentCount = getSelectedPendingPaymentCount();
+
+                  console.log('🎯 Button Logic Debug:', {
+                    draftCount,
+                    submittedCount,
+                    pendingPaymentCount,
+                    selectedParticipants: Array.from(selectedParticipants),
+                    participantsList: participantsList.map(p => ({
+                      id: p.id,
+                      name: p.ho_ten,
+                      participant_status: p.participant_status,
+                      ke_khai_trang_thai: p.ke_khai.trang_thai,
+                      selected: selectedParticipants.has(p.id)
+                    }))
+                  });
+
+                  // Only draft participants selected
+                  if (draftCount > 0 && submittedCount === 0 && pendingPaymentCount === 0) {
+                    console.log('✅ Showing: Nộp & Thanh toán');
+                    return (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Nộp & Thanh toán
+                      </>
+                    );
+                  }
+
+                  // Only submitted participants selected
+                  if (draftCount === 0 && submittedCount > 0 && pendingPaymentCount === 0) {
+                    console.log('✅ Showing: Tạo thanh toán');
+                    return (
+                      <>
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Tạo thanh toán
+                      </>
+                    );
+                  }
+
+                  // Only pending payment participants selected
+                  if (draftCount === 0 && submittedCount === 0 && pendingPaymentCount > 0) {
+                    console.log('✅ Showing: Xem thanh toán');
+                    return (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Xem thanh toán
+                      </>
+                    );
+                  }
+
+                  // Mixed selection or other cases
+                  console.log('⚠️ Showing: Xử lý (fallback)');
+                  return (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Xử lý
+                    </>
+                  );
+                })()}
               </button>
             </div>
           </div>
@@ -577,14 +937,15 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                     <div className="flex items-center">
                       <input
                         type="checkbox"
-                        checked={getTotalDraftCount() > 0 && getSelectedDraftCount() === getTotalDraftCount()}
+                        checked={getTotalSelectableCount() > 0 && getSelectedSelectableCount() === getTotalSelectableCount()}
                         ref={(input) => {
                           if (input) {
-                            input.indeterminate = getSelectedDraftCount() > 0 && getSelectedDraftCount() < getTotalDraftCount();
+                            input.indeterminate = getSelectedSelectableCount() > 0 && getSelectedSelectableCount() < getTotalSelectableCount();
                           }
                         }}
                         onChange={(e) => handleSelectAll(e.target.checked)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        title="Chọn tất cả người tham gia có thể chọn"
                       />
                       <span className="ml-2">Chọn</span>
                     </div>
@@ -626,12 +987,22 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                     }`}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {participant.participant_status === 'draft' ? (
+                      {(participant.participant_status === 'draft' ||
+                        participant.participant_status === 'submitted' ||
+                        participant.ke_khai.trang_thai === 'pending_payment' ||
+                        participant.ke_khai.trang_thai === 'processing') ? (
                         <input
                           type="checkbox"
                           checked={selectedParticipants.has(participant.id)}
                           onChange={(e) => handleParticipantSelect(participant.id, e.target.checked)}
                           className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                          title={
+                            participant.participant_status === 'submitted' ? 'Chọn để tạo thanh toán' :
+                            participant.ke_khai.trang_thai === 'pending_payment' ? 'Chọn để xem thanh toán' :
+                            participant.ke_khai.trang_thai === 'processing' ? 'Đã thanh toán, đang xử lý' :
+                            'Chọn để nộp'
+                          }
+                          disabled={participant.ke_khai.trang_thai === 'processing'}
                         />
                       ) : (
                         <span className="text-gray-400 text-sm">—</span>
@@ -682,7 +1053,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {formatCurrency(participant.tien_dong || participant.tien_dong_thuc_te)}
+                        {formatCurrency(participant.tien_dong_thuc_te || participant.tien_dong || 0)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -714,13 +1085,22 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                         )}
 
                         {participant.ke_khai.trang_thai === 'submitted' && (
-                          <button
-                            onClick={() => handleApprove(participant.ke_khai)}
-                            className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                            title="Duyệt kê khai"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleApprove(participant.ke_khai)}
+                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                              title="Duyệt kê khai"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handlePayment(participant.ke_khai)}
+                              className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
+                              title="Tạo thanh toán"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                            </button>
+                          </>
                         )}
 
                         {participant.ke_khai.trang_thai === 'pending_payment' && (
@@ -731,6 +1111,12 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                           >
                             <CreditCard className="w-4 h-4" />
                           </button>
+                        )}
+
+                        {participant.ke_khai.trang_thai === 'processing' && (
+                          <span className="text-green-600 dark:text-green-400 text-xs font-medium">
+                            ✓ Đã thanh toán
+                          </span>
                         )}
                       </div>
                     </td>
@@ -820,7 +1206,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                   <h4 className="font-medium text-gray-900 dark:text-white mb-2">Thông tin thanh toán:</h4>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <p>Số tiền: <span className="font-semibold text-green-600">
-                      {formatCurrency(submittedParticipants.reduce((sum, p) => sum + (p.tien_dong || p.tien_dong_thuc_te || 0), 0))}
+                      {formatCurrency(submittedParticipants.reduce((sum, p) => sum + (p.tien_dong_thuc_te || p.tien_dong || 0), 0))}
                     </span></p>
                     <p>Số người: {submittedParticipants.length} người tham gia</p>
                   </div>

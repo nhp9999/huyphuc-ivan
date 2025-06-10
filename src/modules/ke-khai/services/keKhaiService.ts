@@ -1011,12 +1011,12 @@ class KeKhaiService {
     try {
       console.log('🔍 getUnprocessedNguoiThamGiaWithPagination called with:', params);
 
-      // Trước tiên lấy danh sách kê khai của user với trạng thái nháp
+      // Trước tiên lấy danh sách kê khai của user với trạng thái chưa xử lý
       let keKhaiQuery = supabase
         .from('danh_sach_ke_khai')
         .select('id')
         .eq('created_by', params.userId)
-        .eq('trang_thai', 'draft'); // Chỉ lấy kê khai nháp
+        .in('trang_thai', ['draft', 'submitted', 'pending_payment', 'processing']); // Bao gồm cả đang xử lý
 
       if (params.loaiKeKhai) {
         keKhaiQuery = keKhaiQuery.eq('loai_ke_khai', params.loaiKeKhai);
@@ -1037,13 +1037,13 @@ class KeKhaiService {
         throw new Error('Không thể tải danh sách kê khai');
       }
 
-      console.log('🔍 Found draft ke khai for participants:', keKhaiData?.length || 0);
-      console.log('📋 Draft ke khai data:', keKhaiData);
+      console.log('🔍 Found unprocessed ke khai for participants:', keKhaiData?.length || 0);
+      console.log('📋 Unprocessed ke khai data:', keKhaiData);
 
       const keKhaiIds = keKhaiData?.map(item => item.id) || [];
 
       if (keKhaiIds.length === 0) {
-        console.log('❌ No draft ke khai found for user. Checking all ke khai...');
+        console.log('❌ No unprocessed ke khai found for user. Checking all ke khai...');
 
         // Debug: Check all ke khai for this user
         const { data: allKeKhai } = await supabase
@@ -1117,10 +1117,10 @@ class KeKhaiService {
 
       if (error) {
         console.error('Error fetching unprocessed participants:', error);
-        throw new Error('Không thể tải danh sách người tham gia nháp');
+        throw new Error('Không thể tải danh sách người tham gia chưa xử lý');
       }
 
-      console.log('👥 Loaded draft participants:', data?.length, 'of', count);
+      console.log('👥 Loaded unprocessed participants:', data?.length, 'of', count);
 
       return {
         data: data || [],

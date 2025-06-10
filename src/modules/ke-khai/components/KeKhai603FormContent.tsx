@@ -1654,9 +1654,12 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
       const submitResult = await submitIndividualParticipant(index, notes);
       if (!submitResult.success) {
-        showToast(submitResult.message, 'error');
+        console.error('❌ Submit participant failed:', submitResult.message);
+        showToast(`Không thể nộp người tham gia: ${submitResult.message}`, 'error');
         return;
       }
+
+      console.log('✅ Step 1 completed: Participant submitted successfully');
 
       // Step 2: Create payment for this participant
       console.log('🚀 Step 2: Creating payment for individual participant...');
