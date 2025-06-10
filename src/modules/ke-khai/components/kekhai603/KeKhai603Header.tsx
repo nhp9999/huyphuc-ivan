@@ -7,7 +7,8 @@ import {
   Save,
   Send,
   Users,
-  Clock
+  Clock,
+  CreditCard
 } from 'lucide-react';
 
 interface KeKhai603HeaderProps {
@@ -15,8 +16,10 @@ interface KeKhai603HeaderProps {
   // New props for save and submit actions
   onSaveAll?: () => void;
   onSubmit?: () => void;
+  onSubmitWithPayment?: () => void;
   saving?: boolean;
   submitting?: boolean;
+  submittingWithPayment?: boolean;
   savingData?: boolean;
   // Household bulk input props
   onHouseholdBulkInput?: () => void;
@@ -27,8 +30,10 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
   keKhaiInfo,
   onSaveAll,
   onSubmit,
+  onSubmitWithPayment,
   saving = false,
   submitting = false,
+  submittingWithPayment = false,
   savingData = false,
   onHouseholdBulkInput,
   householdProcessing = false
@@ -126,7 +131,7 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
             {onSubmit && keKhaiInfo && (
               <button
                 onClick={onSubmit}
-                disabled={submitting || saving || savingData || householdProcessing}
+                disabled={submitting || submittingWithPayment || saving || savingData || householdProcessing}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
               >
                 {submitting ? (
@@ -138,6 +143,28 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
                   <>
                     <Send className="h-4 w-4" />
                     <span>Nộp kê khai</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Submit with Payment Button */}
+            {onSubmitWithPayment && keKhaiInfo && (
+              <button
+                onClick={onSubmitWithPayment}
+                disabled={submitting || submittingWithPayment || saving || savingData || householdProcessing}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                title="Nộp kê khai và tạo thanh toán ngay lập tức"
+              >
+                {submittingWithPayment ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Đang xử lý...</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-4 w-4" />
+                    <span>Nộp & Thanh toán</span>
                   </>
                 )}
               </button>

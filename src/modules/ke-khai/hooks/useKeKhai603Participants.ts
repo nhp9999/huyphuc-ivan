@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { keKhaiService } from '../services/keKhaiService';
 import { calculateKeKhai603Amount, calculateKeKhai603AmountThucTe, calculateKeKhai603CardValidity } from './useKeKhai603FormData';
+import { useAuth } from '../../auth/contexts/AuthContext';
 
 // Interface for participant data
 export interface KeKhai603Participant {
@@ -40,6 +41,15 @@ export interface KeKhai603Participant {
   maXaKS: string;
   maHoGiaDinh: string;
   phuongAn: string;
+  // Individual submission fields
+  participantStatus?: 'draft' | 'submitted' | 'processing' | 'approved' | 'rejected';
+  submittedAt?: string;
+  submittedBy?: string;
+  individualSubmissionNotes?: string;
+  // Payment status fields
+  paymentStatus?: 'unpaid' | 'pending' | 'completed' | 'failed' | 'cancelled';
+  paymentId?: number;
+  paidAt?: string;
 }
 
 // Default CSKCB - Trung tâm Y tế thị xã Tịnh Biên
@@ -91,9 +101,11 @@ const createInitialParticipant = (doiTuongThamGia?: string): KeKhai603Participan
 
 // Custom hook for participant management
 export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: string) => {
+  const { user } = useAuth();
   const [participants, setParticipants] = useState<KeKhai603Participant[]>([]);
   const [savingData, setSavingData] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [submittingParticipant, setSubmittingParticipant] = useState<number | null>(null);
 
   // Load participants from database
   const loadParticipants = React.useCallback(async () => {
@@ -142,7 +154,16 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         maHuyenKS: item.ma_huyen_ks || '',
         maXaKS: item.ma_xa_ks || '',
         maHoGiaDinh: item.ma_ho_gia_dinh || '',
-        phuongAn: item.phuong_an || ''
+        phuongAn: item.phuong_an || '',
+        // Individual submission fields
+        participantStatus: (item.participant_status as 'draft' | 'submitted' | 'processing' | 'approved' | 'rejected') || 'draft',
+        submittedAt: item.submitted_at || undefined,
+        submittedBy: item.submitted_by || undefined,
+        individualSubmissionNotes: item.individual_submission_notes || undefined,
+        // Payment status fields
+        paymentStatus: (item.payment_status as 'unpaid' | 'pending' | 'completed' | 'failed' | 'cancelled') || 'unpaid',
+        paymentId: item.payment_id || undefined,
+        paidAt: item.paid_at || undefined
       }));
 
       // Set participants (can be empty array)
@@ -858,9 +879,82 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     }
   };
 
+  // Submit individual participant
+  const submitIndividualParticipant = async (index: number, notes?: string) => {
+    console.log(`🚀 submitIndividualParticipant called with index: ${index}`);
+
+    if (!keKhaiId) {
+      throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
+    }
+
+    // Validate index bounds
+    if (index < 0 || index >= participants.length) {
+      throw new Error(`Index không hợp lệ: ${index}. Số lượng người tham gia: ${participants.length}`);
+    }
+
+    const participant = participants[index];
+    if (!participant || !participant.id) {
+      throw new Error('Không tìm thấy thông tin người tham gia hoặc người tham gia chưa được lưu.');
+    }
+
+    // Validate required fields for submission
+    const requiredFields = [
+      { field: 'hoTen', label: 'Họ tên' },
+      { field: 'maSoBHXH', label: 'Mã số BHXH' },
+      { field: 'noiDangKyKCB', label: 'Nơi đăng ký KCB' }
+    ];
+
+    const missingFields = requiredFields.filter(({ field }) => !participant[field as keyof KeKhai603Participant]);
+
+    if (missingFields.length > 0) {
+      const missingLabels = missingFields.map(({ label }) => label).join(', ');
+      throw new Error(`Thiếu thông tin bắt buộc: ${missingLabels}`);
+    }
+
+    try {
+      setSubmittingParticipant(participant.id);
+
+      // Submit individual participant via service
+      const updatedParticipant = await keKhaiService.submitIndividualParticipant(
+        participant.id,
+        user?.id || 'system',
+        notes
+      );
+
+      // Update local state
+      setParticipants(prev => prev.map((p, i) => {
+        if (i === index) {
+          return {
+            ...p,
+            participantStatus: 'submitted' as const,
+            submittedAt: updatedParticipant.submitted_at,
+            submittedBy: updatedParticipant.submitted_by,
+            individualSubmissionNotes: updatedParticipant.individual_submission_notes
+          };
+        }
+        return p;
+      }));
+
+      console.log('✅ Individual participant submitted successfully');
+      return {
+        success: true,
+        message: `Đã nộp thành công người tham gia ${participant.hoTen}!`
+      };
+    } catch (error) {
+      console.error('❌ Error submitting individual participant:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Có lỗi xảy ra khi nộp người tham gia. Vui lòng thử lại.'
+      };
+    } finally {
+      setSubmittingParticipant(null);
+    }
+  };
+
   return {
     participants,
     savingData,
+    submittingParticipant,
     loadParticipants,
     handleParticipantChange,
     addParticipant,
@@ -869,6 +963,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     updateParticipantWithApiData,
     saveSingleParticipant,
     saveParticipantFromForm,
+    submitIndividualParticipant,
     setParticipants
   };
 };

@@ -24,6 +24,17 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
   const { showToast } = useToast();
   const { user } = useAuth();
 
+  // Debug: Log when modal is mounted
+  useEffect(() => {
+    console.log('🎯 PaymentQRModal mounted with payment:', {
+      id: payment.id,
+      ma_thanh_toan: payment.ma_thanh_toan,
+      so_tien: payment.so_tien,
+      trang_thai: payment.trang_thai,
+      qr_code_url: payment.qr_code_url
+    });
+  }, [payment]);
+
   // Auto-check payment status
   useEffect(() => {
     if (currentPayment.trang_thai === 'completed') {
@@ -91,7 +102,7 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-payment-modal>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">

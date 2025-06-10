@@ -378,8 +378,13 @@ export interface DanhSachNguoiThamGia {
   cong_ty_id?: number;
   co_quan_bhxh_id?: number;
   loai_to_chuc?: string;
+  participant_status?: string; // 'draft', 'submitted', 'processing', 'approved', 'rejected'
+  submitted_at?: string;
+  submitted_by?: string;
+  individual_submission_notes?: string;
   created_at?: string;
   updated_at?: string;
+  updated_by?: string;
 }
 
 // Interface cho bảng dm_tinh

@@ -15,12 +15,17 @@ import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable
 import { useCSKCBPreloader } from '../hooks/useCSKCBPreloader';
 import { useCSKCBContext } from '../contexts/CSKCBContext';
 import { keKhaiService } from '../services/keKhaiService';
+import paymentService from '../services/paymentService';
 import { tinhService, TinhOption } from '../../../shared/services/location/tinhService';
 import { huyenService, HuyenOption } from '../../../shared/services/location/huyenService';
 import { xaService, XaOption } from '../../../shared/services/location/xaService';
 import cskcbService from '../../../shared/services/cskcbService';
-import { DmCSKCB } from '../../../shared/services/api/supabaseClient';
+import { DmCSKCB, supabase } from '../../../shared/services/api/supabaseClient';
 import SearchableDropdown, { DropdownOption } from './SearchableDropdown';
+import { useAuth } from '../../auth';
+import ConfirmBulkSubmitWithPaymentModal from './ConfirmBulkSubmitWithPaymentModal';
+import PaymentStatusSummary from './PaymentStatusSummary';
+import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 
 interface KeKhai603FormContentProps {
   pageParams: any;
@@ -38,6 +43,17 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
   // State for save participant functionality
   const [savingParticipant, setSavingParticipant] = React.useState(false);
+
+  // State for submit with payment functionality
+  const [submittingWithPayment, setSubmittingWithPayment] = React.useState(false);
+  const [submittingParticipantWithPayment, setSubmittingParticipantWithPayment] = React.useState<number | null>(null);
+  const [showSubmitConfirmModal, setShowSubmitConfirmModal] = React.useState(false);
+  const [pendingSubmitAction, setPendingSubmitAction] = React.useState<'submit' | 'submitWithPayment' | null>(null);
+
+  // State for bulk submit with payment
+  const [showBulkSubmitWithPaymentModal, setShowBulkSubmitWithPaymentModal] = React.useState(false);
+  const [pendingBulkSubmitIndices, setPendingBulkSubmitIndices] = React.useState<number[]>([]);
+  const [bulkSubmittingWithPayment, setBulkSubmittingWithPayment] = React.useState(false);
 
 
 
@@ -89,6 +105,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   const { searchLoading, participantSearchLoading, searchKeKhai603, searchParticipantData } = useKeKhai603Api();
   const { getCSKCBData } = useCSKCBContext();
   const { toast, showToast, hideToast } = useToast();
+  const { user } = useAuth();
 
   // Get keKhaiInfo first
   const {
@@ -107,6 +124,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   const {
     participants,
     savingData,
+    submittingParticipant,
     loadParticipants,
     handleParticipantChange,
     addParticipant,
@@ -114,7 +132,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     removeMultipleParticipants,
     updateParticipantWithApiData,
     saveSingleParticipant,
-    saveParticipantFromForm
+    saveParticipantFromForm,
+    submitIndividualParticipant
   } = useKeKhai603Participants(keKhaiInfo?.id, keKhaiInfo?.doi_tuong_tham_gia);
 
   // DEBUG: Monitor participants state changes
@@ -339,6 +358,45 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
     loadXaKSData();
   }, [formData.maHuyenKS, formData.maTinhKS]);
+
+  // Listen for payment confirmation events to auto-reload participants data
+  React.useEffect(() => {
+    const handlePaymentConfirmed = (data: any) => {
+      console.log('🔔 KeKhai603FormContent: Payment confirmed event received', data);
+      console.log('🔄 KeKhai603FormContent: Reloading participants after payment confirmation...');
+      // Reload participants to get updated payment status
+      loadParticipants();
+    };
+
+    const handleKeKhaiStatusChanged = (data: any) => {
+      console.log('🔔 KeKhai603FormContent: Ke khai status changed event received', data);
+      console.log('🔄 KeKhai603FormContent: Reloading participants after status change...');
+      // Reload participants when ke khai status changes
+      loadParticipants();
+    };
+
+    const handleRefreshAllPages = (data: any) => {
+      console.log('🔔 KeKhai603FormContent: Refresh all pages event received', data);
+      console.log('🔄 KeKhai603FormContent: Reloading participants after refresh event...');
+      // Reload participants for general refresh
+      loadParticipants();
+    };
+
+    console.log('🎯 KeKhai603FormContent: Setting up event listeners for payment events');
+
+    // Subscribe to events
+    eventEmitter.on(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+    eventEmitter.on(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+    eventEmitter.on(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+
+    // Cleanup on unmount
+    return () => {
+      console.log('🧹 KeKhai603FormContent: Cleaning up event listeners');
+      eventEmitter.off(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
+      eventEmitter.off(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
+      eventEmitter.off(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
+    };
+  }, [loadParticipants]);
 
   // Load CSKCB data when Nkq province changes
   React.useEffect(() => {
@@ -1011,19 +1069,169 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       return;
     }
 
+    // Check if there are participants
+    if (participants.length === 0) {
+      showToast('Chưa có người tham gia nào trong kê khai. Vui lòng thêm người tham gia trước khi nộp.', 'error');
+      return;
+    }
+
+    // Show custom confirmation modal instead of direct submission
+    setPendingSubmitAction('submit');
+    setShowSubmitConfirmModal(true);
+  };
+
+  // Handle submit declaration with immediate payment
+  const handleSubmitWithPayment = async () => {
+    // Check if keKhaiInfo is available
+    if (!keKhaiInfo) {
+      showToast('Chưa có thông tin kê khai để nộp. Vui lòng tạo kê khai mới từ trang chính.', 'error');
+      return;
+    }
+
+    // Check if there are participants
+    if (participants.length === 0) {
+      showToast('Chưa có người tham gia nào trong kê khai. Vui lòng thêm người tham gia trước khi nộp.', 'error');
+      return;
+    }
+
+    // Calculate total amount
+    const totalAmount = participants.reduce((sum, participant) => {
+      return sum + (participant.tienDong || participant.tienDongThucTe || 0);
+    }, 0);
+
+    if (totalAmount <= 0) {
+      showToast('Tổng số tiền thanh toán phải lớn hơn 0. Vui lòng kiểm tra lại thông tin người tham gia.', 'error');
+      return;
+    }
+
+    // Show custom confirmation modal instead of browser confirm
+    setPendingSubmitAction('submitWithPayment');
+    setShowSubmitConfirmModal(true);
+  };
+
+  // Handle confirm submission action
+  const handleConfirmSubmitAction = async () => {
+    setShowSubmitConfirmModal(false);
+
+    if (pendingSubmitAction === 'submitWithPayment') {
+      await executeSubmitWithPayment();
+    } else if (pendingSubmitAction === 'submit') {
+      await executeSubmit();
+    }
+
+    setPendingSubmitAction(null);
+  };
+
+  // Execute submit (for regular submission)
+  const executeSubmit = async () => {
     try {
       const result = await submitDeclaration();
       if (result.success) {
         showToast(result.message, 'success');
-
-        // No QR modal shown immediately after submission
-        // QR code will be generated and displayed after synthesis staff approval
       } else {
         showToast(result.message, 'error');
       }
     } catch (error) {
       console.error('Submit error:', error);
       showToast('Có lỗi xảy ra khi nộp kê khai. Vui lòng thử lại.', 'error');
+    }
+  };
+
+  // Execute submit with payment (extracted from handleSubmitWithPayment)
+  const executeSubmitWithPayment = async () => {
+    if (!keKhaiInfo || !user?.id) return;
+
+    // Calculate total amount
+    const totalAmount = participants.reduce((sum, participant) => {
+      return sum + (participant.tienDong || participant.tienDongThucTe || 0);
+    }, 0);
+
+    setSubmittingWithPayment(true);
+    try {
+      // Step 1: Submit declaration
+      console.log('🚀 Step 1: Submitting declaration...');
+      const submitResult = await submitDeclaration();
+      if (!submitResult.success) {
+        showToast(submitResult.message, 'error');
+        return;
+      }
+
+      // Step 2: Create payment immediately
+      console.log('🚀 Step 2: Creating payment...', {
+        keKhaiId: keKhaiInfo.id,
+        totalAmount,
+        participantsCount: participants.length,
+        userId: user?.id
+      });
+
+      const paymentData = {
+        ke_khai_id: keKhaiInfo.id,
+        so_tien: totalAmount,
+        phuong_thuc_thanh_toan: 'bank_transfer',
+        payment_description: `Thanh toán kê khai ${keKhaiInfo.ma_ke_khai} - ${participants.length} người tham gia`,
+        created_by: user?.id
+      };
+
+      console.log('📝 Payment data to be sent:', paymentData);
+
+      const payment = await paymentService.createPayment(paymentData);
+
+      if (!payment) {
+        throw new Error('Payment creation returned null/undefined');
+      }
+
+      if (!payment.id) {
+        throw new Error('Payment created but missing ID');
+      }
+
+      console.log('✅ Payment created successfully:', payment);
+      console.log('💳 Payment details:', {
+        id: payment.id,
+        ma_thanh_toan: payment.ma_thanh_toan,
+        so_tien: payment.so_tien,
+        qr_code_url: payment.qr_code_url
+      });
+
+      // Step 3: Show payment QR modal immediately
+      console.log('🔄 Setting payment modal state...');
+      setSelectedPayment(payment);
+      setShowPaymentModal(true);
+
+      // Debug modal state and add fallback
+      setTimeout(() => {
+        console.log('🔍 Modal state check:', {
+          showPaymentModal: true, // Should be true
+          selectedPayment: !!payment,
+          paymentId: payment?.id
+        });
+
+        // Fallback: If modal still not showing after 1 second, force show it
+        if (!document.querySelector('[data-payment-modal]')) {
+          console.log('⚠️ Modal not found in DOM, forcing re-render...');
+          setShowPaymentModal(false);
+          setTimeout(() => {
+            setSelectedPayment(payment);
+            setShowPaymentModal(true);
+          }, 50);
+        }
+      }, 1000);
+
+      showToast(`Đã nộp kê khai và tạo thanh toán thành công! Tổng tiền: ${totalAmount.toLocaleString('vi-VN')} ₫`, 'success');
+
+      // Also show alert with payment info for debugging
+      setTimeout(() => {
+        if (payment.qr_code_url) {
+          console.log('✅ Payment QR URL available:', payment.qr_code_url);
+        } else {
+          console.log('⚠️ Payment QR URL missing!');
+        }
+      }, 500);
+
+    } catch (error) {
+      console.error('Submit with payment error:', error);
+      showToast('Có lỗi xảy ra khi nộp kê khai và tạo thanh toán. Vui lòng thử lại.', 'error');
+    } finally {
+      setSubmittingWithPayment(false);
     }
   };
 
@@ -1192,6 +1400,189 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     }
   };
 
+  // Handle bulk submit participants
+  const handleBulkSubmitParticipants = async (indices: number[]) => {
+    if (!keKhaiInfo) {
+      showToast('Chưa có thông tin kê khai. Vui lòng thử lại.', 'error');
+      return;
+    }
+
+    if (indices.length === 0) {
+      showToast('Chưa chọn người tham gia nào để nộp.', 'error');
+      return;
+    }
+
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const index of indices) {
+        try {
+          const result = await submitIndividualParticipant(index);
+          if (result.success) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        showToast(`Đã nộp thành công ${successCount} người tham gia!`, 'success');
+        await loadParticipants();
+      }
+
+      if (errorCount > 0) {
+        showToast(`Có ${errorCount} người tham gia không thể nộp. Vui lòng kiểm tra lại.`, 'warning');
+      }
+
+    } catch (error) {
+      console.error('Bulk submit participants error:', error);
+      showToast('Có lỗi xảy ra khi nộp hàng loạt. Vui lòng thử lại.', 'error');
+    }
+  };
+
+  // Handle bulk submit participants with payment
+  const handleBulkSubmitParticipantsWithPayment = async (indices: number[]) => {
+    if (!keKhaiInfo || !user?.id) {
+      showToast('Chưa có thông tin kê khai hoặc người dùng. Vui lòng thử lại.', 'error');
+      return;
+    }
+
+    if (indices.length === 0) {
+      showToast('Chưa chọn người tham gia nào để nộp.', 'error');
+      return;
+    }
+
+    // Store indices and show confirmation modal
+    setPendingBulkSubmitIndices(indices);
+    setShowBulkSubmitWithPaymentModal(true);
+  };
+
+  // Handle confirm bulk submit with payment
+  const handleConfirmBulkSubmitWithPayment = async (notes?: string) => {
+    if (pendingBulkSubmitIndices.length === 0 || !keKhaiInfo || !user?.id) {
+      return;
+    }
+
+    setBulkSubmittingWithPayment(true);
+    setShowBulkSubmitWithPaymentModal(false);
+
+    try {
+      // Step 1: Submit all selected participants
+      console.log('🚀 Step 1: Bulk submitting participants...', {
+        count: pendingBulkSubmitIndices.length,
+        indices: pendingBulkSubmitIndices
+      });
+
+      let successCount = 0;
+      let errorCount = 0;
+      const submittedParticipants: any[] = [];
+
+      for (const index of pendingBulkSubmitIndices) {
+        try {
+          const participant = participants[index];
+          if (!participant || !participant.id) {
+            errorCount++;
+            continue;
+          }
+
+          const result = await submitIndividualParticipant(index, notes);
+          if (result.success) {
+            successCount++;
+            submittedParticipants.push(participant);
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          errorCount++;
+        }
+      }
+
+      if (successCount === 0) {
+        showToast('Không có người tham gia nào được nộp thành công. Vui lòng thử lại.', 'error');
+        return;
+      }
+
+      // Step 2: Calculate total payment amount
+      const totalAmount = submittedParticipants.reduce((sum, participant) => {
+        return sum + (participant.tienDongThucTe || participant.tienDong || 0);
+      }, 0);
+
+      if (totalAmount <= 0) {
+        showToast('Tổng số tiền thanh toán phải lớn hơn 0. Vui lòng kiểm tra lại thông tin người tham gia.', 'error');
+        return;
+      }
+
+      // Step 3: Create payment for all submitted participants
+      console.log('🚀 Step 2: Creating bulk payment...', {
+        totalAmount,
+        participantCount: successCount
+      });
+
+      const payment = await paymentService.createPayment({
+        ke_khai_id: keKhaiInfo.id,
+        so_tien: totalAmount,
+        phuong_thuc_thanh_toan: 'bank_transfer',
+        payment_description: `Thanh toán hàng loạt ${successCount} người tham gia - Kê khai ${keKhaiInfo.ma_ke_khai}`,
+        created_by: user.id
+      });
+
+      console.log('✅ Bulk payment created successfully:', payment);
+
+      // Step 4: Update payment_id for all submitted participants in database
+      try {
+        const participantIds = submittedParticipants.map(p => p.id).filter(Boolean);
+        if (participantIds.length > 0) {
+          const { error: updateError } = await supabase
+            .from('danh_sach_nguoi_tham_gia')
+            .update({
+              payment_id: payment.id,
+              payment_status: 'pending',
+              updated_at: new Date().toISOString()
+            })
+            .in('id', participantIds);
+
+          if (updateError) {
+            console.error('Error updating participants payment_id:', updateError);
+          } else {
+            console.log(`✅ Updated payment_id for ${participantIds.length} participants in database`);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating participants payment_id:', error);
+      }
+
+      // Step 5: Show payment QR modal immediately
+      setSelectedPayment(payment);
+      setShowPaymentModal(true);
+
+      showToast(`Đã nộp thành công ${successCount} người tham gia và tạo thanh toán! Tổng tiền: ${totalAmount.toLocaleString('vi-VN')} ₫`, 'success');
+
+      if (errorCount > 0) {
+        showToast(`Có ${errorCount} người tham gia không thể nộp. Vui lòng kiểm tra lại.`, 'warning');
+      }
+
+      // Refresh participants list to show updated status
+      await loadParticipants();
+
+    } catch (error) {
+      console.error('Bulk submit with payment error:', error);
+      showToast('Có lỗi xảy ra khi nộp hàng loạt và tạo thanh toán. Vui lòng thử lại.', 'error');
+    } finally {
+      setBulkSubmittingWithPayment(false);
+      setPendingBulkSubmitIndices([]);
+    }
+  };
+
+  // Handle cancel bulk submit with payment
+  const handleCancelBulkSubmitWithPayment = () => {
+    setShowBulkSubmitWithPaymentModal(false);
+    setPendingBulkSubmitIndices([]);
+  };
+
   // Handle save single participant
   const handleSaveSingleParticipant = async (index: number) => {
     try {
@@ -1206,6 +1597,114 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
     } catch (error) {
       console.error('Save single participant error:', error);
       showToast('Có lỗi xảy ra khi lưu người tham gia. Vui lòng thử lại.', 'error');
+    }
+  };
+
+  // Handle submit individual participant
+  const handleSubmitIndividualParticipant = async (index: number, notes?: string) => {
+    try {
+      const result = await submitIndividualParticipant(index, notes);
+      if (result.success) {
+        showToast(result.message, 'success');
+        // Refresh participants list to show updated status
+        await loadParticipants();
+      } else {
+        showToast(result.message, 'error');
+      }
+    } catch (error) {
+      console.error('Submit individual participant error:', error);
+      showToast('Có lỗi xảy ra khi nộp người tham gia. Vui lòng thử lại.', 'error');
+    }
+  };
+
+  // Handle submit individual participant with payment
+  const handleSubmitIndividualParticipantWithPayment = async (index: number, notes?: string) => {
+    if (!keKhaiInfo || !user?.id) {
+      showToast('Chưa có thông tin kê khai hoặc người dùng. Vui lòng thử lại.', 'error');
+      return;
+    }
+
+    // Validate index bounds
+    if (index < 0 || index >= participants.length) {
+      showToast(`Index không hợp lệ: ${index}. Số lượng người tham gia: ${participants.length}`, 'error');
+      return;
+    }
+
+    const participant = participants[index];
+    if (!participant || !participant.id) {
+      showToast('Không tìm thấy thông tin người tham gia hoặc người tham gia chưa được lưu.', 'error');
+      return;
+    }
+
+    // Calculate payment amount for this participant
+    const paymentAmount = participant.tienDongThucTe || participant.tienDong || 0;
+    if (paymentAmount <= 0) {
+      showToast('Số tiền thanh toán phải lớn hơn 0. Vui lòng kiểm tra lại thông tin người tham gia.', 'error');
+      return;
+    }
+
+    setSubmittingParticipantWithPayment(participant.id);
+    try {
+      // Step 1: Submit individual participant
+      console.log('🚀 Step 1: Submitting individual participant...', {
+        participantId: participant.id,
+        participantName: participant.hoTen,
+        paymentAmount
+      });
+
+      const submitResult = await submitIndividualParticipant(index, notes);
+      if (!submitResult.success) {
+        showToast(submitResult.message, 'error');
+        return;
+      }
+
+      // Step 2: Create payment for this participant
+      console.log('🚀 Step 2: Creating payment for individual participant...');
+
+      const payment = await paymentService.createPayment({
+        ke_khai_id: keKhaiInfo.id,
+        so_tien: paymentAmount,
+        phuong_thuc_thanh_toan: 'bank_transfer',
+        payment_description: `Thanh toán cho ${participant.hoTen} (${participant.maSoBHXH})`,
+        created_by: user.id
+      });
+
+      console.log('✅ Payment created successfully for individual participant:', payment);
+
+      // Step 3: Update participant payment_id in database
+      try {
+        const { error: updateError } = await supabase
+          .from('danh_sach_nguoi_tham_gia')
+          .update({
+            payment_id: payment.id,
+            payment_status: 'pending',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', participant.id);
+
+        if (updateError) {
+          console.error('Error updating participant payment_id:', updateError);
+        } else {
+          console.log('✅ Updated participant payment_id in database');
+        }
+      } catch (error) {
+        console.error('Error updating participant payment_id:', error);
+      }
+
+      // Step 4: Show payment QR modal immediately
+      setSelectedPayment(payment);
+      setShowPaymentModal(true);
+
+      showToast(`Đã nộp và tạo thanh toán thành công cho ${participant.hoTen}! Số tiền: ${paymentAmount.toLocaleString('vi-VN')} ₫`, 'success');
+
+      // Refresh participants list to show updated status
+      await loadParticipants();
+
+    } catch (error) {
+      console.error('Submit individual participant with payment error:', error);
+      showToast('Có lỗi xảy ra khi nộp và tạo thanh toán. Vui lòng thử lại.', 'error');
+    } finally {
+      setSubmittingParticipantWithPayment(null);
     }
   };
 
@@ -1231,10 +1730,15 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   };
 
   // Handle payment confirmed
-  const handlePaymentConfirmed = () => {
+  const handlePaymentConfirmed = async () => {
     setShowPaymentModal(false);
     setSelectedPayment(null);
     showToast('Thanh toán đã được xác nhận thành công!', 'success');
+
+    // Refresh participants list to show updated status from database
+    // The database update is already handled by keKhaiService.confirmPayment()
+    // which is called from PaymentQRModal, so we just need to refresh the data
+    await loadParticipants();
   };
 
   // Handle household bulk input
@@ -1285,8 +1789,10 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
           keKhaiInfo={keKhaiInfo}
           onSaveAll={handleSaveAll}
           onSubmit={handleSubmit}
+          onSubmitWithPayment={handleSubmitWithPayment}
           saving={saving}
           submitting={submitting}
+          submittingWithPayment={submittingWithPayment}
           savingData={savingData}
           onHouseholdBulkInput={() => setShowHouseholdBulkInputModal(true)}
           householdProcessing={householdProcessing}
@@ -1783,18 +2289,27 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
               </div>
             </div>
 
+            {/* Payment Status Summary */}
+            <PaymentStatusSummary participants={participants} />
+
             {/* Participant Table */}
             {/* DEBUG: Participants length = {participants.length} */}
             <KeKhai603ParticipantTable
               participants={participants}
               onParticipantSearch={handleParticipantSearch}
               onSaveSingleParticipant={handleSaveSingleParticipant}
+              onSubmitIndividualParticipant={handleSubmitIndividualParticipant}
+              onSubmitIndividualParticipantWithPayment={handleSubmitIndividualParticipantWithPayment}
               onRemoveParticipant={handleRemoveParticipant}
               onAddParticipant={handleAddParticipant}
               onBulkRemoveParticipants={handleBulkRemoveParticipants}
+              onBulkSubmitParticipants={handleBulkSubmitParticipants}
+              onBulkSubmitParticipantsWithPayment={handleBulkSubmitParticipantsWithPayment}
               onEditParticipant={handleEditParticipant}
               participantSearchLoading={participantSearchLoading}
               savingData={savingData}
+              submittingParticipant={submittingParticipant}
+              submittingParticipantWithPayment={submittingParticipantWithPayment}
               doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
             />
 
@@ -1812,13 +2327,21 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
       />
 
       {/* Payment QR Modal */}
-      {showPaymentModal && selectedPayment && (
-        <PaymentQRModal
-          payment={selectedPayment}
-          onClose={handlePaymentModalClose}
-          onPaymentConfirmed={handlePaymentConfirmed}
-        />
-      )}
+      {(() => {
+        console.log('🔍 PaymentQRModal render check:', {
+          showPaymentModal,
+          hasSelectedPayment: !!selectedPayment,
+          selectedPaymentId: selectedPayment?.id,
+          shouldRender: showPaymentModal && selectedPayment
+        });
+        return showPaymentModal && selectedPayment ? (
+          <PaymentQRModal
+            payment={selectedPayment}
+            onClose={handlePaymentModalClose}
+            onPaymentConfirmed={handlePaymentConfirmed}
+          />
+        ) : null;
+      })()}
 
       {/* Household Bulk Input Modal */}
       <HouseholdBulkInputModal
@@ -1829,6 +2352,77 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         cskcbOptions={[]} // Will be populated by the modal itself
         processing={householdProcessing}
         progress={householdProgress || undefined}
+      />
+
+      {/* Submit Confirmation Modal */}
+      {showSubmitConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {pendingSubmitAction === 'submitWithPayment' ? 'Xác nhận nộp & thanh toán' : 'Xác nhận nộp kê khai'}
+              </h3>
+
+              <div className="mb-6">
+                {pendingSubmitAction === 'submitWithPayment' ? (
+                  <>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      Bạn có chắc chắn muốn nộp kê khai và tạo thanh toán ngay lập tức?
+                    </p>
+
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
+                      <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Thông tin thanh toán:</h4>
+                      <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                        <p>• Số người tham gia: <span className="font-semibold">{participants.length}</span></p>
+                        <p>• Tổng số tiền: <span className="font-semibold text-green-600">
+                          {participants.reduce((sum, p) => sum + (p.tienDong || p.tienDongThucTe || 0), 0).toLocaleString('vi-VN')} ₫
+                        </span></p>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Sau khi nộp, bạn sẽ được chuyển đến trang thanh toán QR code để thanh toán ngay.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Bạn có chắc chắn muốn nộp kê khai này? Kê khai sẽ được chuyển sang trạng thái chờ duyệt.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowSubmitConfirmModal(false);
+                    setPendingSubmitAction(null);
+                  }}
+                  className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleConfirmSubmitAction}
+                  disabled={submitting || submittingWithPayment}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submitting || submittingWithPayment ? 'Đang xử lý...' : 'Xác nhận'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Submit with Payment Confirmation Modal */}
+      <ConfirmBulkSubmitWithPaymentModal
+        isOpen={showBulkSubmitWithPaymentModal}
+        participants={participants}
+        selectedIndices={pendingBulkSubmitIndices}
+        doiTuongThamGia={keKhaiInfo?.doi_tuong_tham_gia}
+        onConfirm={handleConfirmBulkSubmitWithPayment}
+        onCancel={handleCancelBulkSubmitWithPayment}
+        loading={bulkSubmittingWithPayment}
       />
     </div>
   );

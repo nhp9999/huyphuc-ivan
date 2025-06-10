@@ -508,6 +508,50 @@ class KeKhaiService {
     }
   }
 
+  // Cập nhật trạng thái thanh toán cho participants
+  async updateParticipantPaymentStatus(
+    paymentId: number,
+    paymentStatus: 'unpaid' | 'pending' | 'completed' | 'failed' | 'cancelled'
+  ): Promise<{ success: boolean; message: string; count: number }> {
+    try {
+      const updateData: any = {
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      if (paymentStatus === 'completed') {
+        updateData.paid_at = new Date().toISOString();
+      }
+
+      const { data: result, error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .update(updateData)
+        .eq('payment_id', paymentId)
+        .select();
+
+      if (error) {
+        console.error('Error updating participant payment status:', error);
+        throw new Error('Không thể cập nhật trạng thái thanh toán của người tham gia');
+      }
+
+      const count = result?.length || 0;
+      console.log(`✅ Updated payment status to ${paymentStatus} for ${count} participants`);
+
+      return {
+        success: true,
+        message: `Đã cập nhật trạng thái thanh toán cho ${count} người tham gia`,
+        count
+      };
+    } catch (error) {
+      console.error('Error in updateParticipantPaymentStatus:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Có lỗi xảy ra khi cập nhật trạng thái thanh toán',
+        count: 0
+      };
+    }
+  }
+
   // Xác nhận thanh toán và chuyển kê khai sang trạng thái đang xử lý
   async confirmPayment(
     keKhaiId: number,
@@ -527,6 +571,10 @@ class KeKhaiService {
         proofImageUrl,
         confirmationNote
       );
+
+      // Cập nhật trạng thái thanh toán cho participants
+      const participantUpdateResult = await this.updateParticipantPaymentStatus(paymentId, 'completed');
+      console.log('💳 Participant payment status update result:', participantUpdateResult);
 
       // Cập nhật trạng thái kê khai thành processing (đang xử lý) sau khi thanh toán
       const { data: result, error } = await supabase
@@ -592,6 +640,145 @@ class KeKhaiService {
       return result;
     } catch (error) {
       console.error('Error in setKeKhaiProcessing:', error);
+      throw error;
+    }
+  }
+
+  // Submit individual participant
+  async submitIndividualParticipant(
+    participantId: number,
+    userId: string,
+    notes?: string
+  ): Promise<DanhSachNguoiThamGia> {
+    try {
+      console.log('submitIndividualParticipant called with:', { participantId, userId, notes });
+
+      // First, validate that participant has required data
+      const { data: participant, error: fetchError } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select('*')
+        .eq('id', participantId)
+        .single();
+
+      if (fetchError || !participant) {
+        throw new Error('Không tìm thấy thông tin người tham gia');
+      }
+
+      // Validate required fields for submission
+      const requiredFields = ['ho_ten', 'ma_so_bhxh', 'noi_dang_ky_kcb'];
+      const missingFields = requiredFields.filter(field => !participant[field]);
+
+      if (missingFields.length > 0) {
+        throw new Error(`Thiếu thông tin bắt buộc: ${missingFields.join(', ')}`);
+      }
+
+      // Update participant status to submitted
+      const updateData = {
+        participant_status: 'submitted',
+        submitted_at: new Date().toISOString(),
+        submitted_by: userId,
+        individual_submission_notes: notes || null,
+        updated_at: new Date().toISOString(),
+        updated_by: userId
+      };
+
+      const { data: result, error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .update(updateData)
+        .eq('id', participantId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error submitting individual participant:', error);
+        throw new Error('Không thể nộp người tham gia');
+      }
+
+      console.log('Successfully submitted individual participant:', result);
+      return result;
+    } catch (error) {
+      console.error('Error in submitIndividualParticipant:', error);
+      throw error;
+    }
+  }
+
+  // Test method to check if we can update a participant
+  async testUpdateParticipant(participantId: number): Promise<any> {
+    try {
+      console.log('Testing update for participant:', participantId);
+
+      // Try a simple update first
+      const { data, error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', participantId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Test update failed:', error);
+        return { success: false, error };
+      }
+
+      console.log('Test update successful:', data);
+      return { success: true, data };
+    } catch (error) {
+      console.error('Test update exception:', error);
+      return { success: false, error };
+    }
+  }
+
+  // Update participant status
+  async updateParticipantStatus(
+    participantId: number,
+    status: string,
+    userId: string,
+    notes?: string
+  ): Promise<DanhSachNguoiThamGia> {
+    try {
+      console.log('updateParticipantStatus called with:', { participantId, status, userId, notes });
+
+      // Update data with all required fields
+      const updateData: any = {
+        participant_status: status,
+        updated_at: new Date().toISOString(),
+        updated_by: userId
+      };
+
+      // Add timestamp for specific statuses
+      if (status === 'submitted') {
+        updateData.submitted_at = new Date().toISOString();
+        updateData.submitted_by = userId;
+      }
+
+      if (notes) {
+        updateData.individual_submission_notes = notes;
+      }
+
+      console.log('Update data being sent:', updateData);
+
+      const { data: result, error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .update(updateData)
+        .eq('id', participantId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating participant status:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw new Error(`Không thể cập nhật trạng thái người tham gia: ${error.message}`);
+      }
+
+      console.log('Successfully updated participant status:', result);
+      return result;
+    } catch (error) {
+      console.error('Error in updateParticipantStatus:', error);
       throw error;
     }
   }
@@ -756,6 +943,328 @@ class KeKhaiService {
       return data || [];
     } catch (error) {
       console.error('Error in getNguoiThamGiaByKeKhai:', error);
+      throw error;
+    }
+  }
+
+
+
+  // Debug method để kiểm tra dữ liệu
+  async debugUserData(userId: string): Promise<any> {
+    try {
+      console.log('🔍 Debug: Checking data for user:', userId);
+
+      // Check ke khai
+      const { data: keKhaiData } = await supabase
+        .from('danh_sach_ke_khai')
+        .select('id, ma_ke_khai, trang_thai, created_at')
+        .eq('created_by', userId)
+        .order('created_at', { ascending: false });
+
+      console.log('📋 All ke khai for user:', keKhaiData);
+
+      // Group by status
+      const statusGroups = keKhaiData?.reduce((acc, item) => {
+        acc[item.trang_thai] = (acc[item.trang_thai] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      console.log('📊 Ke khai by status:', statusGroups);
+
+      // Check participants
+      if (keKhaiData && keKhaiData.length > 0) {
+        const keKhaiIds = keKhaiData.map(k => k.id);
+        const { data: participantsData } = await supabase
+          .from('danh_sach_nguoi_tham_gia')
+          .select('id, ho_ten, ke_khai_id, participant_status')
+          .in('ke_khai_id', keKhaiIds);
+
+        console.log('👥 All participants for user:', participantsData?.length || 0);
+
+        // Group participants by ke khai status
+        const participantsByKeKhaiStatus = keKhaiData.map(kk => ({
+          keKhai: kk,
+          participants: participantsData?.filter(p => p.ke_khai_id === kk.id) || []
+        }));
+
+        console.log('🔗 Participants by ke khai status:', participantsByKeKhaiStatus);
+      }
+
+      return { keKhaiData, statusGroups };
+    } catch (error) {
+      console.error('Debug error:', error);
+      return null;
+    }
+  }
+
+  // Lấy người tham gia chưa xử lý với phân trang (cho hồ sơ chưa xử lý)
+  async getUnprocessedNguoiThamGiaWithPagination(params: {
+    userId: string;
+    page: number;
+    pageSize: number;
+    loaiKeKhai?: string;
+    fromDate?: string;
+    toDate?: string;
+    participantStatus?: string;
+    searchTerm?: string;
+  }): Promise<{ data: any[]; total: number }> {
+    try {
+      console.log('🔍 getUnprocessedNguoiThamGiaWithPagination called with:', params);
+
+      // Trước tiên lấy danh sách kê khai của user với trạng thái nháp
+      let keKhaiQuery = supabase
+        .from('danh_sach_ke_khai')
+        .select('id')
+        .eq('created_by', params.userId)
+        .eq('trang_thai', 'draft'); // Chỉ lấy kê khai nháp
+
+      if (params.loaiKeKhai) {
+        keKhaiQuery = keKhaiQuery.eq('loai_ke_khai', params.loaiKeKhai);
+      }
+
+      // Apply date filters
+      if (params.fromDate) {
+        keKhaiQuery = keKhaiQuery.gte('created_at', params.fromDate);
+      }
+      if (params.toDate) {
+        keKhaiQuery = keKhaiQuery.lte('created_at', params.toDate);
+      }
+
+      const { data: keKhaiData, error: keKhaiError } = await keKhaiQuery;
+
+      if (keKhaiError) {
+        console.error('Error fetching ke khai for unprocessed participants:', keKhaiError);
+        throw new Error('Không thể tải danh sách kê khai');
+      }
+
+      console.log('🔍 Found draft ke khai for participants:', keKhaiData?.length || 0);
+      console.log('📋 Draft ke khai data:', keKhaiData);
+
+      const keKhaiIds = keKhaiData?.map(item => item.id) || [];
+
+      if (keKhaiIds.length === 0) {
+        console.log('❌ No draft ke khai found for user. Checking all ke khai...');
+
+        // Debug: Check all ke khai for this user
+        const { data: allKeKhai } = await supabase
+          .from('danh_sach_ke_khai')
+          .select('id, ma_ke_khai, trang_thai')
+          .eq('created_by', params.userId);
+
+        console.log('📊 All ke khai for user:', allKeKhai);
+
+        return { data: [], total: 0 };
+      }
+
+      // Count total participants với filter
+      let countQuery = supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select('id', { count: 'exact', head: true })
+        .in('ke_khai_id', keKhaiIds);
+
+      // Filter by participant status if specified
+      if (params.participantStatus && params.participantStatus !== 'all') {
+        countQuery = countQuery.eq('participant_status', params.participantStatus);
+      }
+
+      // Search filter
+      if (params.searchTerm) {
+        countQuery = countQuery.or(`ho_ten.ilike.%${params.searchTerm}%,ma_so_bhxh.ilike.%${params.searchTerm}%`);
+      }
+
+      const { count, error: countError } = await countQuery;
+
+      if (countError) {
+        console.error('Error counting unprocessed participants:', countError);
+        throw new Error('Không thể đếm số lượng người tham gia');
+      }
+
+      // Get paginated data với join
+      const offset = (params.page - 1) * params.pageSize;
+      let dataQuery = supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select(`
+          *,
+          ke_khai:danh_sach_ke_khai(
+            id,
+            ma_ke_khai,
+            ten_ke_khai,
+            loai_ke_khai,
+            trang_thai,
+            created_at,
+            updated_at,
+            doi_tuong_tham_gia,
+            nguon_dong,
+            total_amount
+          )
+        `)
+        .in('ke_khai_id', keKhaiIds);
+
+      // Apply same filters as count query
+      if (params.participantStatus && params.participantStatus !== 'all') {
+        dataQuery = dataQuery.eq('participant_status', params.participantStatus);
+      }
+
+      if (params.searchTerm) {
+        dataQuery = dataQuery.or(`ho_ten.ilike.%${params.searchTerm}%,ma_so_bhxh.ilike.%${params.searchTerm}%`);
+      }
+
+      dataQuery = dataQuery
+        .order('created_at', { ascending: false })
+        .range(offset, offset + params.pageSize - 1);
+
+      const { data, error } = await dataQuery;
+
+      if (error) {
+        console.error('Error fetching unprocessed participants:', error);
+        throw new Error('Không thể tải danh sách người tham gia nháp');
+      }
+
+      console.log('👥 Loaded draft participants:', data?.length, 'of', count);
+
+      return {
+        data: data || [],
+        total: count || 0
+      };
+    } catch (error) {
+      console.error('Error in getUnprocessedNguoiThamGiaWithPagination:', error);
+      throw error;
+    }
+  }
+
+  // Lấy người tham gia đang/đã xử lý với phân trang (cho hồ sơ đã xử lý)
+  async getProcessedNguoiThamGiaWithPagination(params: {
+    userId: string;
+    page: number;
+    pageSize: number;
+    loaiKeKhai?: string;
+    fromDate?: string;
+    toDate?: string;
+    participantStatus?: string;
+    paymentStatus?: string;
+    searchTerm?: string;
+  }): Promise<{ data: any[]; total: number }> {
+    try {
+      console.log('🔍 getProcessedNguoiThamGiaWithPagination called with:', params);
+
+      // Trước tiên lấy danh sách kê khai của user với trạng thái đã xử lý và đang xử lý
+      let keKhaiQuery = supabase
+        .from('danh_sach_ke_khai')
+        .select('id')
+        .eq('created_by', params.userId)
+        .in('trang_thai', ['processing', 'approved', 'paid', 'rejected', 'completed']); // Bao gồm cả đang xử lý
+
+      if (params.loaiKeKhai) {
+        keKhaiQuery = keKhaiQuery.eq('loai_ke_khai', params.loaiKeKhai);
+      }
+
+      // Apply date filters
+      if (params.fromDate) {
+        keKhaiQuery = keKhaiQuery.gte('created_at', params.fromDate);
+      }
+      if (params.toDate) {
+        keKhaiQuery = keKhaiQuery.lte('created_at', params.toDate);
+      }
+
+      const { data: keKhaiData, error: keKhaiError } = await keKhaiQuery;
+
+      if (keKhaiError) {
+        console.error('Error fetching ke khai for processed participants:', keKhaiError);
+        throw new Error('Không thể tải danh sách kê khai');
+      }
+
+      const keKhaiIds = keKhaiData?.map(item => item.id) || [];
+
+      if (keKhaiIds.length === 0) {
+        console.log('No processing/processed ke khai found for user');
+        return { data: [], total: 0 };
+      }
+
+      // Count total participants với filter
+      let countQuery = supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select('id', { count: 'exact', head: true })
+        .in('ke_khai_id', keKhaiIds);
+
+      // Filter by participant status if specified
+      if (params.participantStatus && params.participantStatus !== 'all') {
+        countQuery = countQuery.eq('participant_status', params.participantStatus);
+      }
+
+      // Filter by payment status if specified
+      if (params.paymentStatus && params.paymentStatus !== 'all') {
+        countQuery = countQuery.eq('payment_status', params.paymentStatus);
+      }
+
+      // Search filter
+      if (params.searchTerm) {
+        countQuery = countQuery.or(`ho_ten.ilike.%${params.searchTerm}%,ma_so_bhxh.ilike.%${params.searchTerm}%`);
+      }
+
+      const { count, error: countError } = await countQuery;
+
+      if (countError) {
+        console.error('Error counting processed participants:', countError);
+        throw new Error('Không thể đếm số lượng người tham gia');
+      }
+
+      // Get paginated data với join
+      const offset = (params.page - 1) * params.pageSize;
+      let dataQuery = supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select(`
+          *,
+          ke_khai:danh_sach_ke_khai(
+            id,
+            ma_ke_khai,
+            ten_ke_khai,
+            loai_ke_khai,
+            trang_thai,
+            created_at,
+            approved_at,
+            rejected_at,
+            payment_completed_at,
+            updated_at,
+            doi_tuong_tham_gia,
+            nguon_dong,
+            total_amount
+          )
+        `)
+        .in('ke_khai_id', keKhaiIds);
+
+      // Apply same filters as count query
+      if (params.participantStatus && params.participantStatus !== 'all') {
+        dataQuery = dataQuery.eq('participant_status', params.participantStatus);
+      }
+
+      // Filter by payment status if specified
+      if (params.paymentStatus && params.paymentStatus !== 'all') {
+        dataQuery = dataQuery.eq('payment_status', params.paymentStatus);
+      }
+
+      if (params.searchTerm) {
+        dataQuery = dataQuery.or(`ho_ten.ilike.%${params.searchTerm}%,ma_so_bhxh.ilike.%${params.searchTerm}%`);
+      }
+
+      dataQuery = dataQuery
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + params.pageSize - 1);
+
+      const { data, error } = await dataQuery;
+
+      if (error) {
+        console.error('Error fetching processed participants:', error);
+        throw new Error('Không thể tải danh sách người tham gia đã xử lý');
+      }
+
+      console.log('👥 Loaded processed participants:', data?.length, 'of', count);
+
+      return {
+        data: data || [],
+        total: count || 0
+      };
+    } catch (error) {
+      console.error('Error in getProcessedNguoiThamGiaWithPagination:', error);
       throw error;
     }
   }
