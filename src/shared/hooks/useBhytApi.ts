@@ -48,10 +48,14 @@ export const useBhytApi = () => {
 
     setSearchLoading(true);
     try {
-      // Ensure token is ready before making API call
-      console.log('🔑 Ensuring token is ready for BHYT search...');
-      await vnpostTokenService.ensureTokenReady();
-      console.log('✅ Token ready, proceeding with BHYT search');
+      // Fast check: Only ensure token if not recently validated
+      if (!vnpostTokenService.isTokenReady()) {
+        console.log('🔑 Ensuring token is ready for BHYT search...');
+        await vnpostTokenService.ensureTokenReady();
+        console.log('✅ Token ready, proceeding with BHYT search');
+      } else {
+        console.log('⚡ Token already ready, proceeding immediately');
+      }
 
     } catch (tokenError) {
       console.error('❌ Token not ready:', tokenError);
@@ -144,10 +148,14 @@ export const useBhytApi = () => {
 
     setSearchLoading(true);
     try {
-      // Ensure token is ready before making API call
-      console.log('🔑 Ensuring token is ready for participant search...');
-      await vnpostTokenService.ensureTokenReady();
-      console.log('✅ Token ready, proceeding with participant search');
+      // Fast check: Only ensure token if not recently validated
+      if (!vnpostTokenService.isTokenReady()) {
+        console.log('🔑 Ensuring token is ready for participant search...');
+        await vnpostTokenService.ensureTokenReady();
+        console.log('✅ Token ready, proceeding with participant search');
+      } else {
+        console.log('⚡ Token already ready, proceeding immediately');
+      }
 
     } catch (tokenError) {
       console.error('❌ Token not ready:', tokenError);

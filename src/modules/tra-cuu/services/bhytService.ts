@@ -25,8 +25,8 @@ export class BhytService {
         console.log('🚨 Authentication error detected, reporting with details...');
         await vnpostTokenService.reportAuthError(errorDetails);
 
-        // Wait a moment for potential auto-fix to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait a shorter time for potential auto-fix to complete (optimized for speed)
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         // Update headers with fresh token for retry
         const freshHeaders = await this.getHeaders();
@@ -78,6 +78,9 @@ export class BhytService {
         timestamp: tokenInfo.timestamp,
         isValid: tokenInfo.isValid
       });
+
+      // Report success to optimize future token checks
+      vnpostTokenService.reportSuccess();
 
       return {
         'accept': 'application/json, text/plain, */*',
@@ -649,9 +652,9 @@ export class BhytService {
         failureCount++;
       }
 
-      // Add delay between requests to avoid rate limiting
+      // Add shorter delay between requests to avoid rate limiting (optimized)
       if (i < maSoBHXHList.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
 

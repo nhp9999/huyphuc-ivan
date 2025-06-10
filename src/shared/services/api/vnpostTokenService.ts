@@ -24,7 +24,7 @@ export interface TokenInfo {
 class VnPostTokenService {
   private cachedToken: TokenInfo | null = null;
   private cacheExpiry: number = 0;
-  private readonly CACHE_DURATION = 2 * 60 * 1000; // 2 minutes (reduced from 5)
+  private readonly CACHE_DURATION = 4 * 60 * 60 * 1000; // 4 hours (aggressive caching since JWT lasts 5 hours)
   private errorCount: number = 0;
   private lastErrorTime: number = 0;
   private readonly MAX_ERRORS_BEFORE_CLEAR = 3;
@@ -45,6 +45,10 @@ class VnPostTokenService {
   private tokenInitialized: boolean = false;
   private initializationPromise: Promise<TokenInfo> | null = null;
   private readonly TOKEN_INITIALIZATION_TIMEOUT = 10000; // 10 seconds
+
+  // Performance optimization
+  private lastSuccessfulCall: number = 0;
+  private readonly SKIP_CHECK_DURATION = 10 * 60 * 1000; // 10 minutes - skip token check if last call was recent
 
   /**
    * Initialize token service and ensure token is ready
@@ -173,16 +177,26 @@ class VnPostTokenService {
   }
 
   /**
-   * Ensure token is ready before API calls
+   * Ensure token is ready before API calls (optimized for speed)
    */
   async ensureTokenReady(): Promise<TokenInfo> {
+    const now = Date.now();
+
+    // Fast path: Skip check if we had a successful call recently and token is cached
+    if (this.cachedToken &&
+        now < this.cacheExpiry &&
+        (now - this.lastSuccessfulCall) < this.SKIP_CHECK_DURATION) {
+      console.log('⚡ Fast path: Using recent successful token');
+      return this.cachedToken;
+    }
+
     if (!this.tokenInitialized) {
       console.log('⏳ Token not initialized, initializing now...');
       return await this.initializeToken();
     }
 
     // Check if cached token is still valid
-    if (this.cachedToken && Date.now() < this.cacheExpiry) {
+    if (this.cachedToken && now < this.cacheExpiry) {
       return this.cachedToken;
     }
 
@@ -208,6 +222,17 @@ class VnPostTokenService {
   async forceRefresh(): Promise<TokenInfo> {
     this.clearCache();
     return await this.getLatestToken();
+  }
+
+  /**
+   * Report successful API call to reset error tracking and optimize future calls
+   */
+  reportSuccess(): void {
+    this.errorCount = 0;
+    this.consecutiveFailures = 0;
+    this.lastErrorTime = 0;
+    this.lastSuccessfulCall = Date.now(); // Track for performance optimization
+    console.log('✅ API call successful - error tracking reset, performance optimized');
   }
 
   /**
