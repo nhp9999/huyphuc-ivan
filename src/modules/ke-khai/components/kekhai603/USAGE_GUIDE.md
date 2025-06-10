@@ -121,7 +121,7 @@ Tính năng "Danh sách người tham gia" đã được thêm vào form KeKhai6
 **Giải pháp**:
 - Kiểm tra kết nối internet
 - Đảm bảo mã BHXH đúng định dạng (10 số)
-- Thử nhấn nút "Fix Error" nếu có lỗi token
+- Kiểm tra token xác thực trong hệ thống
 
 ### Vấn đề: Không lưu được dữ liệu
 **Giải pháp**:

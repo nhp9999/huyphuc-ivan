@@ -3,8 +3,6 @@ import { DanhSachKeKhai } from '../../../../shared/services/api/supabaseClient';
 import { ApiSummary } from '../../../hooks/useKeKhai603Api';
 import {
   FileText,
-  RefreshCw,
-  Settings,
   Loader2,
   Save,
   Send,
@@ -14,11 +12,6 @@ import {
 
 interface KeKhai603HeaderProps {
   keKhaiInfo: DanhSachKeKhai | null;
-  onRefreshToken?: () => void;
-  onFixError?: () => void;
-  fixErrorProcessing?: boolean;
-  fixErrorPhase?: 'idle' | 'testing' | 'waiting' | 'refreshing';
-  waitingCountdown?: number;
   // New props for save and submit actions
   onSaveAll?: () => void;
   onSubmit?: () => void;
@@ -28,16 +21,10 @@ interface KeKhai603HeaderProps {
   // Household bulk input props
   onHouseholdBulkInput?: () => void;
   householdProcessing?: boolean;
-
 }
 
 export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
   keKhaiInfo,
-  onRefreshToken,
-  onFixError,
-  fixErrorProcessing = false,
-  fixErrorPhase = 'idle',
-  waitingCountdown = 0,
   onSaveAll,
   onSubmit,
   saving = false,
@@ -158,43 +145,7 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
 
 
 
-            {/* Fix Error Button */}
-            {onFixError && (
-              <button
-                onClick={onFixError}
-                disabled={fixErrorProcessing}
-                className="flex items-center space-x-2 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                title="Sửa lỗi xác thực: Test token → Chờ 5 giây → Refresh token"
-              >
-                {fixErrorProcessing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>
-                      {fixErrorPhase === 'testing' && 'Đang test token...'}
-                      {fixErrorPhase === 'waiting' && `Chờ ${waitingCountdown}s`}
-                      {fixErrorPhase === 'refreshing' && 'Đang refresh token...'}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Settings className="h-4 w-4" />
-                    <span>Sửa lỗi</span>
-                  </>
-                )}
-              </button>
-            )}
 
-            {/* Refresh Token Button */}
-            {onRefreshToken && (
-              <button
-                onClick={onRefreshToken}
-                className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Làm mới token xác thực"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>Làm mới token</span>
-              </button>
-            )}
           </div>
         </div>
       </div>

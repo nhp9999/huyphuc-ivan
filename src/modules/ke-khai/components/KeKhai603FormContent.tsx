@@ -7,7 +7,7 @@ import { useKeKhai603 } from '../hooks/useKeKhai603';
 import { useToast } from '../../../shared/hooks/useToast';
 import { ThanhToan } from '../../../shared/services/api/supabaseClient';
 import PaymentQRModal from './PaymentQRModal';
-import vnpostTokenService from '../../../shared/services/api/vnpostTokenService';
+
 import { KeKhai603Header } from './kekhai603/KeKhai603Header';
 import { HouseholdBulkInputModal } from './kekhai603/HouseholdBulkInputModal';
 import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable';
@@ -39,10 +39,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
   // State for save participant functionality
   const [savingParticipant, setSavingParticipant] = React.useState(false);
 
-  // State for Fix Error functionality (moved from participant table)
-  const [fixErrorProcessing, setFixErrorProcessing] = React.useState(false);
-  const [fixErrorPhase, setFixErrorPhase] = React.useState<'idle' | 'testing' | 'waiting' | 'refreshing'>('idle');
-  const [waitingCountdown, setWaitingCountdown] = React.useState(0);
+
 
 
 
@@ -989,160 +986,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
 
 
 
-  // Handle Fix Error - Sequential GemLogin Test + 5 second wait + Refresh Token
-  const handleFixError = React.useCallback(async () => {
-    console.log('🔧🔧🔧 handleFixError called! Processing:', fixErrorProcessing);
 
-    if (fixErrorProcessing) {
-      console.log('🔧 Fix error already processing, skipping...');
-      return;
-    }
-
-    console.log('🔧 Starting fix error process...');
-    setFixErrorProcessing(true);
-    setFixErrorPhase('testing');
-
-    try {
-      // Phase 1: Test GemLogin API
-      showToast('Bắt đầu test token...', 'warning');
-
-      const payload = {
-        token: "W1tRXRGrogqDKKfi2vjntmYAKwUGURDrkH7fUzxRjoM82Ee9B1mjazatTWGnPOcA",
-        device_id: "F2DEA0FC4095FCA69F6E20A06B5A0B03",
-        profile_id: "1",
-        workflow_id: "CvfYXv3KTCMKjjHmLk4ze",
-        parameter: {},
-        soft_id: "1",
-        close_browser: false
-      };
-
-      console.log('Testing GemLogin API with payload:', payload);
-
-      const response = await fetch('https://app.gemlogin.vn/api/v2/execscript', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('GemLogin API error response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('GemLogin API response:', data);
-
-      // Extract bearer token and timestamp from response
-      const token = data.bearer_token || data.token || data.authorization;
-      const timestamp = data.timestamp || Date.now();
-
-      showToast('Test token thành công! Bắt đầu chờ 5 giây...', 'success');
-
-      // Phase 2: Wait exactly 5 seconds
-      setFixErrorPhase('waiting');
-      setWaitingCountdown(5); // 5 seconds
-
-      // Start countdown timer
-      const countdownInterval = setInterval(() => {
-        setWaitingCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      // Wait for 5 seconds
-      await new Promise(resolve => setTimeout(resolve, 5000)); // 5,000ms = 5 seconds
-
-      // Phase 3: Refresh Token
-      setFixErrorPhase('refreshing');
-      showToast('Bắt đầu refresh token...', 'warning');
-
-      await vnpostTokenService.forceRefresh();
-
-      showToast('Sửa lỗi hoàn tất! Token đã được refresh thành công.', 'success');
-
-    } catch (error) {
-      console.error('Fix error process failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-
-      // If GemLogin API fails, still try to refresh token after 5 seconds
-      if (fixErrorPhase === 'testing') {
-        showToast(`Test token thất bại: ${errorMessage}. Vẫn tiếp tục refresh token...`, 'warning');
-
-        // Phase 2: Wait exactly 5 seconds even if test failed
-        setFixErrorPhase('waiting');
-        setWaitingCountdown(5);
-
-        // Start countdown timer
-        const countdownInterval = setInterval(() => {
-          setWaitingCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-
-        // Wait for 5 seconds
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        try {
-          // Phase 3: Refresh Token
-          setFixErrorPhase('refreshing');
-          showToast('Bắt đầu refresh token...', 'warning');
-
-          await vnpostTokenService.forceRefresh();
-
-          showToast('Refresh token thành công! (Test token đã bỏ qua do lỗi API)', 'success');
-        } catch (refreshError) {
-          console.error('Refresh token also failed:', refreshError);
-          const refreshErrorMessage = refreshError instanceof Error ? refreshError.message : 'Unknown error occurred';
-          showToast(`Refresh token thất bại: ${refreshErrorMessage}`, 'error');
-        }
-      } else {
-        showToast(`Sửa lỗi thất bại: ${errorMessage}`, 'error');
-      }
-    } finally {
-      setFixErrorProcessing(false);
-      setFixErrorPhase('idle');
-      setWaitingCountdown(0);
-    }
-  }, [fixErrorProcessing, fixErrorPhase, showToast]);
-
-  // Handle refresh token
-  const handleRefreshToken = async () => {
-    try {
-      showToast('Đang làm mới token...', 'warning');
-      await vnpostTokenService.forceRefresh();
-      showToast('Đã làm mới token thành công!', 'success');
-    } catch (error) {
-      console.error('Error refreshing token:', error);
-      showToast('Có lỗi khi làm mới token', 'error');
-    }
-  };
-
-  // Auto-refresh token when window gains focus (user comes back to tab)
-  React.useEffect(() => {
-    const handleFocus = async () => {
-      // Check if token cache is old and refresh if needed
-      try {
-        await vnpostTokenService.getLatestToken();
-      } catch (error) {
-        console.error('Error checking token on focus:', error);
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
 
 
 
@@ -1432,11 +1276,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
         {/* Header */}
         <KeKhai603Header
           keKhaiInfo={keKhaiInfo}
-          onRefreshToken={handleRefreshToken}
-          onFixError={handleFixError}
-          fixErrorProcessing={fixErrorProcessing}
-          fixErrorPhase={fixErrorPhase}
-          waitingCountdown={waitingCountdown}
           onSaveAll={handleSaveAll}
           onSubmit={handleSubmit}
           saving={saving}
@@ -1941,7 +1780,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({ page
             {/* DEBUG: Participants length = {participants.length} */}
             <KeKhai603ParticipantTable
               participants={participants}
-              onParticipantChange={handleParticipantChange}
               onParticipantSearch={handleParticipantSearch}
               onSaveSingleParticipant={handleSaveSingleParticipant}
               onRemoveParticipant={handleRemoveParticipant}

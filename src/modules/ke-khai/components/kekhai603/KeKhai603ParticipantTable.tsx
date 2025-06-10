@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { KeKhai603Participant } from '../../hooks/useKeKhai603Participants';
 import { ContextMenu, ContextMenuItem } from '../../../../shared/components/ui/ContextMenu';
-import { formatCurrency, formatDate } from '../../../../shared/utils/formatters';
-import { calculateKeKhai603Amount, calculateKeKhai603AmountThucTe } from '../../hooks/useKeKhai603FormData';
+import { formatCurrency } from '../../../../shared/utils/formatters';
+import { calculateKeKhai603AmountThucTe } from '../../hooks/useKeKhai603FormData';
 
 interface KeKhai603ParticipantTableProps {
   participants: KeKhai603Participant[];
-  onParticipantChange: (index: number, field: keyof KeKhai603Participant, value: string) => void;
   onParticipantSearch: (index: number) => void;
   onSaveSingleParticipant: (index: number) => void;
   onRemoveParticipant: (index: number) => void;
@@ -20,7 +19,6 @@ interface KeKhai603ParticipantTableProps {
 
 export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps> = ({
   participants,
-  onParticipantChange,
   onParticipantSearch,
   onSaveSingleParticipant,
   onRemoveParticipant,
@@ -194,25 +192,23 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     setSelectAll(checked);
   };
 
-  // Handle key press for search
-  const handleKeyPress = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'Enter') {
-      onParticipantSearch(index);
-    }
-  };
+
 
   if (participants.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
               Danh sách người tham gia
             </h3>
             <button
               onClick={onAddParticipant}
               disabled={savingData}
-              className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -221,14 +217,26 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
             </button>
           </div>
         </div>
-        <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-          <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          <p className="text-base">Chưa có người tham gia nào</p>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-            Nhấn "Thêm người tham gia" để bắt đầu
+        <div className="p-12 text-center text-gray-500 dark:text-gray-400">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+            <svg className="w-10 h-10 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Chưa có người tham gia nào</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Bắt đầu bằng cách thêm người tham gia đầu tiên vào danh sách kê khai
           </p>
+          <button
+            onClick={onAddParticipant}
+            disabled={savingData}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Thêm người tham gia đầu tiên
+          </button>
         </div>
       </div>
     );
@@ -237,40 +245,50 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            Danh sách người tham gia ({participants.length})
-          </h3>
-          <div className="flex items-center space-x-3">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Danh sách người tham gia
+            </h3>
+            <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
+              {participants.length}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
             {selectedParticipants.size > 0 && (
               <>
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Đã chọn {selectedParticipants.size} người
-                </span>
-                {onBulkRemoveParticipants && (
-                  <button
-                    onClick={() => {
-                      const indices = Array.from(selectedParticipants);
-                      onBulkRemoveParticipants(indices);
-                      setSelectedParticipants(new Set());
-                      setSelectAll(false);
-                    }}
-                    disabled={savingData}
-                    className="flex items-center justify-center space-x-2 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    <span>Xóa đã chọn</span>
-                  </button>
-                )}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                    Đã chọn {selectedParticipants.size} người
+                  </span>
+                  {onBulkRemoveParticipants && (
+                    <button
+                      onClick={() => {
+                        const indices = Array.from(selectedParticipants);
+                        onBulkRemoveParticipants(indices);
+                        setSelectedParticipants(new Set());
+                        setSelectAll(false);
+                      }}
+                      disabled={savingData}
+                      className="flex items-center justify-center space-x-2 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Xóa đã chọn</span>
+                    </button>
+                  )}
+                </div>
               </>
             )}
             <button
               onClick={onAddParticipant}
               disabled={savingData}
-              className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -282,221 +300,176 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto bg-gray-50 dark:bg-gray-900/50">
         <table className="min-w-full border-collapse" style={{minWidth: '1800px'}}>
-          <thead className="bg-blue-600 text-white">
+          <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-10">
             <tr>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '40px', minWidth: '40px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap shadow-sm" style={{width: '50px', minWidth: '50px'}}>
                 <input
                   type="checkbox"
-                  className="w-4 h-4"
+                  className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
                   checked={selectAll}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '50px', minWidth: '50px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '60px', minWidth: '60px'}}>
                 STT
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
-                Họ tên
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '160px', minWidth: '160px'}}>
+                Họ và tên
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
                 Mã số BHXH
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                CCCD
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
+                Số CCCD
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
                 Ngày sinh
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
                 Giới tính
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
                 Số điện thoại
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
                 Số thẻ BHYT
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '200px', minWidth: '200px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '220px', minWidth: '220px'}}>
                 Nơi đăng ký KCB
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
                 Mức lương
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
                 Tiền đóng
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
                 Số tháng
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
                 STT hộ
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
                 Ngày biên lai
               </th>
-              <th className="px-2 py-2 text-center text-xs font-medium border border-gray-300 whitespace-nowrap" style={{width: '140px', minWidth: '140px'}}>
+              <th className="px-3 py-3 text-center text-xs font-semibold border border-blue-500/30 whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
                 Thao tác
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {participants.map((participant, index) => (
               <tr
                 key={participant.id || index}
-                className="hover:bg-gray-50 border-b border-gray-200 cursor-pointer"
+                className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer group"
                 onContextMenu={(e) => handleContextMenu(e, index)}
               >
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '40px', minWidth: '40px'}}>
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '50px', minWidth: '50px'}}>
                   <input
                     type="checkbox"
-                    className="w-4 h-4"
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-2"
                     checked={selectedParticipants.has(index)}
                     onChange={(e) => handleParticipantSelection(index, e.target.checked)}
                   />
                 </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '50px', minWidth: '50px'}}>
-                  {index + 1}
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap font-medium text-gray-900 dark:text-gray-100" style={{width: '60px', minWidth: '60px'}}>
+                  <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full text-xs font-semibold">
+                    {index + 1}
+                  </span>
                 </td>
-                <td className="px-2 py-2 text-left text-xs border border-gray-300" style={{width: '150px', minWidth: '150px'}}>
-                  <input
-                    type="text"
-                    value={participant.hoTen}
-                    onChange={(e) => onParticipantChange(index, 'hoTen', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded"
-                    placeholder="Họ và tên"
-                  />
-                </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={participant.maSoBHXH}
-                      onChange={(e) => onParticipantChange(index, 'maSoBHXH', e.target.value)}
-                      onKeyDown={(e) => handleKeyPress(e, index)}
-                      className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded font-mono"
-                      placeholder="01234567890"
-                    />
-                    <button
-                      onClick={() => onParticipantSearch(index)}
-                      disabled={participantSearchLoading[index]}
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-blue-600 disabled:opacity-50"
-                      title="Tìm kiếm thông tin BHYT"
-                    >
-                      {participantSearchLoading[index] ? (
-                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                      ) : (
-                        <span className="text-xs">🔍</span>
-                      )}
-                    </button>
+                <td className="px-3 py-3 text-left text-xs border border-gray-200 dark:border-gray-600" style={{width: '160px', minWidth: '160px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.hoTen || <span className="text-gray-400 italic">Chưa có thông tin</span>}
                   </div>
                 </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                  <input
-                    type="text"
-                    value={participant.soCCCD}
-                    onChange={(e) => onParticipantChange(index, 'soCCCD', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded font-mono"
-                    placeholder="CCCD"
-                  />
-                </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
-                  <input
-                    type="date"
-                    value={participant.ngaySinh}
-                    onChange={(e) => onParticipantChange(index, 'ngaySinh', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded"
-                  />
-                </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
-                  <select
-                    value={participant.gioiTinh}
-                    onChange={(e) => onParticipantChange(index, 'gioiTinh', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded"
-                  >
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
-                  </select>
-                </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                  <input
-                    type="text"
-                    value={participant.soDienThoai}
-                    onChange={(e) => onParticipantChange(index, 'soDienThoai', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded"
-                    placeholder="Số điện thoại"
-                  />
-                </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 font-mono whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
-                  <input
-                    type="text"
-                    value={participant.soTheBHYT}
-                    onChange={(e) => onParticipantChange(index, 'soTheBHYT', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded font-mono"
-                    placeholder="Số thẻ BHYT"
-                  />
-                </td>
-                <td className="px-2 py-2 text-left text-xs border border-gray-300" style={{width: '200px', minWidth: '200px'}}>
-                  <div className="truncate" title={participant.noiDangKyKCB}>
-                    {participant.noiDangKyKCB || ''}
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 font-mono whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
+                  <div className="flex items-center justify-center">
+                    <span className="text-gray-900 dark:text-gray-100 font-medium">
+                      {participant.maSoBHXH || <span className="text-gray-400 italic">Chưa có</span>}
+                    </span>
+                    {participant.maSoBHXH && (
+                      <button
+                        onClick={() => onParticipantSearch(index)}
+                        disabled={participantSearchLoading[index]}
+                        className="ml-2 p-1 text-gray-400 hover:text-blue-600 disabled:opacity-50 transition-colors duration-150"
+                        title="Tìm kiếm thông tin BHYT"
+                      >
+                        {participantSearchLoading[index] ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                        ) : (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </td>
-                <td className="px-2 py-2 text-right text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                  <input
-                    type="text"
-                    value={participant.mucLuong}
-                    onChange={(e) => onParticipantChange(index, 'mucLuong', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded text-right"
-                    placeholder="2,340,000"
-                  />
-                </td>
-                <td className="px-2 py-2 text-right text-xs border border-gray-300 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
-                  <div className="font-medium text-green-600">
-                    {getDisplayedPaymentAmount(participant)}
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 font-mono whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.soCCCD || <span className="text-gray-400 italic">Chưa có</span>}
                   </div>
                 </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
-                  <input
-                    type="number"
-                    value={participant.soThangDong}
-                    onChange={(e) => onParticipantChange(index, 'soThangDong', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded text-center"
-                    min="1"
-                    max="12"
-                  />
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.ngaySinh ? new Date(participant.ngaySinh).toLocaleDateString('vi-VN') : <span className="text-gray-400 italic">Chưa có</span>}
+                  </div>
                 </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '70px', minWidth: '70px'}}>
-                  <select
-                    value={participant.sttHo || ''}
-                    onChange={(e) => onParticipantChange(index, 'sttHo', e.target.value)}
-                    disabled={!!(doiTuongThamGia && doiTuongThamGia.includes('DS'))}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded disabled:opacity-50"
-                  >
-                    <option value="">Chọn</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5+">5+</option>
-                  </select>
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.gioiTinh || <span className="text-gray-400 italic">Chưa có</span>}
+                  </div>
                 </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '90px', minWidth: '90px'}}>
-                  <input
-                    type="date"
-                    value={participant.ngayBienLai}
-                    onChange={(e) => onParticipantChange(index, 'ngayBienLai', e.target.value)}
-                    className="w-full px-1 py-1 text-xs border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded"
-                  />
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.soDienThoai || <span className="text-gray-400 italic">Chưa có</span>}
+                  </div>
                 </td>
-                <td className="px-2 py-2 text-center text-xs border border-gray-300 whitespace-nowrap" style={{width: '140px', minWidth: '140px'}}>
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 font-mono whitespace-nowrap" style={{width: '130px', minWidth: '130px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.soTheBHYT || <span className="text-gray-400 italic">Chưa có</span>}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-left text-xs border border-gray-200 dark:border-gray-600" style={{width: '220px', minWidth: '220px'}}>
+                  <div className="truncate text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 px-2 py-1.5 rounded-md" title={participant.noiDangKyKCB}>
+                    {participant.noiDangKyKCB || <span className="text-gray-400 italic">Chưa có thông tin</span>}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-right text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium text-right">
+                    {participant.mucLuong || <span className="text-gray-400 italic">Chưa có</span>}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-right text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '110px', minWidth: '110px'}}>
+                  <div className="font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1.5 rounded-md">
+                    {getDisplayedPaymentAmount(participant) || <span className="text-gray-400">--</span>}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.soThangDong || <span className="text-gray-400 italic">--</span>}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '80px', minWidth: '80px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.sttHo || <span className="text-gray-400 italic">--</span>}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '100px', minWidth: '100px'}}>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                    {participant.ngayBienLai ? new Date(participant.ngayBienLai).toLocaleDateString('vi-VN') : <span className="text-gray-400 italic">Chưa có</span>}
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-center text-xs border border-gray-200 dark:border-gray-600 whitespace-nowrap" style={{width: '150px', minWidth: '150px'}}>
                   <div className="flex items-center justify-center space-x-1">
                     {/* Edit Button - Load data to form */}
                     {onEditParticipant && (
                       <button
                         onClick={() => onEditParticipant(index)}
                         disabled={savingData}
-                        className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                        className="p-2 text-green-600 hover:text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 group"
                         title="Sửa (tải lên form)"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -509,7 +482,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     <button
                       onClick={() => onSaveSingleParticipant(index)}
                       disabled={savingData}
-                      className="p-1 text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                      className="p-2 text-blue-600 hover:text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 group"
                       title="Lưu"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -521,7 +494,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     <button
                       onClick={() => onRemoveParticipant(index)}
                       disabled={savingData}
-                      className="p-1 text-red-600 hover:text-red-800 disabled:opacity-50"
+                      className="p-2 text-red-600 hover:text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-all duration-200 group"
                       title="Xóa"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
