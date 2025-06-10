@@ -1245,7 +1245,7 @@ class KeKhaiService {
         .from('danh_sach_ke_khai')
         .select('id')
         .eq('created_by', params.userId)
-        .in('trang_thai', ['draft', 'submitted', 'pending_payment', 'processing']); // Bao gồm cả đang xử lý
+        .in('trang_thai', ['draft', 'submitted', 'pending_payment']); // Loại bỏ 'processing' vì đã được xử lý
 
       if (params.loaiKeKhai) {
         keKhaiQuery = keKhaiQuery.eq('loai_ke_khai', params.loaiKeKhai);

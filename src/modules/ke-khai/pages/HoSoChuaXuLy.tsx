@@ -40,6 +40,7 @@ import { daiLyService } from '../../quan-ly/services/daiLyService';
 import { coQuanBhxhService } from '../../quan-ly/services/coQuanBhxhService';
 import { useAuth } from '../../auth';
 import { useToast } from '../../../shared/hooks/useToast';
+import { useNavigation } from '../../../core/contexts/NavigationContext';
 import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import KeKhaiApprovalModal from '../components/KeKhaiApprovalModal';
 import PaymentQRModal from '../components/PaymentQRModal';
@@ -49,6 +50,7 @@ import paymentService from '../services/paymentService';
 const HoSoChuaXuLy: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { setCurrentPage: navigateToPage } = useNavigation();
   
   // State
   const [loading, setLoading] = useState(false);
@@ -92,6 +94,19 @@ const HoSoChuaXuLy: React.FC = () => {
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
   const [submittedParticipants, setSubmittedParticipants] = useState<UnprocessedParticipant[]>([]);
   const [pendingPaymentParticipants, setPendingPaymentParticipants] = useState<UnprocessedParticipant[]>([]);
+
+  // Context menu states
+  const [contextMenu, setContextMenu] = useState<{
+    show: boolean;
+    x: number;
+    y: number;
+    participant: UnprocessedParticipant | null;
+  }>({
+    show: false,
+    x: 0,
+    y: 0,
+    participant: null
+  });
 
   // Load unprocessed participants data
   const loadUnprocessedParticipantsData = async () => {
@@ -143,10 +158,22 @@ const HoSoChuaXuLy: React.FC = () => {
         soHoSo: soHoSo || undefined
       });
 
-      console.log('HoSoChuaXuLy: Loaded unprocessed participants:', result.data.length, 'of', result.total);
+      // Filter out participants with 'submitted' or 'processing' status (đã nộp lên công ty hoặc đang xử lý) from frontend
+      const filteredData = result.data.filter(participant =>
+        participant.participant_status !== 'submitted' &&
+        participant.participant_status !== 'processing'
+      );
 
-      setParticipantsList(result.data);
-      setTotalParticipants(result.total);
+      console.log('HoSoChuaXuLy: Filtered out processing participants:', result.data.length - filteredData.length);
+      console.log('HoSoChuaXuLy: Loaded unprocessed participants:', filteredData.length, 'of', result.total);
+
+      setParticipantsList(filteredData);
+      setTotalParticipants(filteredData.length); // Update total to reflect filtered count
+
+      // Log unique filter options for debugging
+      if (filteredData.length > 0) {
+        getUniqueFilterOptions();
+      }
     } catch (error) {
       console.error('Error loading unprocessed participants data:', error);
       showToast('Không thể tải danh sách người tham gia chưa xử lý', 'error');
@@ -155,6 +182,32 @@ const HoSoChuaXuLy: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Get unique values from current data for filter options
+  const getUniqueFilterOptions = () => {
+    const uniqueStatuses = [...new Set(participantsList.map(p => p.participant_status).filter(Boolean))];
+    const uniqueKeKhaiStatuses = [...new Set(participantsList.map(p => p.ke_khai.trang_thai).filter(Boolean))];
+    const uniqueDonViIds = [...new Set(participantsList.map(p => p.ke_khai.don_vi_id).filter(Boolean))];
+    const uniqueTinh = [...new Set(participantsList.map(p => p.ma_tinh_nkq).filter(Boolean))];
+    // Note: payment_status might not be available in all cases, so we'll use optional chaining
+    const uniquePaymentStatuses = [...new Set(participantsList.map(p => (p as any).payment_status).filter(Boolean))];
+
+    console.log('📊 Unique filter options from data:', {
+      participantStatuses: uniqueStatuses,
+      keKhaiStatuses: uniqueKeKhaiStatuses,
+      donViIds: uniqueDonViIds,
+      tinh: uniqueTinh,
+      paymentStatuses: uniquePaymentStatuses
+    });
+
+    return {
+      participantStatuses: uniqueStatuses,
+      keKhaiStatuses: uniqueKeKhaiStatuses,
+      donViIds: uniqueDonViIds,
+      tinh: uniqueTinh,
+      paymentStatuses: uniquePaymentStatuses
+    };
   };
 
   // Load dropdown data
@@ -178,7 +231,8 @@ const HoSoChuaXuLy: React.FC = () => {
         { ma: '79', ten: 'TP. Hồ Chí Minh' },
         { ma: '48', ten: 'Đà Nẵng' },
         { ma: '92', ten: 'Cần Thơ' },
-        { ma: '31', ten: 'Hải Phòng' }
+        { ma: '31', ten: 'Hải Phòng' },
+        { ma: '89', ten: 'An Giang' }
       ];
       setTinhList(mockTinhList);
 
@@ -271,6 +325,31 @@ const HoSoChuaXuLy: React.FC = () => {
     };
   }, []);
 
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.show) {
+        closeContextMenu();
+      }
+    };
+
+    const handleEscapeKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && contextMenu.show) {
+        closeContextMenu();
+      }
+    };
+
+    if (contextMenu.show) {
+      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [contextMenu.show]);
+
   // Get status badge for declaration status
   const getDeclarationStatusBadge = (status: string) => {
     switch (status) {
@@ -291,7 +370,7 @@ const HoSoChuaXuLy: React.FC = () => {
       case 'processing':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-            <AlertCircle className="w-3 h-3 mr-1" />
+            <Clock className="w-3 h-3 mr-1" />
             Đang xử lý
           </span>
         );
@@ -318,13 +397,13 @@ const HoSoChuaXuLy: React.FC = () => {
       case 'submitted':
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-            ✓ Đã nộp
+            ✓ Đã nộp lên công ty
           </span>
         );
       case 'processing':
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-            Đang xử lý
+            🔄 Đang xử lý
           </span>
         );
       case 'approved':
@@ -348,10 +427,14 @@ const HoSoChuaXuLy: React.FC = () => {
     }
   };
 
-  // Handle view details
+  // Handle view details - Navigate to form page
   const handleViewDetails = (keKhai: DanhSachKeKhai) => {
-    setSelectedKeKhai(keKhai);
-    setShowDetailModal(true);
+    // Navigate to the form page with the keKhaiId to view/edit
+    navigateToPage('ke-khai-603-form', {
+      declarationCode: '603',
+      declarationName: 'Đăng ký đóng BHYT đối với người chỉ tham gia BHYT',
+      keKhaiId: keKhai.id
+    });
   };
 
   // Handle view participant details
@@ -377,6 +460,52 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
     `.trim();
 
     alert(participantInfo);
+  };
+
+  // Handle context menu
+  const handleContextMenu = (e: React.MouseEvent, participant: UnprocessedParticipant) => {
+    e.preventDefault();
+    setContextMenu({
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      participant
+    });
+  };
+
+  // Close context menu
+  const closeContextMenu = () => {
+    setContextMenu({
+      show: false,
+      x: 0,
+      y: 0,
+      participant: null
+    });
+  };
+
+  // Handle context menu actions
+  const handleContextMenuAction = (action: string, participant: UnprocessedParticipant) => {
+    closeContextMenu();
+
+    switch (action) {
+      case 'view-participant':
+        handleViewParticipantDetails(participant);
+        break;
+      case 'view-kekhai':
+        handleViewDetails(participant.ke_khai);
+        break;
+      case 'approve':
+        handleApprove(participant.ke_khai);
+        break;
+      case 'payment':
+        handlePayment(participant.ke_khai);
+        break;
+      case 'select':
+        handleParticipantSelect(participant.id, !selectedParticipants.has(participant.id));
+        break;
+      default:
+        break;
+    }
   };
 
   // Handle approve
@@ -480,6 +609,140 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
     showToast('Không thể xử lý cùng lúc người tham gia ở các trạng thái khác nhau. Vui lòng chọn một loại', 'warning');
   };
 
+  // Check if we need to create new declaration for partial submission
+  const checkIfNeedsNewDeclaration = async (selectedParticipants: UnprocessedParticipant[]): Promise<boolean> => {
+    try {
+      if (selectedParticipants.length === 0) return false;
+
+      // Group participants by ke_khai_id
+      const participantsByKeKhai = selectedParticipants.reduce((acc, participant) => {
+        const keKhaiId = participant.ke_khai.id;
+        if (!acc[keKhaiId]) {
+          acc[keKhaiId] = [];
+        }
+        acc[keKhaiId].push(participant);
+        return acc;
+      }, {} as Record<number, UnprocessedParticipant[]>);
+
+      // Check each ke_khai to see if we're submitting all participants
+      for (const [keKhaiIdStr, selectedFromKeKhai] of Object.entries(participantsByKeKhai)) {
+        const keKhaiId = parseInt(keKhaiIdStr);
+
+        // Get total participants in this ke_khai
+        const allParticipantsInKeKhai = participantsList.filter(p => p.ke_khai.id === keKhaiId);
+
+        // If we're not submitting all participants from this ke_khai, we need new declaration
+        if (selectedFromKeKhai.length < allParticipantsInKeKhai.length) {
+          console.log(`🔍 Partial submission detected for ke_khai ${keKhaiId}: ${selectedFromKeKhai.length}/${allParticipantsInKeKhai.length} participants`);
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking if needs new declaration:', error);
+      return false;
+    }
+  };
+
+  // Handle create new declaration and submit for partial submission
+  const handleCreateNewDeclarationAndSubmit = async (selectedParticipants: UnprocessedParticipant[]) => {
+    try {
+      if (!user?.id) {
+        throw new Error('Không tìm thấy thông tin người dùng');
+      }
+
+      // Group participants by ke_khai_id
+      const participantsByKeKhai = selectedParticipants.reduce((acc, participant) => {
+        const keKhaiId = participant.ke_khai.id;
+        if (!acc[keKhaiId]) {
+          acc[keKhaiId] = {
+            keKhai: participant.ke_khai,
+            participants: []
+          };
+        }
+        acc[keKhaiId].participants.push(participant);
+        return acc;
+      }, {} as Record<number, { keKhai: DanhSachKeKhai, participants: UnprocessedParticipant[] }>);
+
+      // Process each ke_khai separately
+      for (const [keKhaiIdStr, data] of Object.entries(participantsByKeKhai)) {
+        const keKhaiId = parseInt(keKhaiIdStr);
+        const { keKhai, participants } = data;
+
+        console.log(`🚀 Creating new declaration for ${participants.length} participants from ke_khai ${keKhaiId}`);
+
+        // Create new declaration and move participants
+        const result = await keKhaiService.createDeclarationAndMoveParticipants(
+          keKhaiId,
+          participants.map(p => p.id),
+          user.id,
+          `Tách từ kê khai ${keKhai.ma_ke_khai} - ${participants.length} người tham gia`
+        );
+
+        console.log(`✅ Created new declaration ${result.newKeKhai.ma_ke_khai} with ${result.movedParticipants.length} participants`);
+
+        // Calculate total amount for new declaration
+        const totalAmount = result.movedParticipants.reduce((sum, participant) => {
+          return sum + (participant.tien_dong_thuc_te || participant.tien_dong || 0);
+        }, 0);
+
+        if (totalAmount <= 0) {
+          throw new Error('Số tiền thanh toán không hợp lệ');
+        }
+
+        // Create payment for new declaration
+        const payment = await paymentService.createPayment({
+          ke_khai_id: result.newKeKhai.id,
+          so_tien: totalAmount,
+          phuong_thuc_thanh_toan: 'qr_code',
+          payment_description: `Thanh toán kê khai mới ${result.newKeKhai.ma_ke_khai} - ${result.movedParticipants.length} người tham gia`,
+          created_by: user.id
+        });
+
+        // Update payment_id for participants
+        for (const participant of result.movedParticipants) {
+          try {
+            await supabase
+              .from('danh_sach_nguoi_tham_gia')
+              .update({
+                payment_id: payment.id,
+                payment_status: 'pending',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', participant.id);
+            console.log(`✅ Updated payment_id for participant ${participant.id}`);
+          } catch (error) {
+            console.error(`❌ Failed to update payment_id for participant ${participant.id}:`, error);
+          }
+        }
+
+        // Save participants for later status update when payment is confirmed
+        // Convert DanhSachNguoiThamGia to UnprocessedParticipant by adding ke_khai info
+        const participantsWithKeKhai: UnprocessedParticipant[] = result.movedParticipants.map(participant => ({
+          ...participant,
+          ke_khai: result.newKeKhai
+        }));
+        setPendingPaymentParticipants(participantsWithKeKhai);
+
+        // Show payment QR modal for user confirmation
+        setSelectedKeKhai(result.newKeKhai);
+        setSelectedPayment(payment);
+        setShowPaymentModal(true);
+
+        showToast(`Đã tạo kê khai mới "${result.newKeKhai.ma_ke_khai}" và tạo thanh toán thành công!`, 'success');
+
+        // Reload data to show changes
+        loadUnprocessedParticipantsData();
+
+        break; // For now, handle only one ke_khai at a time
+      }
+    } catch (error) {
+      console.error('Error creating new declaration and submitting:', error);
+      showToast('Có lỗi xảy ra khi tạo kê khai mới và thanh toán', 'error');
+    }
+  };
+
   // Handle confirm submission with payment
   const handleConfirmSubmission = async (createPayment: boolean = true) => {
     setIsSubmitting(true);
@@ -489,9 +752,17 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
       const selectedIds = submittedParticipants.map(p => p.id);
       console.log('Submitting participants for payment:', selectedIds);
 
-      // Create payment and show QR modal
-      // Status will be updated when payment is confirmed
-      await handleCreatePaymentForSubmitted();
+      // Check if we need to create new declaration for partial submission
+      const needsNewDeclaration = await checkIfNeedsNewDeclaration(submittedParticipants);
+
+      if (needsNewDeclaration) {
+        console.log('🚀 Creating new declaration for partial submission');
+        await handleCreateNewDeclarationAndSubmit(submittedParticipants);
+      } else {
+        // Create payment and show QR modal for full declaration
+        await handleCreatePaymentForSubmitted();
+      }
+
       // Don't clear submittedParticipants yet - will be cleared after payment confirmation
       setSelectedParticipants(new Set());
     } catch (error) {
@@ -532,6 +803,23 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
         created_by: user?.id
       });
 
+      // Update payment_id for participants
+      for (const participant of submittedParticipants) {
+        try {
+          await supabase
+            .from('danh_sach_nguoi_tham_gia')
+            .update({
+              payment_id: payment.id,
+              payment_status: 'pending',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', participant.id);
+          console.log(`✅ Updated payment_id for participant ${participant.id}`);
+        } catch (error) {
+          console.error(`❌ Failed to update payment_id for participant ${participant.id}:`, error);
+        }
+      }
+
       // Save participants for later status update when payment is confirmed
       setPendingPaymentParticipants(submittedParticipants);
 
@@ -541,7 +829,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
       setSelectedPayment(payment);
       setShowPaymentModal(true);
 
-      showToast('Vui lòng thực hiện thanh toán để hoàn tất quá trình nộp hồ sơ.', 'info');
+      showToast('Vui lòng thực hiện thanh toán để hoàn tất quá trình nộp hồ sơ.', 'warning');
     } catch (error) {
       console.error('Error creating payment:', error);
       showToast('Có lỗi xảy ra khi tạo thanh toán', 'error');
@@ -736,6 +1024,39 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
+  // Get processing unit based on participant data
+  const getProcessingUnit = (participant: UnprocessedParticipant) => {
+    // Return processing unit based on ke khai or participant data
+    return participant.ke_khai.loai_ke_khai || '603';
+  };
+
+  // Get form type (online/offline)
+  const getFormType = (participant: UnprocessedParticipant) => {
+    // All submissions through this system are online
+    return 'Qua web';
+  };
+
+  // Get BHXH submission date
+  const getBhxhSubmissionDate = (participant: UnprocessedParticipant) => {
+    // Return BHXH submission date if available
+    return participant.ke_khai.approved_at ? formatDate(participant.ke_khai.approved_at) : '—';
+  };
+
+  // Get BHXH receipt date
+  const getBhxhReceiptDate = (participant: UnprocessedParticipant) => {
+    // Return BHXH receipt date if available
+    return '—'; // Placeholder for now
+  };
+
+  // Get notification/result message
+  const getNotificationMessage = (participant: UnprocessedParticipant) => {
+    // Return notification message based on status
+    if (participant.ke_khai.trang_thai === 'processing') {
+      return 'Đang xử lý';
+    }
+    return '—';
+  };
+
   // Helper functions for selection - ưu tiên trạng thái kê khai
   const getDraftParticipants = () => {
     const result = participantsList.filter(p =>
@@ -764,17 +1085,19 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
   };
 
   const getProcessingParticipants = () => {
-    const result = participantsList.filter(p => p.ke_khai.trang_thai === 'processing');
+    const result = participantsList.filter(p =>
+      p.participant_status === 'processing' || p.ke_khai.trang_thai === 'processing'
+    );
     console.log('📊 Processing Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
     return result;
   };
 
   const getSelectableParticipants = () => {
     const result = participantsList.filter(p =>
+      // Chỉ cho phép chọn những người tham gia có trạng thái 'draft' (nháp)
+      // Vì 'submitted' = đã nộp lên công ty, 'processing' = đang xử lý
       p.participant_status === 'draft' ||
-      (p.participant_status === 'submitted' && p.ke_khai.trang_thai !== 'pending_payment' && p.ke_khai.trang_thai !== 'processing') ||
-      p.ke_khai.trang_thai === 'pending_payment' ||
-      p.ke_khai.trang_thai === 'processing'
+      p.ke_khai.trang_thai === 'pending_payment'
     );
     console.log('📊 Selectable Participants:', result.length, result.map(p => ({ id: p.id, name: p.ho_ten, status: p.participant_status, keKhaiStatus: p.ke_khai.trang_thai })));
     return result;
@@ -820,6 +1143,89 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
     return getSelectableParticipants()
       .filter(p => selectedParticipants.has(p.id))
       .reduce((sum, p) => sum + (p.tien_dong_thuc_te || p.tien_dong || 0), 0);
+  };
+
+  // Context Menu Component
+  const ContextMenu: React.FC = () => {
+    if (!contextMenu.show || !contextMenu.participant) return null;
+
+    const participant = contextMenu.participant;
+    const isSelectable = participant.participant_status === 'draft' ||
+      participant.ke_khai.trang_thai === 'pending_payment';
+
+    const menuItems = [
+      {
+        id: 'view-participant',
+        label: 'Xem chi tiết người tham gia',
+        icon: <User className="w-4 h-4" />,
+        onClick: () => handleContextMenuAction('view-participant', participant)
+      },
+      {
+        id: 'view-kekhai',
+        label: 'Xem chi tiết hồ sơ',
+        icon: <Building className="w-4 h-4" />,
+        onClick: () => handleContextMenuAction('view-kekhai', participant)
+      }
+    ];
+
+    // Add conditional menu items based on status
+    if (isSelectable) {
+      menuItems.push({
+        id: 'select',
+        label: selectedParticipants.has(participant.id) ? 'Bỏ chọn' : 'Chọn',
+        icon: selectedParticipants.has(participant.id) ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />,
+        onClick: () => handleContextMenuAction('select', participant)
+      });
+    }
+
+    if (participant.ke_khai.trang_thai === 'submitted') {
+      menuItems.push(
+        {
+          id: 'approve',
+          label: 'Duyệt kê khai',
+          icon: <CheckCircle className="w-4 h-4" />,
+          onClick: () => handleContextMenuAction('approve', participant)
+        },
+        {
+          id: 'payment',
+          label: 'Tạo thanh toán',
+          icon: <CreditCard className="w-4 h-4" />,
+          onClick: () => handleContextMenuAction('payment', participant)
+        }
+      );
+    }
+
+    if (participant.ke_khai.trang_thai === 'pending_payment') {
+      menuItems.push({
+        id: 'payment',
+        label: 'Xem thanh toán',
+        icon: <CreditCard className="w-4 h-4" />,
+        onClick: () => handleContextMenuAction('payment', participant)
+      });
+    }
+
+    return (
+      <div
+        className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50 min-w-[200px]"
+        style={{
+          left: contextMenu.x,
+          top: contextMenu.y,
+          transform: 'translate(-50%, 0)'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {menuItems.map((item, index) => (
+          <button
+            key={item.id}
+            onClick={item.onClick}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 transition-colors"
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -932,11 +1338,13 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
               >
-                <option value="all">Trạng thái</option>
+                <option value="all">Tất cả trạng thái</option>
                 <option value="draft">Nháp</option>
-                <option value="submitted">Đã nộp</option>
+                <option value="submitted">Đã nộp lên công ty</option>
                 <option value="pending_payment">Chờ thanh toán</option>
                 <option value="processing">Đang xử lý</option>
+                <option value="approved">Đã duyệt</option>
+                <option value="rejected">Từ chối</option>
               </select>
             </div>
 
@@ -948,10 +1356,12 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 onChange={(e) => setKetQua(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
               >
-                <option value="all">Kết quả</option>
+                <option value="all">Tất cả kết quả</option>
                 <option value="approved">Đã duyệt</option>
                 <option value="rejected">Từ chối</option>
+                <option value="processing">Đang xử lý</option>
                 <option value="pending">Chờ xử lý</option>
+                <option value="completed">Hoàn thành</option>
               </select>
             </div>
 
@@ -1035,9 +1445,10 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 onChange={(e) => setHinhThuc(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
               >
-                <option value="all">Hình thức</option>
-                <option value="online">Trực tuyến</option>
+                <option value="all">Tất cả hình thức</option>
+                <option value="online">Qua web</option>
                 <option value="offline">Trực tiếp</option>
+                <option value="mobile">Qua app</option>
               </select>
             </div>
           </div>
@@ -1258,10 +1669,10 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700">
+            <table className="w-full min-w-[1600px] border border-gray-300 dark:border-gray-600">
+              <thead className="bg-blue-100 dark:bg-blue-900/30">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
                     <div className="flex items-center">
                       <input
                         type="checkbox"
@@ -1275,50 +1686,69 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                         title="Chọn tất cả người tham gia có thể chọn"
                       />
-                      <span className="ml-2">Chọn</span>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-2 py-4 text-center text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    STT
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
                     Họ tên
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
                     Mã BHXH
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Trạng thái cá nhân
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Số CMND
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Kê khai
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Trạng thái kê khai
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Ngày tạo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
                     Số tiền
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Thao tác
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Ngày lập
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Ngày nộp
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    TT hồ sơ
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Kết quả
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Đơn vị
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Hình thức
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Nộp BHXH
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Nhận BHXH
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Thông báo
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {participantsList.map((participant) => (
+                {participantsList.map((participant, index) => (
                   <tr
                     key={participant.id}
-                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                    className={`hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer ${
                       selectedParticipants.has(participant.id)
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
-                        : ''
+                        ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-blue-500'
+                        : index % 2 === 0
+                          ? 'bg-white dark:bg-gray-800'
+                          : 'bg-gray-50 dark:bg-gray-700'
                     }`}
+                    onContextMenu={(e) => handleContextMenu(e, participant)}
+                    title="Bấm chuột phải để xem menu tùy chọn"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-3 whitespace-nowrap">
                       {(participant.participant_status === 'draft' ||
-                        participant.participant_status === 'submitted' ||
-                        participant.ke_khai.trang_thai === 'pending_payment' ||
-                        participant.ke_khai.trang_thai === 'processing') ? (
+                        participant.ke_khai.trang_thai === 'pending_payment') ? (
                         <input
                           type="checkbox"
                           checked={selectedParticipants.has(participant.id)}
@@ -1327,125 +1757,79 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                           title={
                             participant.participant_status === 'submitted' ? 'Chọn để tạo thanh toán' :
                             participant.ke_khai.trang_thai === 'pending_payment' ? 'Chọn để xem thanh toán' :
-                            participant.ke_khai.trang_thai === 'processing' ? 'Đã thanh toán, đang xử lý' :
+                            participant.ke_khai.trang_thai === 'processing' || participant.participant_status === 'processing' ? 'Đã nộp lên công ty' :
                             'Chọn để nộp'
                           }
-                          disabled={participant.ke_khai.trang_thai === 'processing'}
+                          disabled={participant.ke_khai.trang_thai === 'processing' || participant.participant_status === 'processing'}
                         />
                       ) : (
                         <span className="text-gray-400 text-sm">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <User className="w-4 h-4 text-gray-400 mr-2" />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {participant.ho_ten}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {participant.so_cccd}
-                          </div>
-                        </div>
+                    <td className="px-2 py-3 whitespace-nowrap text-center">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {((currentPage - 1) * itemsPerPage) + index + 1}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {participant.ho_ten}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {participant.ma_so_bhxh}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getParticipantStatusBadge(participant.participant_status)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <Building className="w-4 h-4 text-gray-400 mr-2" />
-                        <div>
-                          <div className="text-sm text-gray-900 dark:text-white">
-                            {participant.ke_khai.ma_ke_khai}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {participant.ke_khai.ten_ke_khai}
-                          </div>
-                        </div>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {participant.so_cccd}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getDeclarationStatusBadge(participant.ke_khai.trang_thai)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white flex items-center">
-                        <Calendar className="w-4 h-4 mr-1 text-gray-400" />
-                        {formatDate(participant.ke_khai.created_at)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {formatCurrency(participant.tien_dong_thuc_te || participant.tien_dong || 0)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => handleViewParticipantDetails(participant)}
-                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                          title="Xem chi tiết người tham gia"
-                        >
-                          <User className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          onClick={() => handleViewDetails(participant.ke_khai)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="Xem chi tiết kê khai"
-                        >
-                          <Building className="w-4 h-4" />
-                        </button>
-
-                        {participant.ke_khai.trang_thai === 'draft' && (
-                          <button
-                            onClick={() => handleViewDetails(participant.ke_khai)}
-                            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
-                            title="Chỉnh sửa nháp"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
-                        )}
-
-                        {participant.ke_khai.trang_thai === 'submitted' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(participant.ke_khai)}
-                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                              title="Duyệt kê khai"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handlePayment(participant.ke_khai)}
-                              className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
-                              title="Tạo thanh toán"
-                            >
-                              <CreditCard className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-
-                        {participant.ke_khai.trang_thai === 'pending_payment' && (
-                          <button
-                            onClick={() => handlePayment(participant.ke_khai)}
-                            className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
-                            title="Xem thanh toán"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                          </button>
-                        )}
-
-                        {participant.ke_khai.trang_thai === 'processing' && (
-                          <span className="text-green-600 dark:text-green-400 text-xs font-medium">
-                            ✓ Đã thanh toán
-                          </span>
-                        )}
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {formatDate(participant.ke_khai.created_at)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {participant.submitted_at ? formatDate(participant.submitted_at) : '—'}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      {getParticipantStatusBadge(participant.participant_status)}
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      {getDeclarationStatusBadge(participant.ke_khai.trang_thai)}
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getProcessingUnit(participant)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getFormType(participant)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getBhxhSubmissionDate(participant)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getBhxhReceiptDate(participant)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getNotificationMessage(participant)}
                       </div>
                     </td>
                   </tr>
@@ -1579,6 +1963,9 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
         </div>
       )}
 
+      {/* Context Menu */}
+      <ContextMenu />
+
       {/* Modals */}
       {showDetailModal && selectedKeKhai && (
         <KeKhaiDetailModal
@@ -1612,25 +1999,87 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
             // Clear pending data when modal is closed without payment
             setPendingPaymentParticipants([]);
             setSubmittedParticipants([]);
-            showToast('Đã hủy thanh toán. Vui lòng thử lại nếu muốn nộp hồ sơ.', 'info');
+            showToast('Đã hủy thanh toán. Vui lòng thử lại nếu muốn nộp hồ sơ.', 'warning');
           }}
           onPaymentConfirmed={async () => {
-            // When payment is confirmed, update participant status to submitted
+            // When payment is confirmed, update both participant and ke_khai status
             try {
               const selectedIds = pendingPaymentParticipants.map(p => p.id);
+              const keKhaiId = selectedKeKhai?.id;
 
-              // Update participant status to 'submitted' now that payment is confirmed
+              console.log('🎉 Payment confirmed! Updating statuses...', { selectedIds, keKhaiId });
+
+              // Step 1: Update payment status to 'completed' for all participants
+              if (selectedPayment?.id) {
+                try {
+                  console.log('💳 Updating payment status for payment ID:', selectedPayment.id);
+                  console.log('💳 Participants to update:', selectedIds);
+
+                  const paymentUpdateResult = await keKhaiService.updateParticipantPaymentStatus(
+                    selectedPayment.id,
+                    'completed'
+                  );
+                  console.log('💳 Payment status update result:', paymentUpdateResult);
+
+                  if (paymentUpdateResult.count === 0) {
+                    console.warn('⚠️ No participants were updated with payment status. Checking payment_id linkage...');
+
+                    // Check if participants have the correct payment_id
+                    for (const participantId of selectedIds) {
+                      const { data: participant } = await supabase
+                        .from('danh_sach_nguoi_tham_gia')
+                        .select('id, payment_id, payment_status')
+                        .eq('id', participantId)
+                        .single();
+                      console.log(`Participant ${participantId} payment info:`, participant);
+                    }
+                  }
+                } catch (paymentError) {
+                  console.error('❌ Failed to update payment status:', paymentError);
+                }
+              } else {
+                console.warn('⚠️ No selectedPayment.id found for payment status update');
+              }
+
+              // Step 2: Update participant status to 'submitted' (đã nộp lên công ty) and ensure payment_status is 'completed'
               for (const participantId of selectedIds) {
                 try {
+                  // Update participant status to 'submitted' = đã nộp lên công ty
                   await keKhaiService.updateParticipantStatus(
                     participantId,
                     'submitted',
                     user?.id || '',
-                    'Nộp cá nhân sau khi xác nhận thanh toán thành công'
+                    'Đã nộp lên công ty và thanh toán thành công'
                   );
-                  console.log(`✅ Successfully updated participant ${participantId} after payment confirmation`);
+
+                  // Ensure payment_status is also updated (backup method)
+                  await supabase
+                    .from('danh_sach_nguoi_tham_gia')
+                    .update({
+                      payment_status: 'completed',
+                      paid_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', participantId);
+
+                  console.log(`✅ Successfully updated participant ${participantId} to submitted (đã nộp lên công ty) with completed payment`);
                 } catch (participantError) {
-                  console.error(`❌ Failed to update participant ${participantId} after payment:`, participantError);
+                  console.error(`❌ Failed to update participant ${participantId}:`, participantError);
+                }
+              }
+
+              // Step 3: Update ke_khai status to 'processing' (đã nộp lên công ty)
+              if (keKhaiId) {
+                try {
+                  await keKhaiService.updateKeKhaiStatus(
+                    keKhaiId,
+                    'processing',
+                    user?.id || '',
+                    'Đã nộp lên công ty sau thanh toán thành công'
+                  );
+                  console.log(`✅ Successfully updated ke_khai ${keKhaiId} to processing (đã nộp lên công ty)`);
+                } catch (keKhaiError) {
+                  console.error(`❌ Failed to update ke_khai ${keKhaiId}:`, keKhaiError);
                 }
               }
 
@@ -1640,16 +2089,16 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
               setSelectedParticipants(new Set());
               setPendingPaymentParticipants([]); // Clear pending participants
               setSubmittedParticipants([]); // Clear submitted participants
-              showToast('Thanh toán đã được xác nhận thành công. Hồ sơ đã được nộp và chuyển sang xử lý.', 'success');
+              showToast('Thanh toán thành công! Hồ sơ đã được nộp lên công ty và đang xử lý.', 'success');
               loadUnprocessedParticipantsData();
             } catch (error) {
-              console.error('Error updating participants after payment confirmation:', error);
+              console.error('Error updating statuses after payment confirmation:', error);
               setShowPaymentModal(false);
               setSelectedKeKhai(null);
               setSelectedPayment(null);
               setPendingPaymentParticipants([]); // Clear pending participants even on error
               setSubmittedParticipants([]); // Clear submitted participants even on error
-              showToast('Thanh toán thành công nhưng có lỗi khi cập nhật trạng thái người tham gia', 'warning');
+              showToast('Thanh toán thành công nhưng có lỗi khi cập nhật trạng thái', 'warning');
               loadUnprocessedParticipantsData();
             }
           }}
