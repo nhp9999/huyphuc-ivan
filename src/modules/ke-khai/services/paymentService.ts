@@ -357,6 +357,20 @@ class PaymentService {
         throw new Error('Không thể lấy thông tin thanh toán');
       }
 
+      // Debug: Log payment data to check for ke_khai_id
+      if (data) {
+        console.log('💳 Payment fetched by ke_khai_id:', {
+          paymentId: data.id,
+          keKhaiId: data.ke_khai_id,
+          hasKeKhaiId: !!data.ke_khai_id,
+          status: data.trang_thai
+        });
+
+        if (!data.ke_khai_id) {
+          console.warn('⚠️ Payment data missing ke_khai_id:', data);
+        }
+      }
+
       return data || null;
     } catch (error) {
       console.error('Error in getPaymentByKeKhaiId:', error);
@@ -427,6 +441,18 @@ class PaymentService {
       if (error) {
         console.error('Error checking payment status:', error);
         throw new Error('Không thể kiểm tra trạng thái thanh toán');
+      }
+
+      // Debug: Log payment data to check for ke_khai_id
+      console.log('💳 Payment status checked:', {
+        paymentId: data.id,
+        keKhaiId: data.ke_khai_id,
+        hasKeKhaiId: !!data.ke_khai_id,
+        status: data.trang_thai
+      });
+
+      if (!data.ke_khai_id) {
+        console.warn('⚠️ Payment status check - missing ke_khai_id:', data);
       }
 
       return data;

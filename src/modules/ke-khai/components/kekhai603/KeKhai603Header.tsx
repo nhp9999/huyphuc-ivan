@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DanhSachKeKhai } from '../../../../shared/services/api/supabaseClient';
 import { ApiSummary } from '../../../hooks/useKeKhai603Api';
 import {
@@ -8,7 +8,9 @@ import {
   Send,
   Users,
   Clock,
-  CreditCard
+  CreditCard,
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react';
 
 interface KeKhai603HeaderProps {
@@ -24,6 +26,9 @@ interface KeKhai603HeaderProps {
   householdProcessing?: boolean;
   // Participant count for validation
   participantCount?: number;
+  // Additional props for better validation
+  maxParticipants?: number;
+  hasUnsavedChanges?: boolean;
 }
 
 export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
@@ -35,8 +40,41 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
   savingData = false,
   onHouseholdBulkInput,
   householdProcessing = false,
-  participantCount = 0
+  participantCount = 0,
+  maxParticipants = 50, // Default max participants
+  hasUnsavedChanges = false
 }) => {
+
+  // Memoized validation logic for better performance
+  const validationState = useMemo(() => {
+    const isProcessing = saving || savingData || householdProcessing || submittingWithPayment;
+    const canAddParticipants = participantCount < maxParticipants;
+    const hasParticipants = participantCount > 0;
+    const isDeclarationReady = keKhaiInfo && hasParticipants;
+
+    return {
+      isProcessing,
+      canAddParticipants,
+      hasParticipants,
+      isDeclarationReady,
+      participantLimitReached: participantCount >= maxParticipants
+    };
+  }, [saving, savingData, householdProcessing, submittingWithPayment, participantCount, maxParticipants, keKhaiInfo]);
+
+  // Memoized status display logic
+  const statusInfo = useMemo(() => {
+    if (!keKhaiInfo) return null;
+
+    const statusConfig = {
+      'submitted': { color: 'bg-blue-500', text: 'Chờ duyệt' },
+      'pending_payment': { color: 'bg-orange-500', text: 'Chờ thanh toán' },
+      'processing': { color: 'bg-purple-500', text: 'Đang xử lý' },
+      'completed': { color: 'bg-green-500', text: 'Hoàn thành' },
+      'draft': { color: 'bg-yellow-500', text: 'Bản nháp' }
+    };
+
+    return statusConfig[keKhaiInfo.trang_thai as keyof typeof statusConfig] || statusConfig.draft;
+  }, [keKhaiInfo?.trang_thai]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
@@ -56,26 +94,13 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
                   {keKhaiInfo.ten_ke_khai && (
                     <span>• {keKhaiInfo.ten_ke_khai}</span>
                   )}
-                  <span className="flex items-center space-x-1">
-                    <span>•</span>
-                    <div className={`w-2 h-2 rounded-full ${
-                      keKhaiInfo.trang_thai === 'submitted'
-                        ? 'bg-blue-500'
-                        : keKhaiInfo.trang_thai === 'pending_payment'
-                        ? 'bg-orange-500'
-                        : keKhaiInfo.trang_thai === 'processing'
-                        ? 'bg-purple-500'
-                        : keKhaiInfo.trang_thai === 'completed'
-                        ? 'bg-green-500'
-                        : 'bg-yellow-500'
-                    }`}></div>
-                    <span className="font-medium">
-                      {keKhaiInfo.trang_thai === 'submitted' ? 'Chờ duyệt' :
-                       keKhaiInfo.trang_thai === 'pending_payment' ? 'Chờ thanh toán' :
-                       keKhaiInfo.trang_thai === 'processing' ? 'Đang xử lý' :
-                       keKhaiInfo.trang_thai === 'completed' ? 'Hoàn thành' : 'Bản nháp'}
+                  {statusInfo && (
+                    <span className="flex items-center space-x-1">
+                      <span>•</span>
+                      <div className={`w-2 h-2 rounded-full ${statusInfo.color}`}></div>
+                      <span className="font-medium">{statusInfo.text}</span>
                     </span>
-                  </span>
+                  )}
                 </div>
               )}
             </div>
@@ -85,45 +110,87 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
           <div className="flex items-center space-x-3">
             {/* Household Bulk Input Button */}
             {onHouseholdBulkInput && keKhaiInfo && (
-              <button
-                onClick={onHouseholdBulkInput}
-                disabled={saving || savingData || householdProcessing || submittingWithPayment}
-                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                title="Nhập hộ gia đình - tự động tăng STT hộ"
-              >
-                {householdProcessing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Đang xử lý...</span>
-                  </>
-                ) : (
-                  <>
-                    <Users className="h-4 w-4" />
-                    <span>Nhập hộ gia đình</span>
-                  </>
+              <div className="relative">
+                <button
+                  onClick={onHouseholdBulkInput}
+                  disabled={validationState.isProcessing || !validationState.canAddParticipants}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    validationState.participantLimitReached
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                  }`}
+                  title={
+                    validationState.participantLimitReached
+                      ? `Đã đạt giới hạn tối đa ${maxParticipants} người tham gia`
+                      : 'Nhập hộ gia đình - tự động tăng STT hộ'
+                  }
+                  aria-label={
+                    validationState.participantLimitReached
+                      ? 'Không thể thêm người tham gia - đã đạt giới hạn'
+                      : 'Nhập hộ gia đình'
+                  }
+                >
+                  {householdProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Đang xử lý...</span>
+                    </>
+                  ) : validationState.participantLimitReached ? (
+                    <>
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Đã đạt giới hạn</span>
+                    </>
+                  ) : (
+                    <>
+                      <Users className="h-4 w-4" />
+                      <span>Nhập hộ gia đình</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Participant count indicator */}
+                {participantCount > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {participantCount}
+                  </div>
                 )}
-              </button>
+              </div>
             )}
 
             {/* Save All Button */}
             {onSaveAll && keKhaiInfo && (
-              <button
-                onClick={onSaveAll}
-                disabled={submittingWithPayment || saving || savingData || householdProcessing}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Đang lưu...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    <span>Ghi dữ liệu</span>
-                  </>
-                )}
-              </button>
+              <div className="relative">
+                <button
+                  onClick={onSaveAll}
+                  disabled={validationState.isProcessing || !validationState.hasParticipants}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    !validationState.hasParticipants
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                  }`}
+                  title={
+                    !validationState.hasParticipants
+                      ? 'Cần có ít nhất một người tham gia để lưu dữ liệu'
+                      : 'Lưu tất cả dữ liệu người tham gia'
+                  }
+                  aria-label="Lưu tất cả dữ liệu"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Đang lưu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>Ghi dữ liệu</span>
+                      {hasUnsavedChanges && (
+                        <span className="ml-1 w-2 h-2 bg-orange-400 rounded-full" title="Có thay đổi chưa lưu" />
+                      )}
+                    </>
+                  )}
+                </button>
+              </div>
             )}
 
 
@@ -132,9 +199,18 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
             {onSubmitWithPayment && keKhaiInfo && (
               <button
                 onClick={onSubmitWithPayment}
-                disabled={submittingWithPayment || saving || savingData || householdProcessing}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                title="Nộp kê khai và tạo thanh toán ngay lập tức"
+                disabled={validationState.isProcessing || !validationState.isDeclarationReady}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  !validationState.isDeclarationReady
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+                title={
+                  !validationState.isDeclarationReady
+                    ? 'Cần có ít nhất một người tham gia để nộp kê khai'
+                    : 'Nộp kê khai và tạo thanh toán ngay lập tức'
+                }
+                aria-label="Nộp kê khai và thanh toán"
               >
                 {submittingWithPayment ? (
                   <>
@@ -157,20 +233,65 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
         </div>
       </div>
 
-      {/* Participant Requirement Warning */}
-      {keKhaiInfo && participantCount === 0 && (
-        <div className="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800">
-          <div className="flex items-center space-x-2 text-amber-800 dark:text-amber-200">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
+      {/* Enhanced Status and Warning Messages */}
+      {keKhaiInfo && (
+        <>
+          {/* No Participants Warning */}
+          {!validationState.hasParticipants && (
+            <div className="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800">
+              <div className="flex items-center space-x-2 text-amber-800 dark:text-amber-200">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Lưu ý:</span> Kê khai này chưa có người tham gia nào. Bạn cần thêm ít nhất một người tham gia trước khi có thể nộp kê khai.
+                </div>
+              </div>
             </div>
-            <div className="text-sm">
-              <span className="font-medium">Lưu ý:</span> Kê khai này chưa có người tham gia nào. Bạn cần thêm ít nhất một người tham gia trước khi có thể nộp kê khai.
+          )}
+
+          {/* Participant Limit Warning */}
+          {validationState.participantLimitReached && (
+            <div className="px-6 py-3 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
+              <div className="flex items-center space-x-2 text-red-800 dark:text-red-200">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Cảnh báo:</span> Đã đạt giới hạn tối đa {maxParticipants} người tham gia. Không thể thêm người mới.
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+
+          {/* Unsaved Changes Warning */}
+          {hasUnsavedChanges && validationState.hasParticipants && (
+            <div className="px-6 py-3 bg-orange-50 dark:bg-orange-900/20 border-t border-orange-200 dark:border-orange-800">
+              <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
+                <div className="flex-shrink-0">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Thông báo:</span> Có thay đổi chưa được lưu. Nhấn "Ghi dữ liệu" để lưu các thay đổi.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Success Status */}
+          {validationState.hasParticipants && !hasUnsavedChanges && !validationState.isProcessing && (
+            <div className="px-6 py-3 bg-green-50 dark:bg-green-900/20 border-t border-green-200 dark:border-green-800">
+              <div className="flex items-center space-x-2 text-green-800 dark:text-green-200">
+                <div className="flex-shrink-0">
+                  <CheckCircle className="h-5 w-5" />
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Sẵn sàng:</span> Kê khai có {participantCount} người tham gia và đã được lưu. Bạn có thể nộp kê khai.
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
     </div>

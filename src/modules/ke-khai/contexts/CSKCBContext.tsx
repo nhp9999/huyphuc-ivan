@@ -48,13 +48,11 @@ export const CSKCBProvider: React.FC<CSKCBProviderProps> = ({ children }) => {
 
     // Return cached data if valid and not loading
     if (cacheEntry && isCacheValid(cacheEntry) && !cacheEntry.loading) {
-      console.log(`CSKCBContext: Returning cached data for ${key}`);
       return cacheEntry.data;
     }
 
     // If already loading, wait for the existing request
     if (cacheEntry?.loading) {
-      console.log(`CSKCBContext: Already loading data for ${key}, waiting...`);
       // Poll until loading is complete
       return new Promise((resolve) => {
         const checkLoading = () => {
@@ -68,8 +66,6 @@ export const CSKCBProvider: React.FC<CSKCBProviderProps> = ({ children }) => {
         checkLoading();
       });
     }
-
-    console.log(`CSKCBContext: Loading fresh data for ${key}`);
 
     // Set loading state
     setCache(prev => ({
@@ -105,7 +101,6 @@ export const CSKCBProvider: React.FC<CSKCBProviderProps> = ({ children }) => {
         }
       }));
 
-      console.log(`CSKCBContext: Successfully loaded ${data.length} items for ${key}`);
       return data;
     } catch (error) {
       console.error(`CSKCBContext: Error loading data for ${key}:`, error);
@@ -130,7 +125,6 @@ export const CSKCBProvider: React.FC<CSKCBProviderProps> = ({ children }) => {
   }, [getCSKCBData]);
 
   const clearCache = useCallback(() => {
-    console.log('CSKCBContext: Clearing all cache');
     setCache({});
   }, []);
 

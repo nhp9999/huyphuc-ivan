@@ -28,11 +28,19 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
   useEffect(() => {
     console.log('🎯 PaymentQRModal mounted with payment:', {
       id: payment.id,
+      ke_khai_id: payment.ke_khai_id,
+      hasKeKhaiId: !!payment.ke_khai_id,
       ma_thanh_toan: payment.ma_thanh_toan,
       so_tien: payment.so_tien,
       trang_thai: payment.trang_thai,
-      qr_code_url: payment.qr_code_url
+      qr_code_url: payment.qr_code_url,
+      fullPayment: payment
     });
+
+    // Warn if ke_khai_id is missing
+    if (!payment.ke_khai_id) {
+      console.warn('⚠️ PaymentQRModal: ke_khai_id is missing from payment data!', payment);
+    }
   }, [payment]);
 
   // Auto-check payment status
@@ -69,18 +77,48 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
       console.log('🚀 Starting payment confirmation process...', {
         paymentId: currentPayment.id,
         keKhaiId: currentPayment.ke_khai_id,
-        userId: user?.id
+        userId: user?.id,
+        fullPaymentData: currentPayment
       });
 
-      // Sử dụng keKhaiService.confirmPayment để cập nhật cả payment, kê khai và participants
-      await keKhaiService.confirmPayment(
-        currentPayment.ke_khai_id, // keKhaiId
-        currentPayment.id, // paymentId
-        undefined, // transactionId
-        user?.id?.toString(), // confirmedBy
-        proofImageUrl, // proofImageUrl
-        'Xác nhận thủ công bởi người dùng' // confirmationNote
-      );
+      // Validate that ke_khai_id exists
+      if (!currentPayment.ke_khai_id) {
+        console.error('❌ Missing ke_khai_id in payment data:', currentPayment);
+
+        // Try to fetch fresh payment data to get ke_khai_id
+        try {
+          console.log('🔄 Attempting to fetch fresh payment data...');
+          const freshPayment = await paymentService.checkPaymentStatus(currentPayment.id);
+          if (freshPayment.ke_khai_id) {
+            console.log('✅ Found ke_khai_id in fresh payment data:', freshPayment.ke_khai_id);
+            setCurrentPayment(freshPayment);
+            // Use the fresh payment data for confirmation
+            await keKhaiService.confirmPayment(
+              freshPayment.ke_khai_id,
+              freshPayment.id,
+              undefined,
+              user?.id?.toString(),
+              proofImageUrl,
+              'Xác nhận thủ công bởi người dùng'
+            );
+          } else {
+            throw new Error('Không thể lấy thông tin kê khai ID từ dữ liệu thanh toán.');
+          }
+        } catch (fetchError) {
+          console.error('❌ Failed to fetch fresh payment data:', fetchError);
+          throw new Error('Thiếu thông tin kê khai ID trong dữ liệu thanh toán. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
+        }
+      } else {
+        // Normal flow with valid ke_khai_id
+        await keKhaiService.confirmPayment(
+          currentPayment.ke_khai_id, // keKhaiId
+          currentPayment.id, // paymentId
+          undefined, // transactionId
+          user?.id?.toString(), // confirmedBy
+          proofImageUrl, // proofImageUrl
+          'Xác nhận thủ công bởi người dùng' // confirmationNote
+        );
+      }
 
       console.log('✅ Payment confirmation completed successfully');
 

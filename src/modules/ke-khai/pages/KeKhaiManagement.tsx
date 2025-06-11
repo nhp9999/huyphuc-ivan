@@ -13,17 +13,18 @@ import {
   FileSpreadsheet,
   Download,
   Trash2,
-  Play
+  Play,
+  DollarSign
 } from 'lucide-react';
 import { DanhSachKeKhai } from '../../../shared/services/api/supabaseClient';
 import keKhaiService, { KeKhaiSearchParams } from '../services/keKhaiService';
+import paymentService from '../services/paymentService';
 import { useAuth } from '../../auth';
 import { useToast } from '../../../shared/hooks/useToast';
 import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import KeKhaiApprovalModal from '../components/KeKhaiApprovalModal';
 import PaymentQRModal from '../components/PaymentQRModal';
 import DebugKeKhaiList from '../components/DebugKeKhaiList';
-import paymentService from '../services/paymentService';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 import nguoiDungService from '../../quan-ly/services/nguoiDungService';
 import { exportD03TK1VNPTExcel } from '../../../shared/utils/excelExport';
@@ -40,6 +41,10 @@ const KeKhaiManagement: React.FC = () => {
   // User names mapping state
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [loadingUserNames, setLoadingUserNames] = useState(false);
+
+  // Payment amounts mapping state
+  const [paymentAmounts, setPaymentAmounts] = useState<Record<number, number>>({});
+  const [loadingPaymentAmounts, setLoadingPaymentAmounts] = useState(false);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -110,6 +115,54 @@ const KeKhaiManagement: React.FC = () => {
       console.error('Error fetching user names:', error);
     } finally {
       setLoadingUserNames(false);
+    }
+  };
+
+  // Function to fetch payment amounts for ke khai records
+  const fetchPaymentAmounts = async (keKhaiIds: number[]) => {
+    if (keKhaiIds.length === 0) return;
+
+    setLoadingPaymentAmounts(true);
+    try {
+      const uniqueKeKhaiIds = [...new Set(keKhaiIds)].filter(id => id && !paymentAmounts[id]);
+
+      if (uniqueKeKhaiIds.length === 0) {
+        setLoadingPaymentAmounts(false);
+        return;
+      }
+
+      console.log('🔍 Fetching payment amounts for ke khai IDs:', uniqueKeKhaiIds);
+
+      const amountPromises = uniqueKeKhaiIds.map(async (keKhaiId) => {
+        try {
+          // Try to get existing payment first
+          const existingPayment = await paymentService.getPaymentByKeKhaiId(keKhaiId);
+          if (existingPayment) {
+            return { id: keKhaiId, amount: existingPayment.so_tien };
+          }
+
+          // If no payment exists, calculate the total amount
+          const totalAmount = await paymentService.calculateTotalAmount(keKhaiId);
+          return { id: keKhaiId, amount: totalAmount };
+        } catch (error) {
+          console.error(`Error fetching payment amount for ke khai ${keKhaiId}:`, error);
+          return { id: keKhaiId, amount: 0 };
+        }
+      });
+
+      const amountResults = await Promise.all(amountPromises);
+
+      const newPaymentAmounts = { ...paymentAmounts };
+      amountResults.forEach(({ id, amount }) => {
+        newPaymentAmounts[id] = amount;
+      });
+
+      setPaymentAmounts(newPaymentAmounts);
+      console.log('🔍 Updated payment amounts:', newPaymentAmounts);
+    } catch (error) {
+      console.error('Error fetching payment amounts:', error);
+    } finally {
+      setLoadingPaymentAmounts(false);
     }
   };
 
@@ -210,6 +263,15 @@ const KeKhaiManagement: React.FC = () => {
 
       if (userIds.length > 0) {
         await fetchUserNames(userIds);
+      }
+
+      // Fetch payment amounts for ke khai records
+      const keKhaiIds = data
+        .map(item => item.id)
+        .filter(id => id) as number[];
+
+      if (keKhaiIds.length > 0) {
+        await fetchPaymentAmounts(keKhaiIds);
       }
     } catch (err) {
       console.error('Error loading ke khai data:', err);
@@ -812,6 +874,9 @@ const KeKhaiManagement: React.FC = () => {
                       Người tạo
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Số tiền
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Thao tác
                     </th>
                   </tr>
@@ -857,6 +922,21 @@ const KeKhaiManagement: React.FC = () => {
                             )
                           ) : (
                             'N/A'
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
+                        <div className="flex items-center justify-end">
+                          <DollarSign className="w-4 h-4 text-green-500 mr-1" />
+                          {loadingPaymentAmounts ? (
+                            <span className="text-gray-400">Đang tải...</span>
+                          ) : (
+                            <span className="font-medium">
+                              {paymentAmounts[keKhai.id]
+                                ? paymentService.formatCurrency(paymentAmounts[keKhai.id])
+                                : '0 ₫'
+                              }
+                            </span>
                           )}
                         </div>
                       </td>

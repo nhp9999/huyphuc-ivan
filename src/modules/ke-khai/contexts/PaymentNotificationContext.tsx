@@ -27,30 +27,63 @@ export const PaymentNotificationProvider: React.FC<PaymentNotificationProviderPr
   const [loading, setLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [dismissedUntil, setDismissedUntil] = useState<number | null>(null);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
+  const [isMounted, setIsMounted] = useState(true);
 
-  // Load pending payments
+  // Minimum time between API calls (5 seconds)
+  const MIN_LOAD_INTERVAL = 5000;
+
+  // Cleanup on unmount
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
+
+  // Load pending payments with throttling
   const loadPendingPayments = async () => {
-    if (!user?.id) return;
-    
+    if (!user?.id || !isMounted) return;
+
+    // Throttle API calls to prevent excessive requests
+    const now = Date.now();
+    if (now - lastLoadTime < MIN_LOAD_INTERVAL) {
+      console.log('🚫 PaymentNotification: Throttling API call, too soon since last request');
+      return;
+    }
+
+    if (!isMounted) return; // Double check before making API call
+
     setLoading(true);
+    setLastLoadTime(now);
+
     try {
+      console.log('🔔 PaymentNotification: Loading pending payments...');
       const data = await keKhaiService.getKeKhaiForApproval({
         created_by: user.id,
         trang_thai: 'pending_payment'
       });
-      
-      setPendingPayments(data);
-      
-      // Show notification if there are pending payments and not dismissed
-      const now = Date.now();
-      const shouldShow = data.length > 0 && isVisible && (!dismissedUntil || now > dismissedUntil);
-      setShowNotification(shouldShow);
-      
-      console.log('🔔 PaymentNotification: Loaded', data.length, 'pending payments');
+
+      console.log(`🔔 PaymentNotification: Loaded ${data.length} pending payments`);
+
+      // Only update state if component is still mounted
+      if (isMounted) {
+        setPendingPayments(data);
+
+        // Show notification if there are pending payments and not dismissed
+        const shouldShow = data.length > 0 && isVisible && (!dismissedUntil || now > dismissedUntil);
+        setShowNotification(shouldShow);
+      }
     } catch (error) {
-      console.error('Error loading pending payments:', error);
+      console.error('❌ PaymentNotification: Error loading pending payments:', error);
+      // Reset lastLoadTime on error to allow retry sooner
+      if (isMounted) {
+        setLastLoadTime(0);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -65,38 +98,42 @@ export const PaymentNotificationProvider: React.FC<PaymentNotificationProviderPr
     const dismissUntil = Date.now() + dismissDuration;
     setDismissedUntil(dismissUntil);
     setShowNotification(false);
-    
-    console.log('🔔 PaymentNotification: Dismissed until', new Date(dismissUntil).toLocaleString());
   };
 
   // Initial load and polling
   useEffect(() => {
+    if (!user?.id) return;
+
     loadPendingPayments();
-    
+
     // Poll for updates every 2 minutes
-    const interval = setInterval(loadPendingPayments, 2 * 60 * 1000);
-    
+    const interval = setInterval(() => {
+      if (user?.id) {
+        loadPendingPayments();
+      }
+    }, 2 * 60 * 1000);
+
     return () => clearInterval(interval);
-  }, [user?.id, isVisible]);
+  }, [user?.id]); // Remove isVisible from dependencies to prevent infinite loop
 
   // Listen for payment-related events
   useEffect(() => {
     const handlePaymentConfirmed = (data: any) => {
-      console.log('🔔 PaymentNotification: Payment confirmed event received', data);
-      loadPendingPayments();
+      console.log('🎉 PaymentNotification: Payment confirmed event received');
+      setTimeout(loadPendingPayments, 1000); // Delay to allow DB to update
     };
 
     const handleKeKhaiStatusChanged = (data: any) => {
-      console.log('🔔 PaymentNotification: Ke khai status changed event received', data);
       // Only refresh if status changed to pending_payment
       if (data.newStatus === 'pending_payment') {
-        loadPendingPayments();
+        console.log('📝 PaymentNotification: Ke khai status changed to pending_payment');
+        setTimeout(loadPendingPayments, 1000); // Delay to allow DB to update
       }
     };
 
     const handleRefreshAllPages = () => {
-      console.log('🔔 PaymentNotification: Refresh all pages event received');
-      loadPendingPayments();
+      console.log('🔄 PaymentNotification: Refresh all pages event received');
+      setTimeout(loadPendingPayments, 500);
     };
 
     // Subscribe to events

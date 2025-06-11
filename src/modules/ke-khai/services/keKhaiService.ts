@@ -321,14 +321,6 @@ class KeKhaiService {
         throw new Error('Không thể lấy danh sách kê khai cần duyệt');
       }
 
-      console.log('🔍 getKeKhaiForApproval result count:', data?.length || 0);
-      console.log('🔍 getKeKhaiForApproval sample data:', data?.slice(0, 3).map(item => ({
-        id: item.id,
-        ma_ke_khai: item.ma_ke_khai,
-        trang_thai: item.trang_thai,
-        created_by: item.created_by
-      })));
-
       return data || [];
     } catch (error) {
       console.error('Error in getKeKhaiForApproval:', error);
@@ -630,6 +622,17 @@ class KeKhaiService {
         transactionId,
         confirmedBy
       });
+
+      // Validate required parameters
+      if (!keKhaiId || keKhaiId === undefined || keKhaiId === null) {
+        console.error('❌ Invalid keKhaiId:', keKhaiId);
+        throw new Error('Thiếu thông tin ID kê khai. Vui lòng thử lại.');
+      }
+
+      if (!paymentId || paymentId === undefined || paymentId === null) {
+        console.error('❌ Invalid paymentId:', paymentId);
+        throw new Error('Thiếu thông tin ID thanh toán. Vui lòng thử lại.');
+      }
 
       // Step 1: Cập nhật trạng thái thanh toán
       await paymentService.updatePaymentStatus(
@@ -2029,14 +2032,6 @@ class KeKhaiService {
         console.error('Error fetching ke khai for approval for admin:', error);
         throw error;
       }
-
-      console.log('🔍 getKeKhaiForApprovalForAdmin result count:', data?.length || 0);
-      console.log('🔍 getKeKhaiForApprovalForAdmin sample data:', data?.slice(0, 3).map(item => ({
-        id: item.id,
-        ma_ke_khai: item.ma_ke_khai,
-        trang_thai: item.trang_thai,
-        created_by: item.created_by
-      })));
 
       return data || [];
     } catch (error) {

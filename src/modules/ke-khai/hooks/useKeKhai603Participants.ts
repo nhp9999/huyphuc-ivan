@@ -111,8 +111,6 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
   const loadParticipants = React.useCallback(async () => {
     if (!keKhaiId) return [];
 
-    console.log(`🔄 loadParticipants called for keKhaiId: ${keKhaiId}`);
-
     try {
       const nguoiThamGiaList = await keKhaiService.getNguoiThamGiaByKeKhai(keKhaiId);
 
@@ -170,15 +168,6 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       setParticipants(convertedParticipants);
       setInitialized(true);
 
-      // Debug log to check loaded data
-      console.log(`🔍 Loaded ${convertedParticipants.length} participants:`, convertedParticipants.map(p => ({
-        id: p.id,
-        hoTen: p.hoTen,
-        maBenhVien: p.maBenhVien,
-        noiDangKyKCB: p.noiDangKyKCB,
-        noiNhanHoSo: p.noiNhanHoSo
-      })));
-
       return convertedParticipants;
     } catch (error) {
       console.error('Error loading participants:', error);
@@ -208,14 +197,8 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
   const handleParticipantChange = async (index: number, field: keyof KeKhai603Participant, value: string) => {
     const participant = participants[index];
     if (!participant) {
-      console.warn(`⚠️ handleParticipantChange: No participant found at index ${index}`);
       return;
     }
-
-    // Debug logging disabled to reduce console spam
-    // if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
-    //   console.log(`📝 handleParticipantChange: Setting ${field} = "${value}" for participant ${index + 1}`);
-    // }
 
     // Validate mã BHXH - chỉ cho phép số và tối đa 10 ký tự
     if (field === 'maSoBHXH') {
@@ -227,22 +210,10 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
       const newParticipants = prev.map((p, i) => {
         if (i === index) {
           const updatedParticipant = { ...p, [field]: value };
-
-          // Debug logging disabled to reduce console spam
-          // if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
-          //   console.log(`📝 State update: Participant ${index + 1} ${field} changed from "${p[field]}" to "${value}"`);
-          // }
-
           return updatedParticipant;
         }
         return p;
       });
-
-      // Debug logging disabled to reduce console spam
-      // if (field === 'sttHo' || field === 'soThangDong' || field === 'maSoBHXH') {
-      //   const updatedParticipant = newParticipants[index];
-      //   console.log(`📝 State updated: Participant ${index + 1} now has ${field} = "${updatedParticipant?.[field]}"`);
-      // }
 
       return newParticipants;
     });
@@ -310,8 +281,6 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
 
   // Add new participant
   const addParticipant = async () => {
-    console.log('🚀 addParticipant called');
-
     if (!keKhaiId) {
       console.error('❌ No keKhaiId available');
       throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
@@ -362,7 +331,6 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
         return newArray;
       });
 
-      console.log('✅ addParticipant completed successfully');
       return savedParticipant;
     } catch (error) {
       console.error('❌ Error adding participant:', error);

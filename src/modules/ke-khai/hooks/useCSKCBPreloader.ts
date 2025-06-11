@@ -14,8 +14,6 @@ export const useCSKCBPreloader = () => {
         // Preload data for An Giang province (89) since it's commonly used
         // Based on the network logs, this is the province being used
         await preloadCSKCBData('89');
-        
-        console.log('CSKCBPreloader: Successfully preloaded CSKCB data for An Giang (89)');
       } catch (error) {
         console.error('CSKCBPreloader: Error preloading CSKCB data:', error);
       }

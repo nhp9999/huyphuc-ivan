@@ -148,12 +148,6 @@ const SidebarOptimized: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, isMob
       ]
     },
     {
-      title: 'Quản lý',
-      items: [
-        { icon: <UserCheck size={20} />, label: 'Cộng tác viên của tôi', page: 'my-cong-tac-vien' as const }
-      ]
-    },
-    {
       title: 'Tra cứu',
       items: [
         { icon: <CreditCard size={20} />, label: 'Tra cứu BHYT', page: 'bhyt-lookup' as const },

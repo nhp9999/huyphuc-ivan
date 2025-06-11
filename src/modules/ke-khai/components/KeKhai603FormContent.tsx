@@ -25,6 +25,7 @@ import SearchableDropdown, { DropdownOption } from './SearchableDropdown';
 import { useAuth } from '../../auth';
 import ConfirmBulkSubmitWithPaymentModal from './ConfirmBulkSubmitWithPaymentModal';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
+import vnpostTokenService from '../../../shared/services/api/vnpostTokenService';
 
 interface KeKhai603FormContentProps {
   pageParams: any;
@@ -149,31 +150,14 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
     submitIndividualParticipant
   } = useKeKhai603Participants(keKhaiInfo?.id, keKhaiInfo?.doi_tuong_tham_gia);
 
-  // DEBUG: Monitor participants state changes
-  React.useEffect(() => {
-    console.log('🔍 DEBUG: Participants state changed:', {
-      length: participants.length,
-      participants: participants.map(p => ({ id: p.id, hoTen: p.hoTen, maSoBHXH: p.maSoBHXH }))
-    });
-  }, [participants]);
 
-  // DEBUG: Monitor keKhaiInfo changes
-  React.useEffect(() => {
-    console.log('🔍 DEBUG: keKhaiInfo changed:', {
-      id: keKhaiInfo?.id,
-      doi_tuong_tham_gia: keKhaiInfo?.doi_tuong_tham_gia,
-      hasKeKhaiInfo: !!keKhaiInfo
-    });
-  }, [keKhaiInfo]);
 
   // Optimized: Load province data once for both Nkq and KS
   React.useEffect(() => {
     const loadTinhData = async () => {
       try {
         setLoadingStates(prev => ({ ...prev, tinh: true }));
-        console.log('🌍 Loading optimized province data...');
         const options = await tinhService.getTinhOptions();
-        console.log('🌍 Province data loaded:', options.length, 'provinces');
 
         // Create Map for O(1) lookup
         const tinhMap = new Map<string, string>();
@@ -210,9 +194,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
       try {
         setLoadingStates(prev => ({ ...prev, huyenNkq: true }));
-        console.log('🏘️ Loading Nkq district data for province:', formData.maTinhNkq);
         const options = await huyenService.getHuyenOptionsByTinh(formData.maTinhNkq);
-        console.log('🏘️ Nkq District data loaded:', options.length, 'districts');
 
         // Create Map for O(1) lookup
         const huyenNkqMap = new Map<string, string>();
@@ -254,9 +236,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
       try {
         setLoadingStates(prev => ({ ...prev, xaNkq: true }));
-        console.log('🏠 Loading Nkq ward data for district:', formData.maHuyenNkq, 'in province:', formData.maTinhNkq);
         const options = await xaService.getXaOptionsByHuyen(formData.maHuyenNkq, formData.maTinhNkq);
-        console.log('🏠 Nkq Ward data loaded:', options.length, 'wards');
 
         // Create Map for O(1) lookup
         const xaNkqMap = new Map<string, string>();
@@ -298,9 +278,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
       try {
         setLoadingStates(prev => ({ ...prev, huyenKS: true }));
-        console.log('🏘️ Loading KS district data for province:', formData.maTinhKS);
         const options = await huyenService.getHuyenOptionsByTinh(formData.maTinhKS);
-        console.log('🏘️ KS District data loaded:', options.length, 'districts');
 
         // Create Map for O(1) lookup
         const huyenKSMap = new Map<string, string>();
@@ -342,9 +320,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
       try {
         setLoadingStates(prev => ({ ...prev, xaKS: true }));
-        console.log('🏠 Loading KS ward data for district:', formData.maHuyenKS, 'in province:', formData.maTinhKS);
         const options = await xaService.getXaOptionsByHuyen(formData.maHuyenKS, formData.maTinhKS);
-        console.log('🏠 KS Ward data loaded:', options.length, 'wards');
 
         // Create Map for O(1) lookup
         const xaKSMap = new Map<string, string>();
@@ -375,27 +351,19 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
   // Listen for payment confirmation events to auto-reload participants data
   React.useEffect(() => {
     const handlePaymentConfirmed = (data: any) => {
-      console.log('🔔 KeKhai603FormContent: Payment confirmed event received', data);
-      console.log('🔄 KeKhai603FormContent: Reloading participants after payment confirmation...');
       // Reload participants to get updated payment status
       loadParticipants();
     };
 
     const handleKeKhaiStatusChanged = (data: any) => {
-      console.log('🔔 KeKhai603FormContent: Ke khai status changed event received', data);
-      console.log('🔄 KeKhai603FormContent: Reloading participants after status change...');
       // Reload participants when ke khai status changes
       loadParticipants();
     };
 
     const handleRefreshAllPages = (data: any) => {
-      console.log('🔔 KeKhai603FormContent: Refresh all pages event received', data);
-      console.log('🔄 KeKhai603FormContent: Reloading participants after refresh event...');
       // Reload participants for general refresh
       loadParticipants();
     };
-
-    console.log('🎯 KeKhai603FormContent: Setting up event listeners for payment events');
 
     // Subscribe to events
     eventEmitter.on(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
@@ -404,7 +372,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
     // Cleanup on unmount
     return () => {
-      console.log('🧹 KeKhai603FormContent: Cleaning up event listeners');
       eventEmitter.off(EVENTS.PAYMENT_CONFIRMED, handlePaymentConfirmed);
       eventEmitter.off(EVENTS.KE_KHAI_STATUS_CHANGED, handleKeKhaiStatusChanged);
       eventEmitter.off(EVENTS.REFRESH_ALL_KE_KHAI_PAGES, handleRefreshAllPages);
@@ -416,13 +383,11 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
     const loadCSKCBData = async () => {
       try {
         setLoadingStates(prev => ({ ...prev, cskcb: true }));
-        console.log('🏥 Loading all CSKCB data...');
         // Load all medical facilities without province filtering
         const options = await cskcbService.getCSKCBList({
           trang_thai: 'active',
           limit: 500 // Limit to avoid loading too many
         });
-        console.log('🏥 CSKCB data loaded:', options.length, 'facilities');
 
         // Create Map for O(1) lookup
         const cskcbMap = new Map<string, string>();
@@ -617,14 +582,12 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       handleInputChange('maBenhVien', selectedFacility.value);
       handleInputChange('tenBenhVien', selectedFacility.ten);
       handleInputChange('tinhKCB', selectedFacility.ma_tinh);
-      console.log('🏥 Medical facility updated:', selectedFacility.ten, 'Code:', selectedFacility.value);
     } else if (value === '006') {
       // Handle default hospital (006) even if not in loaded options
       handleInputChange('noiDangKyKCB', 'Trung tâm Y tế thị xã Tịnh Biên');
       handleInputChange('maBenhVien', '006');
       handleInputChange('tenBenhVien', 'Trung tâm Y tế thị xã Tịnh Biên');
       // Don't auto-set province - let user choose
-      console.log('🏥 Default medical facility selected: Trung tâm Y tế thị xã Tịnh Biên (006)');
     } else {
       // Clear medical facility fields if no selection
       handleInputChange('noiDangKyKCB', '');
@@ -679,15 +642,12 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
   // Handle search for main form
   const handleSearch = async () => {
-    console.log('🔍 DEBUG: handleSearch called with maSoBHXH:', formData.maSoBHXH);
-
     if (!formData.maSoBHXH.trim()) {
       showToast('Vui lòng nhập mã số BHXH', 'warning');
       return;
     }
 
     try {
-      console.log('🔍 DEBUG: Searching for BHXH code:', formData.maSoBHXH);
       const result = await searchKeKhai603(formData.maSoBHXH);
 
       if (result.success && result.data) {
@@ -700,7 +660,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
         // NOTE: Removed automatic update of first participant to prevent data corruption
         // Form search should only update the form, not existing participants in the table
-        console.log('✅ Form data updated from search, existing participants unchanged');
 
         // Kiểm tra nếu có cảnh báo về trạng thái thẻ
         const hasCardWarning = result.data.trangThaiThe &&
@@ -728,7 +687,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
   const handleParticipantSearch = async (index: number) => {
     const participant = participants[index];
     if (!participant?.maSoBHXH?.trim()) {
-      console.warn(`⚠️ No BHXH code for participant at index ${index}:`, participant);
       showToast('Vui lòng nhập mã số BHXH', 'warning');
       return;
     }
@@ -738,7 +696,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
       if (result.success && result.data) {
         // Keep default hospital 006 - don't update medical facility data from participant search
-        console.log('🏥 Keeping default hospital 006 - ignoring API medical facility data for participant search');
 
         // Remove medical facility fields from API data to preserve default hospital
         const cleanedData = { ...result.data };
@@ -795,8 +752,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
     progressCallback?: (current: number, currentCode?: string) => void
   ) => {
     try {
-      console.log(`🏠 Starting OPTIMIZED household bulk input for ${bhxhCodes.length} participants`);
-
       // Validate keKhaiInfo is available
       if (!keKhaiInfo?.id) {
         throw new Error('Chưa có thông tin kê khai. Vui lòng tạo kê khai mới từ trang chính.');
@@ -837,8 +792,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
           // Calculate tien_dong_thuc_te (old formula with 4.5%)
           const tienDongThucTe = calculateKeKhai603AmountThucTe(sttHo, soThangDong, 2340000, keKhaiInfo?.doi_tuong_tham_gia);
           participantData.tien_dong_thuc_te = tienDongThucTe;
-
-          console.log(`💰 Calculated amounts for ${bhxhCode}: tien_dong=${tienDong}, tien_dong_thuc_te=${tienDongThucTe}`);
         }
 
         // Add medical facility data if provided
@@ -847,7 +800,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
           participantData.noi_dang_ky_kcb = medicalFacility.tenBenhVien;
           participantData.noi_nhan_ho_so = medicalFacility.tenBenhVien; // Nơi nhận hồ sơ = tên bệnh viện
           participantData.tinh_kcb = medicalFacility.maTinh; // Mã tỉnh Nkq
-          console.log(`🏥 Added medical facility data: ${medicalFacility.tenBenhVien} (${medicalFacility.maBenhVien}) - Tỉnh: ${medicalFacility.maTinh}`);
         }
 
         return participantData;
@@ -855,15 +807,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
       try {
         progressCallback?.(Math.floor(bhxhCodes.length * 0.2), 'Đang lưu vào cơ sở dữ liệu...');
-
-        // Debug log the data being saved
-        console.log(`💾 Saving ${participantDataList.length} participants with data:`, participantDataList.map(p => ({
-          ma_so_bhxh: p.ma_so_bhxh,
-          ma_benh_vien: p.ma_benh_vien,
-          noi_dang_ky_kcb: p.noi_dang_ky_kcb,
-          noi_nhan_ho_so: p.noi_nhan_ho_so,
-          tinh_kcb: p.tinh_kcb
-        })));
 
         const batchSaveResult = await keKhaiService.addMultipleNguoiThamGia(participantDataList);
 
@@ -875,7 +818,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
         });
 
         successCount = batchSaveResult.length;
-        console.log(`✅ Batch saved ${successCount} participants to database`);
       } catch (batchError) {
         console.error('❌ Batch save failed, falling back to individual saves:', batchError);
 
@@ -906,149 +848,357 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       // Phase 2: Batch API lookup for all saved participants
       progressCallback?.(Math.floor(bhxhCodes.length * 0.4), 'Đang tra cứu thông tin từ API...');
 
-      // Process API lookups with controlled concurrency
-      const apiPromises = savedParticipants.map(async ({ id, bhxhCode }, index) => {
-        try {
-          // Add staggered delay to avoid overwhelming the API
-          await new Promise(resolve => setTimeout(resolve, index * 200));
+      // Process API lookups with enhanced concurrency control and circuit breaker
+      const maxRetries = 3;
+      const baseDelay = 1000; // Increased base delay for exponential backoff
+      const maxConcurrentRequests = 1; // Reduced to 1 for sequential processing to minimize server load
+      const requestDelay = 2000; // 2 seconds delay between each individual request
+      const batchDelay = 3000; // 3 seconds delay between batches
+      let circuitBreakerOpen = false;
+      let consecutiveFailures = 0;
+      // const maxConsecutiveFailures = 5; // Currently unused but may be needed for future enhancements
 
-          progressCallback?.(Math.floor(bhxhCodes.length * 0.4) + index + 1, `Tra cứu ${bhxhCode}...`);
+      // Process participants in smaller batches to reduce server load
+      const batchSize = maxConcurrentRequests;
+      const batches = [];
+      for (let i = 0; i < savedParticipants.length; i += batchSize) {
+        batches.push(savedParticipants.slice(i, i + batchSize));
+      }
 
-          const directSearchResult = await searchParticipantData(bhxhCode, -1);
+      console.log(`🚀 Starting API lookup with load reduction strategy:`);
+      console.log(`   📊 Total participants: ${savedParticipants.length}`);
+      console.log(`   📦 Batch size: ${batchSize} (sequential processing)`);
+      console.log(`   📈 Total batches: ${batches.length}`);
+      console.log(`   ⏱️ Delays: ${batchDelay}ms between batches, ${requestDelay}ms between requests, 1000ms pre-request, 500ms post-success`);
+      console.log(`   🔄 Max retries: ${maxRetries} with ${baseDelay}ms base delay`);
 
-          if (directSearchResult.success && directSearchResult.data) {
-            // Update participant in database with API data
-            const apiUpdateData: any = {
-              ho_ten: directSearchResult.data.hoTen || '',
-              ngay_sinh: directSearchResult.data.ngaySinh || undefined,
-              gioi_tinh: directSearchResult.data.gioiTinh || '',
-              so_cccd: directSearchResult.data.soCCCD || undefined,
-              so_dien_thoai: directSearchResult.data.soDienThoai || undefined,
-              so_the_bhyt: directSearchResult.data.soTheBHYT || undefined,
-              dan_toc: directSearchResult.data.danToc || undefined,
-              quoc_tich: directSearchResult.data.quocTich || 'VN',
-              ma_tinh_ks: directSearchResult.data.maTinhKS || undefined,
-              ma_huyen_ks: directSearchResult.data.maHuyenKS || undefined,
-              ma_xa_ks: directSearchResult.data.maXaKS || undefined,
-              ma_tinh_nkq: directSearchResult.data.maTinhNkq || directSearchResult.data.maTinhKS || undefined,
-              ma_huyen_nkq: directSearchResult.data.maHuyenNkq || directSearchResult.data.maHuyenKS || undefined,
-              ma_xa_nkq: directSearchResult.data.maXaNkq || directSearchResult.data.maXaKS || undefined,
-              ma_ho_gia_dinh: directSearchResult.data.maHoGiaDinh || undefined,
-              phuong_an: directSearchResult.data.phuongAn || undefined
-            };
+      const allResults = [];
 
-            // Handle noi_nhan_ho_so from API data (this is more accurate than modal data)
-            if (directSearchResult.data.noiNhanHoSo) {
-              apiUpdateData.noi_nhan_ho_so = directSearchResult.data.noiNhanHoSo;
-              console.log(`📋 Using API noi_nhan_ho_so: ${directSearchResult.data.noiNhanHoSo}`);
-            }
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
 
-            // Handle card validity dates from API data
-            if (directSearchResult.data.tuNgayTheCu) {
-              apiUpdateData.tu_ngay_the_cu = directSearchResult.data.tuNgayTheCu;
-              console.log(`📅 Using API tu_ngay_the_cu: ${directSearchResult.data.tuNgayTheCu}`);
-            }
-
-            if (directSearchResult.data.denNgayTheCu) {
-              apiUpdateData.den_ngay_the_cu = directSearchResult.data.denNgayTheCu;
-              console.log(`📅 Using API den_ngay_the_cu: ${directSearchResult.data.denNgayTheCu}`);
-            }
-
-
-
-            // Only update medical facility data if no facility was selected in modal
-            // This preserves the user's choice from the household bulk input modal
-            if (!medicalFacility?.maBenhVien) {
-              apiUpdateData.noi_dang_ky_kcb = directSearchResult.data.noiDangKyKCB || undefined;
-              apiUpdateData.tinh_kcb = directSearchResult.data.tinhKCB || undefined;
-              apiUpdateData.ma_benh_vien = directSearchResult.data.maBenhVien || undefined;
-              console.log(`🏥 Using API medical facility data`);
-            } else {
-              // If medical facility was selected in modal, preserve the modal choice
-              console.log(`🏥 Preserving medical facility data from modal: ${medicalFacility.tenBenhVien}`);
-            }
-
-            // Clean undefined values but preserve important fields that were set in initial save
-            Object.keys(apiUpdateData).forEach(key => {
-              if (apiUpdateData[key] === undefined || apiUpdateData[key] === '') {
-                delete apiUpdateData[key];
-              }
+        // Check circuit breaker before processing batch
+        if (circuitBreakerOpen) {
+          console.log(`🚫 Circuit breaker open, skipping remaining batches (${batches.length - batchIndex} batches remaining)`);
+          // Add failed results for remaining participants
+          for (let remainingBatchIndex = batchIndex; remainingBatchIndex < batches.length; remainingBatchIndex++) {
+            const remainingBatch = batches[remainingBatchIndex];
+            remainingBatch.forEach(({ bhxhCode }) => {
+              allResults.push({
+                status: 'fulfilled' as const,
+                value: { success: false, bhxhCode, error: 'Circuit breaker open - too many consecutive failures' }
+              });
             });
+          }
+          break;
+        }
 
-            console.log(`💾 Updating participant ${id} with API data:`, apiUpdateData);
-            await keKhaiService.updateNguoiThamGia(parseInt(id), apiUpdateData);
-            console.log(`✅ Successfully updated participant ${id} with API data`);
+        console.log(`🔄 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} participants`);
 
-            // Calculate card validity dates after API update (need denNgayTheCu from API)
-            const participantIndex = savedParticipants.findIndex(p => p.id === id);
-            if (participantIndex !== -1) {
-              const soThangDongValue = soThangDong; // Use the parameter from function scope
-              const ngayBienLai = new Date().toISOString().split('T')[0]; // Today's date
-              const denNgayTheCu = directSearchResult.data.denNgayTheCu || '';
+        // Add delay between batches to prevent overwhelming the API
+        if (batchIndex > 0) {
+          const adaptiveBatchDelay = Math.min(batchDelay + (consecutiveFailures * 1000), 10000); // Use batchDelay variable with adaptive increase
+          console.log(`⏳ Waiting ${adaptiveBatchDelay}ms between batches (base: ${batchDelay}ms, consecutive failures: ${consecutiveFailures})`);
 
-              if (soThangDongValue && ngayBienLai) {
-                const cardValidity = calculateKeKhai603CardValidity(soThangDongValue, denNgayTheCu, ngayBienLai);
+          // Update progress to show waiting between batches
+          progressCallback?.(
+            Math.floor(bhxhCodes.length * 0.4) + (batchIndex * batchSize),
+            `Chờ ${Math.round(adaptiveBatchDelay/1000)}s giữa các batch để giảm tải server...`
+          );
 
-                // Update card validity dates
-                const cardUpdateData = {
-                  tu_ngay_the_moi: cardValidity.tuNgay,
-                  den_ngay_the_moi: cardValidity.denNgay,
-                  ngay_bien_lai: ngayBienLai
+          await new Promise(resolve => setTimeout(resolve, adaptiveBatchDelay));
+        }
+
+        const batchPromises = batch.map(async ({ id, bhxhCode }, batchItemIndex) => {
+          const globalIndex = batchIndex * batchSize + batchItemIndex;
+
+          // Add staggered delay within batch to avoid overwhelming the API
+          const itemDelay = requestDelay + (batchItemIndex * 500); // Base delay + staggered delay
+          console.log(`⏳ Request delay for participant ${globalIndex + 1}: ${itemDelay}ms (base: ${requestDelay}ms + stagger: ${batchItemIndex * 500}ms)`);
+          await new Promise(resolve => setTimeout(resolve, itemDelay));
+
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              const attemptText = attempt > 1 ? ` (thử lần ${attempt}/${maxRetries})` : '';
+              progressCallback?.(Math.floor(bhxhCodes.length * 0.4) + globalIndex + 1, `Tra cứu ${bhxhCode}${attemptText}...`);
+
+              console.log(`🔍 Token ready check for ${bhxhCode} (participant ${globalIndex + 1}): ${vnpostTokenService.isTokenReady()}`);
+
+              // Ensure token is ready before each attempt (following user preference for non-blocking pattern)
+              if (!vnpostTokenService.isTokenReady()) {
+                console.log(`⚠️ Token not ready for ${bhxhCode} (participant ${globalIndex + 1}), ensuring token ready...`);
+                console.log(`📊 Current token status for ${bhxhCode}:`, vnpostTokenService.getTokenStatus());
+                await vnpostTokenService.ensureTokenReady();
+                console.log(`✅ Token ensured ready for ${bhxhCode} (participant ${globalIndex + 1})`);
+              }
+
+              // Add extra delay for retry attempts to give server more time to recover
+              if (attempt > 1) {
+                const extraDelay = 1000 * attempt; // 1s, 2s, 3s for attempts 2, 3, 4
+                console.log(`⏳ Extra delay for retry attempt ${attempt}: ${extraDelay}ms`);
+                await new Promise(resolve => setTimeout(resolve, extraDelay));
+              }
+
+              console.log(`🔄 Starting API retry loop for ${bhxhCode} (participant ${globalIndex + 1})`);
+              console.log(`📞 Attempting API call for ${bhxhCode} (participant ${globalIndex + 1}, attempt ${attempt}/${maxRetries})`);
+              console.log(`🔍 Pre-call token status for ${bhxhCode}:`, vnpostTokenService.getTokenStatus());
+
+              // Add pre-request delay to reduce server load
+              const preRequestDelay = 1000; // 1 second before each API call
+              console.log(`⏳ Pre-request delay: ${preRequestDelay}ms to reduce server load`);
+
+              // Update progress to show pre-request delay
+              progressCallback?.(
+                Math.floor(bhxhCodes.length * 0.4) + globalIndex + 1,
+                `Chờ ${preRequestDelay/1000}s trước khi tra cứu ${bhxhCode}${attemptText}...`
+              );
+
+              await new Promise(resolve => setTimeout(resolve, preRequestDelay));
+
+              const directSearchResult = await searchParticipantData(bhxhCode, -1);
+
+              console.log(`✅ API call successful for ${bhxhCode} (participant ${globalIndex + 1}) on attempt ${attempt}`);
+              console.log(`📊 API response data for ${bhxhCode}:`, {
+                hasData: directSearchResult.data ? true : false,
+                success: directSearchResult.success,
+                hoTen: directSearchResult.data?.hoTen,
+                gioiTinh: directSearchResult.data?.gioiTinh,
+                ngaySinh: directSearchResult.data?.ngaySinh
+              });
+
+              // If successful, break out of retry loop
+              if (directSearchResult.success && directSearchResult.data) {
+                console.log(`🔄 Updating participant ${id} (${bhxhCode}) - participant ${globalIndex + 1} with API data:`, {
+                  bhxhCode,
+                  participantId: id,
+                  participantIndex: globalIndex + 1,
+                  fieldsToUpdate: Object.keys(directSearchResult.data).length,
+                  hoTen: directSearchResult.data.hoTen,
+                  gioiTinh: directSearchResult.data.gioiTinh,
+                  ngaySinh: directSearchResult.data.ngaySinh
+                });
+
+              // Update participant in database with API data
+              const apiUpdateData: any = {
+                ho_ten: directSearchResult.data.hoTen || '',
+                ngay_sinh: directSearchResult.data.ngaySinh || undefined,
+                gioi_tinh: directSearchResult.data.gioiTinh || '',
+                so_cccd: directSearchResult.data.soCCCD || undefined,
+                so_dien_thoai: directSearchResult.data.soDienThoai || undefined,
+                so_the_bhyt: directSearchResult.data.soTheBHYT || undefined,
+                dan_toc: directSearchResult.data.danToc || undefined,
+                quoc_tich: directSearchResult.data.quocTich || 'VN',
+                ma_tinh_ks: directSearchResult.data.maTinhKS || undefined,
+                ma_huyen_ks: directSearchResult.data.maHuyenKS || undefined,
+                ma_xa_ks: directSearchResult.data.maXaKS || undefined,
+                ma_tinh_nkq: directSearchResult.data.maTinhNkq || directSearchResult.data.maTinhKS || undefined,
+                ma_huyen_nkq: directSearchResult.data.maHuyenNkq || directSearchResult.data.maHuyenKS || undefined,
+                ma_xa_nkq: directSearchResult.data.maXaNkq || directSearchResult.data.maXaKS || undefined,
+                ma_ho_gia_dinh: directSearchResult.data.maHoGiaDinh || undefined,
+                phuong_an: directSearchResult.data.phuongAn || undefined
+              };
+
+              // Handle noi_nhan_ho_so from API data (this is more accurate than modal data)
+              if (directSearchResult.data.noiNhanHoSo) {
+                apiUpdateData.noi_nhan_ho_so = directSearchResult.data.noiNhanHoSo;
+              }
+
+              // Handle card validity dates from API data
+              if (directSearchResult.data.tuNgayTheCu) {
+                apiUpdateData.tu_ngay_the_cu = directSearchResult.data.tuNgayTheCu;
+              }
+
+              if (directSearchResult.data.denNgayTheCu) {
+                apiUpdateData.den_ngay_the_cu = directSearchResult.data.denNgayTheCu;
+              }
+
+              // Only update medical facility data if no facility was selected in modal
+              // This preserves the user's choice from the household bulk input modal
+              if (!medicalFacility?.maBenhVien) {
+                apiUpdateData.noi_dang_ky_kcb = directSearchResult.data.noiDangKyKCB || undefined;
+                apiUpdateData.tinh_kcb = directSearchResult.data.tinhKCB || undefined;
+                apiUpdateData.ma_benh_vien = directSearchResult.data.maBenhVien || undefined;
+              }
+
+              // Clean undefined values but preserve important fields that were set in initial save
+              Object.keys(apiUpdateData).forEach(key => {
+                if (apiUpdateData[key] === undefined || apiUpdateData[key] === '') {
+                  delete apiUpdateData[key];
+                }
+              });
+
+              await keKhaiService.updateNguoiThamGia(parseInt(id), apiUpdateData);
+
+              // Calculate card validity dates after API update (need denNgayTheCu from API)
+              const participantIndex = savedParticipants.findIndex(p => p.id === id);
+              if (participantIndex !== -1) {
+                const soThangDongValue = soThangDong; // Use the parameter from function scope
+                const ngayBienLai = new Date().toISOString().split('T')[0]; // Today's date
+                const denNgayTheCu = directSearchResult.data.denNgayTheCu || '';
+
+                if (soThangDongValue && ngayBienLai) {
+                  const cardValidity = calculateKeKhai603CardValidity(soThangDongValue, denNgayTheCu, ngayBienLai);
+
+                  // Update card validity dates
+                  const cardUpdateData = {
+                    tu_ngay_the_moi: cardValidity.tuNgay,
+                    den_ngay_the_moi: cardValidity.denNgay,
+                    ngay_bien_lai: ngayBienLai
+                  };
+
+                  await keKhaiService.updateNguoiThamGia(parseInt(id), cardUpdateData);
+                }
+              }
+
+                console.log(`✅ Successfully updated participant ${id} (${bhxhCode}) - participant ${globalIndex + 1} with API data:`, {
+                  updateResult: true,
+                  resultData: apiUpdateData
+                });
+
+                // Add post-success delay to give server time to process
+                const postSuccessDelay = 500; // 500ms after successful API call
+                console.log(`⏳ Post-success delay: ${postSuccessDelay}ms to allow server processing`);
+                await new Promise(resolve => setTimeout(resolve, postSuccessDelay));
+
+                consecutiveFailures = 0; // Reset failure counter on success
+                return { success: true, bhxhCode };
+              } else {
+                // If this is not the last attempt, continue to next attempt
+                if (attempt < maxRetries) {
+                  const retryDelay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+                  console.log(`⚠️ API call failed for ${bhxhCode} (participant ${globalIndex + 1}, attempt ${attempt}/${maxRetries}). Retrying in ${retryDelay}ms...`);
+                  console.log(`📊 Failed response:`, {
+                    success: directSearchResult.success,
+                    message: directSearchResult.message,
+                    hasData: directSearchResult.data ? true : false
+                  });
+
+                  // Force token refresh before retry for persistent failures
+                  if (attempt >= 2) {
+                    console.log(`🔄 Forcing token refresh before retry attempt ${attempt + 1} for ${bhxhCode}`);
+                    await vnpostTokenService.forceRefresh();
+                  }
+
+                  await new Promise(resolve => setTimeout(resolve, retryDelay));
+                  continue; // Continue to next attempt
+                } else {
+                  // Last attempt failed
+                  console.log(`❌ All retry attempts failed for ${bhxhCode} (participant ${globalIndex + 1})`);
+                  console.log(`📊 Final failure details:`, {
+                    bhxhCode,
+                    participantId: id,
+                    attempts: maxRetries,
+                    lastError: directSearchResult.message,
+                    tokenStatus: vnpostTokenService.getTokenStatus()
+                  });
+                  consecutiveFailures++;
+                  return { success: false, bhxhCode, error: directSearchResult.message };
+                }
+              }
+            } catch (error) {
+              // If this is not the last attempt, continue to next attempt
+              if (attempt < maxRetries) {
+                const retryDelay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+                console.log(`⚠️ API call error for ${bhxhCode} (participant ${globalIndex + 1}, attempt ${attempt}/${maxRetries}). Retrying in ${retryDelay}ms...`);
+                console.log(`📊 Error details:`, error);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                continue; // Continue to next attempt
+              } else {
+                // Last attempt failed
+                console.log(`❌ All retry attempts failed for ${bhxhCode} (participant ${globalIndex + 1}) due to error:`, error);
+                consecutiveFailures++;
+                return {
+                  success: false,
+                  bhxhCode,
+                  error: error instanceof Error ? error.message : 'Lỗi không xác định'
                 };
-
-                await keKhaiService.updateNguoiThamGia(parseInt(id), cardUpdateData);
-                console.log(`📅 Updated card validity for participant ${id}: ${cardValidity.tuNgay} to ${cardValidity.denNgay}`);
               }
             }
-
-            return { success: true, bhxhCode };
-          } else {
-            return { success: false, bhxhCode, error: directSearchResult.message };
           }
-        } catch (error) {
-          return {
-            success: false,
-            bhxhCode,
-            error: error instanceof Error ? error.message : 'Lỗi không xác định'
-          };
+
+          // This should never be reached, but just in case
+          return { success: false, bhxhCode, error: 'Unexpected error in retry loop' };
+        });
+
+        // Wait for batch to complete
+        const batchResults = await Promise.allSettled(batchPromises);
+        allResults.push(...batchResults);
+
+        // Check if we should open circuit breaker
+        const batchFailures = batchResults.filter(r =>
+          r.status === 'fulfilled' && !r.value?.success
+        ).length;
+
+        const batchSuccesses = batchResults.filter(r =>
+          r.status === 'fulfilled' && r.value?.success
+        ).length;
+
+        console.log(`📊 Batch ${batchIndex + 1} results: ${batchSuccesses} successes, ${batchFailures} failures`);
+
+        if (batchFailures === batch.length && consecutiveFailures >= 3) {
+          console.log(`🚫 Opening circuit breaker after ${consecutiveFailures} consecutive failures`);
+          circuitBreakerOpen = true;
+        } else if (batchSuccesses > 0) {
+          // Reset consecutive failures if we have any successes
+          consecutiveFailures = Math.max(0, consecutiveFailures - batchSuccesses);
+          console.log(`✅ Batch had successes, reducing consecutive failures to ${consecutiveFailures}`);
         }
-      });
+      }
 
       // Wait for all API lookups to complete
-      const apiResults = await Promise.allSettled(apiPromises);
+      const apiResults = allResults;
 
       // Count API successes and failures
       let apiSuccessCount = 0;
       let apiErrorCount = 0;
 
-      apiResults.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value.success) {
+      console.log(`📋 Processing API results: ${apiResults.length} total`);
+
+      apiResults.forEach((result: any, index: number) => {
+        console.log(`📋 Processing API result ${index + 1}/${apiResults.length} for ${savedParticipants[index]?.bhxhCode || 'Unknown'} (ID: ${savedParticipants[index]?.id || 'Unknown'}):`, {
+          status: result.status,
+          success: result.status === 'fulfilled' ? result.value?.success : undefined,
+          error: result.status === 'fulfilled' ? result.value?.error : 'Promise rejected'
+        });
+
+        if (result.status === 'fulfilled' && result.value?.success) {
           apiSuccessCount++;
+          console.log(`✅ API lookup successful for participant ${index + 1}: ${savedParticipants[index]?.bhxhCode || 'Unknown'} (ID: ${savedParticipants[index]?.id || 'Unknown'})`);
         } else {
           apiErrorCount++;
           const bhxhCode = savedParticipants[index]?.bhxhCode || 'Unknown';
-          const errorMsg = result.status === 'fulfilled' ? result.value.error : 'Promise rejected';
-          errors.push({ code: bhxhCode, error: `API lookup failed: ${errorMsg}` });
+          const errorMsg = result.status === 'fulfilled' ? (result.value?.error || 'Unknown error') : 'Promise rejected';
+          console.log(`❌ API lookup failed for participant ${index + 1}: ${bhxhCode} (ID: ${savedParticipants[index]?.id || 'Unknown'}): ${errorMsg}`);
+          errors.push({ code: bhxhCode, error: errorMsg });
         }
       });
 
-      console.log(`🔍 API lookup completed: ${apiSuccessCount} success, ${apiErrorCount} errors`);
+      console.log(`📊 Final API lookup summary: {total: ${apiResults.length}, successful: ${apiSuccessCount}, failed: ${apiErrorCount}, savedParticipants: ${savedParticipants.length}, errors: ${errors.length}}`);
 
       // Final refresh to ensure all data is up to date
-      console.log(`🔄 Final refresh of participants list...`);
+      console.log(`🔄 Reloading participants after API updates...`);
+      await loadParticipants();
+      console.log(`✅ Participants reloaded successfully: {count: ${participants.length}, participants: ${participants.map(p => p.hoTen || 'Unknown').slice(0, 3)}}`);
+
+      // Final refresh to ensure all data is up to date
       await loadParticipants();
 
-      // Show final result
-      if (errorCount === 0) {
-        console.log(`🏠 Household bulk input completed successfully: ${successCount} participants added with API lookup`);
+      // Show final result with detailed information
+      if (errorCount === 0 && apiErrorCount === 0) {
         showToast(`Đã thêm thành công ${successCount} người vào hộ gia đình và tra cứu thông tin từ API!`, 'success');
+      } else if (errorCount === 0 && apiErrorCount > 0) {
+        const failedCodes = errors.map(e => e.code).join(', ');
+        showToast(`Đã thêm thành công ${successCount} người. Tuy nhiên, ${apiErrorCount} người không tra cứu được thông tin từ API (${failedCodes}). Bạn có thể tra cứu thủ công sau.`, 'warning');
       } else {
-        console.log(`🏠 Household bulk input completed with errors: ${successCount} success, ${errorCount} errors`);
-        showToast(`Đã thêm ${successCount} người thành công, ${errorCount} người lỗi. Thông tin đã được tra cứu từ API.`, 'warning');
+        const failedCodes = errors.map(e => e.code).join(', ');
+        showToast(`Đã thêm ${successCount} người thành công, ${errorCount} người lỗi (${failedCodes}). Vui lòng kiểm tra lại.`, 'warning');
       }
     } catch (error) {
       console.error('Household bulk add error:', error);
       showToast('Có lỗi xảy ra khi thêm hộ gia đình. Vui lòng thử lại.', 'error');
+    } finally {
+      setHouseholdProcessing(false);
+      setHouseholdProgress(null);
     }
   };
 
@@ -1060,7 +1210,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
   // Handle save all data (now redirects to combined save)
   const handleSaveAll = async () => {
-    console.log('🚀 handleSaveAll triggered - redirecting to handleCombinedSave');
     await handleCombinedSave();
   };
 
@@ -1114,8 +1263,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
     setSubmittingWithPayment(true);
     try {
-      console.log('🚀 Starting unified submit with payment process...');
-
       // Use the new unified service method
       const result = await keKhaiService.submitKeKhaiWithPayment(
         keKhaiInfo.id,
@@ -1129,8 +1276,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       if (!result.payment) {
         throw new Error('Payment creation failed');
       }
-
-      console.log('✅ Unified submit with payment completed:', result);
 
       // Store payment info for QR modal
       setSelectedPayment(result.payment);
@@ -1146,14 +1291,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       // Show success message
       showToast(result.message, 'success');
 
-      // Log completion
-      console.log('💰 Payment creation process completed successfully');
-      console.log('📊 Summary:', {
-        keKhaiId: keKhaiInfo.id,
-        paymentId: result.payment.id,
-        participantsCount: participants.length
-      });
-
     } catch (error) {
       console.error('❌ Submit with payment error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi nộp kê khai và tạo thanh toán. Vui lòng thử lại.';
@@ -1165,14 +1302,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
   // Handle combined save: Save participant + Save all data
   const handleCombinedSave = async () => {
-    console.log('🚀 handleCombinedSave called - Combined save function');
-    console.log('🔍 DEBUG: keKhaiInfo:', keKhaiInfo);
-    console.log('🔍 DEBUG: formData:', formData);
-    console.log('🔍 DEBUG: participants length before save:', participants.length);
-
     // Check if keKhaiInfo is available
     if (!keKhaiInfo) {
-      console.log('❌ No keKhaiInfo available');
       showToast('Chưa có thông tin kê khai. Vui lòng tạo kê khai mới từ trang chính.', 'error');
       return;
     }
@@ -1184,68 +1315,38 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       const hasParticipantData = formData.maSoBHXH.trim() && formData.hoTen.trim() && formData.noiDangKyKCB.trim();
 
       if (hasParticipantData) {
-        console.log('📋 Step 1: Saving new participant from form data...');
-
         const participantResult = await saveParticipantFromForm(formData);
-        console.log('📊 saveParticipantFromForm result:', participantResult);
 
         if (participantResult.success) {
-          console.log('✅ Participant saved successfully:', participantResult);
           showToast(participantResult.message, 'success');
 
           // Only refresh if it was a new participant (not editing)
           if (!formData.editingParticipantId) {
-            console.log('🔄 Refreshing participants list for new participant...');
             await loadParticipants();
-          } else {
-            console.log('ℹ️ Skipping refresh for edit operation - local state already updated');
           }
 
           // Reset the form for next entry
-          console.log('🔄 Resetting form after successful save...');
-          console.log('🔍 DEBUG: Form data before reset:', {
-            maSoBHXH: formData.maSoBHXH,
-            hoTen: formData.hoTen,
-            editingParticipantId: formData.editingParticipantId
-          });
           resetForm();
-
-          // Verify reset worked
-          setTimeout(() => {
-            console.log('🔍 DEBUG: Form data after reset (async check):', {
-              maSoBHXH: formData.maSoBHXH,
-              hoTen: formData.hoTen,
-              editingParticipantId: formData.editingParticipantId
-            });
-          }, 100);
         } else {
-          console.log('❌ Participant save failed:', participantResult);
           showToast(participantResult.message, 'error');
           return; // Don't proceed to save all if participant save failed
         }
-      } else {
-        console.log('ℹ️ No participant data to save, proceeding to save declaration only');
       }
 
       // Step 2: Save all data (declaration + existing participants)
       // Skip this step if we just edited a participant to avoid overwriting the update
       if (!formData.editingParticipantId) {
-        console.log('📋 Step 2: Saving all data (declaration + participants)...');
         const saveAllResult = await saveAllParticipants(participants, formData);
-        console.log('📊 saveAllParticipants result:', saveAllResult);
 
         if (saveAllResult.success) {
-          console.log('✅ All data saved successfully');
           showToast(saveAllResult.message, 'success');
 
           // Final refresh to ensure everything is up to date
           await loadParticipants();
         } else {
-          console.log('❌ Save all failed:', saveAllResult);
           showToast(saveAllResult.message, 'error');
         }
       } else {
-        console.log('ℹ️ Skipping Step 2 for edit operation - participant already updated');
         showToast('Đã cập nhật thành công thông tin người tham gia!', 'success');
       }
 
@@ -1254,8 +1355,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       showToast('Có lỗi xảy ra khi lưu dữ liệu. Vui lòng thử lại.', 'error');
     } finally {
       setSavingParticipant(false);
-      console.log('🔄 Combined save process finished');
-      console.log('🔍 DEBUG: Final participants length:', participants.length);
     }
   };
 
@@ -1286,7 +1385,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       return;
     }
 
-    console.log('🔄 Loading participant data to form for editing:', participant);
+
 
     // Load participant data to form using the dedicated function
     loadParticipantData(participant);
@@ -1372,12 +1471,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
         return;
       }
 
-      console.log('🚀 Creating new declaration and submitting with payment:', {
-        originalKeKhaiId: keKhaiInfo.id,
-        participantIds,
-        participantNames
-      });
-
       // Step 1: Create new declaration and move participants
       const result = await keKhaiService.createDeclarationAndMoveParticipants(
         keKhaiInfo.id,
@@ -1385,8 +1478,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
         user.id,
         notes || `Tách từ kê khai ${keKhaiInfo.ma_ke_khai} - ${indices.length} người tham gia`
       );
-
-      console.log('✅ New declaration created successfully:', result);
 
       // Step 2: Calculate total amount for payment
       const totalAmount = selectedParticipants.reduce((sum, participant) => {
@@ -1399,8 +1490,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       }
 
       // Step 3: Submit participants immediately (since we're already after payment confirmation)
-      console.log('🚀 Submitting participants in new declaration after payment confirmation...');
-
       for (const participant of result.movedParticipants) {
         try {
           await keKhaiService.submitIndividualParticipant(
@@ -1408,7 +1497,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
             user.id,
             notes || 'Nộp sau xác nhận thanh toán'
           );
-          console.log(`✅ Submitted participant ${participant.id} in new declaration`);
         } catch (error) {
           console.error(`❌ Failed to submit participant ${participant.id}:`, error);
         }
@@ -1441,10 +1529,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
     try {
       // Step 1: Get selected participants for payment calculation (don't create new declaration yet)
-      console.log('🚀 Step 1: Preparing bulk payment for participants...', {
-        count: pendingBulkSubmitIndices.length,
-        indices: pendingBulkSubmitIndices
-      });
 
       const selectedParticipants = pendingBulkSubmitIndices.map(index => participants[index]).filter(Boolean);
 
@@ -1464,11 +1548,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
       }
 
       // Step 3: Create payment first (new declaration will be created after payment confirmation)
-      console.log('🚀 Step 2: Creating bulk payment...', {
-        totalAmount,
-        participantCount: selectedParticipants.length
-      });
-
       const payment = await paymentService.createPayment({
         ke_khai_id: keKhaiInfo.id,
         so_tien: totalAmount,
@@ -1476,8 +1555,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
         payment_description: `Thanh toán hàng loạt ${selectedParticipants.length} người tham gia - Kê khai ${keKhaiInfo.ma_ke_khai}`,
         created_by: user.id
       });
-
-      console.log('✅ Bulk payment created successfully:', payment);
 
       // Step 4: Store notes for later use when creating new declaration
       setPendingBulkSubmitNotes(notes || `Tách từ kê khai ${keKhaiInfo.ma_ke_khai} - ${pendingBulkSubmitIndices.length} người tham gia`);
@@ -1567,12 +1644,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
     setSubmittingParticipantWithPayment(participant.id);
     try {
       // Step 1: Submit individual participant
-      console.log('🚀 Step 1: Submitting individual participant...', {
-        participantId: participant.id,
-        participantName: participant.hoTen,
-        paymentAmount
-      });
-
       const submitResult = await submitIndividualParticipant(index, notes);
       if (!submitResult.success) {
         console.error('❌ Submit participant failed:', submitResult.message);
@@ -1580,11 +1651,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
         return;
       }
 
-      console.log('✅ Step 1 completed: Participant submitted successfully');
-
       // Step 2: Create payment for this participant
-      console.log('🚀 Step 2: Creating payment for individual participant...');
-
       const payment = await paymentService.createPayment({
         ke_khai_id: keKhaiInfo.id,
         so_tien: paymentAmount,
@@ -1592,8 +1659,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
         payment_description: `Thanh toán cho ${participant.hoTen} (${participant.maSoBHXH})`,
         created_by: user.id
       });
-
-      console.log('✅ Payment created successfully for individual participant:', payment);
 
       // Step 3: Update participant payment_id in database
       try {
@@ -1608,8 +1673,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
         if (updateError) {
           console.error('Error updating participant payment_id:', updateError);
-        } else {
-          console.log('✅ Updated participant payment_id in database');
         }
       } catch (error) {
         console.error('Error updating participant payment_id:', error);
@@ -1655,12 +1718,9 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
   // Handle payment confirmed
   const handlePaymentConfirmed = async () => {
-    console.log('🎉 Payment confirmed! Now submitting declaration...');
-
     try {
       // Check if this is a bulk submit (has pending bulk submit indices)
       if (pendingBulkSubmitIndices.length > 0) {
-        console.log('🚀 Creating new declaration and moving participants after payment confirmation:', pendingBulkSubmitIndices);
 
         // Now create new declaration and move participants after payment confirmation
         await handleCreateNewDeclarationAndSubmitWithPayment(
@@ -1676,8 +1736,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
       } else if (movedParticipantsForSubmission.length > 0) {
         // Submit moved participants in new declaration
-        console.log('🚀 Submitting moved participants after payment confirmation:', movedParticipantsForSubmission);
-
         let successCount = 0;
         let errorCount = 0;
 
@@ -1688,7 +1746,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
               user?.id || '',
               'Nộp sau xác nhận thanh toán'
             );
-            console.log(`✅ Submitted moved participant ${participant.id} in new declaration`);
             successCount++;
           } catch (error) {
             console.error(`❌ Failed to submit moved participant ${participant.id}:`, error);
@@ -1709,7 +1766,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
         // Regular submit with payment - the keKhaiService.confirmPayment()
         // already handled updating participant status to 'submitted' and
         // ke khai status to 'processing'. No additional action needed.
-        console.log('✅ Regular submit completed - status updates handled by confirmPayment service');
         showToast('Thanh toán và nộp kê khai thành công! Trạng thái đã được cập nhật.', 'success');
       }
     } catch (error) {
@@ -1732,6 +1788,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
     soThangDong: string;
     maBenhVien?: string;
     tenBenhVien?: string;
+    maTinh?: string;
   }) => {
     if (!handleHouseholdBulkAddNew) return;
 
@@ -1780,6 +1837,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
           onHouseholdBulkInput={() => setShowHouseholdBulkInputModal(true)}
           householdProcessing={householdProcessing}
           participantCount={participants.length}
+          maxParticipants={50} // Set reasonable limit
+          hasUnsavedChanges={false} // TODO: Implement unsaved changes tracking
         />
 
 
@@ -2324,12 +2383,6 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
       {/* Payment QR Modal */}
       {(() => {
-        console.log('🔍 PaymentQRModal render check:', {
-          showPaymentModal,
-          hasSelectedPayment: !!selectedPayment,
-          selectedPaymentId: selectedPayment?.id,
-          shouldRender: showPaymentModal && selectedPayment
-        });
         return showPaymentModal && selectedPayment ? (
           <PaymentQRModal
             payment={selectedPayment}

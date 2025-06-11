@@ -170,24 +170,11 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
 
   // Helper function to calculate and display payment amount
   const getDisplayedPaymentAmount = (participant: KeKhai603Participant): string => {
-    // Debug logging for troubleshooting
-    const debugInfo = {
-      id: participant.id,
-      hoTen: participant.hoTen,
-      tienDongThucTe: participant.tienDongThucTe,
-      tienDong: participant.tienDong,
-      sttHo: participant.sttHo,
-      soThangDong: participant.soThangDong,
-      mucLuong: participant.mucLuong
-    };
-
     // First, try to use pre-calculated values from database
     if (participant.tienDongThucTe && participant.tienDongThucTe > 0) {
-      console.log(`💰 Using tienDongThucTe for ${participant.hoTen}:`, participant.tienDongThucTe);
       return formatCurrency(participant.tienDongThucTe);
     }
     if (participant.tienDong && participant.tienDong > 0) {
-      console.log(`💰 Using tienDong for ${participant.hoTen}:`, participant.tienDong);
       return formatCurrency(participant.tienDong);
     }
 
@@ -195,13 +182,6 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
     if (participant.sttHo && participant.soThangDong) {
       const mucLuongNumber = participant.mucLuong ?
         parseFloat(participant.mucLuong.replace(/[.,]/g, '')) : 2340000;
-
-      console.log(`🔄 Calculating on-the-fly for ${participant.hoTen}:`, {
-        sttHo: participant.sttHo,
-        soThangDong: participant.soThangDong,
-        mucLuongNumber,
-        doiTuongThamGia
-      });
 
       // Calculate using the actual formula (prioritize tienDongThucTe for display)
       const calculatedAmount = calculateKeKhai603AmountThucTe(
@@ -211,15 +191,11 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
         doiTuongThamGia
       );
 
-      console.log(`✅ Calculated amount for ${participant.hoTen}:`, calculatedAmount);
-
       if (calculatedAmount > 0) {
         return formatCurrency(calculatedAmount);
       }
     }
 
-    // Log when no calculation is possible
-    console.log(`⚠️ No payment amount available for ${participant.hoTen}:`, debugInfo);
     return '';
   };
 

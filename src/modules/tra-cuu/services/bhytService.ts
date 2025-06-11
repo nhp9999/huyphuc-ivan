@@ -132,13 +132,11 @@ export class BhytService {
   // Kiểm tra dữ liệu kê khai có hợp lệ không
   protected isValidDeclarationData(data: any): boolean {
     if (!data) {
-      console.log('Declaration data validation failed: No data');
       return false;
     }
 
     // Kiểm tra họ tên - trường bắt buộc
     if (data.hoTen === null || data.hoTen === undefined || data.hoTen === '') {
-      console.log('Declaration data validation failed: hoTen is null/empty', data.hoTen);
       return false;
     }
 
@@ -148,13 +146,11 @@ export class BhytService {
       data.moTa.toLowerCase().includes('không tìm thấy') ||
       data.moTa.toLowerCase().includes('không tồn tại')
     )) {
-      console.log('Card status warning:', data.moTa, '- but personal info may still be valid');
       // Không return false - vẫn cho phép sử dụng thông tin cá nhân
     }
 
     // Kiểm tra typeId - nếu là "GT" (Guest/Không tìm thấy) thì không hợp lệ
     if (data.typeId === 'GT') {
-      console.log('Declaration data validation failed: typeId is GT (not found)', data.typeId);
       return false;
     }
 
@@ -167,24 +163,9 @@ export class BhytService {
     );
 
     if (!hasIdentification) {
-      console.log('Declaration data validation failed: No valid identification found', {
-        maSoBHXH: data.maSoBHXH,
-        cmnd: data.cmnd,
-        soTheBHYT: data.soTheBHYT,
-        maHoGiaDinh: data.maHoGiaDinh
-      });
       return false;
     }
 
-    console.log('Declaration data validation passed', {
-      hoTen: data.hoTen,
-      maSoBHXH: data.maSoBHXH,
-      cmnd: data.cmnd,
-      soTheBHYT: data.soTheBHYT,
-      maHoGiaDinh: data.maHoGiaDinh,
-      typeId: data.typeId,
-      moTa: data.moTa
-    });
     return true;
   }
 
