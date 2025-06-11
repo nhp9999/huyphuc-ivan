@@ -44,6 +44,7 @@ import { useNavigation } from '../../../core/contexts/NavigationContext';
 import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import KeKhaiApprovalModal from '../components/KeKhaiApprovalModal';
 import PaymentQRModal from '../components/PaymentQRModal';
+import BhxhCheckButton from '../components/BhxhCheckButton';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 import paymentService from '../services/paymentService';
 
@@ -90,6 +91,7 @@ const HoSoChuaXuLy: React.FC = () => {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
+
   const [selectedKeKhai, setSelectedKeKhai] = useState<DanhSachKeKhai | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
   const [submittedParticipants, setSubmittedParticipants] = useState<UnprocessedParticipant[]>([]);
@@ -1242,14 +1244,18 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
           </p>
         </div>
 
-        <button
-          onClick={loadUnprocessedParticipantsData}
-          disabled={loading}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Làm mới
-        </button>
+        <div className="flex items-center space-x-3">
+          <BhxhCheckButton className="rounded-lg" />
+
+          <button
+            onClick={loadUnprocessedParticipantsData}
+            disabled={loading}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Làm mới
+          </button>
+        </div>
       </div>
 
       {/* Advanced Filters */}
@@ -1969,6 +1975,8 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
           onSuccess={handleApprovalSuccess}
         />
       )}
+
+
 
       {showPaymentModal && selectedPayment && (
         <PaymentQRModal

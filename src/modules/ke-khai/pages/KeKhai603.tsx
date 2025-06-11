@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import DaiLyDonViSelector from '../components/DaiLyDonViSelector';
 import PaymentQRModal from '../components/PaymentQRModal';
+import BhxhCheckButton from '../components/BhxhCheckButton';
 import { useToast } from '../../../shared/hooks/useToast';
 import { exportD03TK1VNPTExcel } from '../../../shared/utils/excelExport';
 import { ContextMenu, ContextMenuItem } from '../../../shared/components/ui/ContextMenu';
@@ -81,6 +82,8 @@ const KeKhai603: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
   const [creatingPayment, setCreatingPayment] = useState<number | null>(null);
+
+
 
   // State cho export Excel
   const [exportingExcel, setExportingExcel] = useState<number | null>(null);
@@ -1637,6 +1640,9 @@ const KeKhai603: React.FC = () => {
                 Danh sách người tham gia
               </h3>
 
+              {/* BHXH Check Button */}
+              <BhxhCheckButton size="sm" className="rounded-md" />
+
               {/* Page Size Selector */}
               <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -2157,6 +2163,12 @@ const KeKhai603: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* BHXH Check Modal */}
+      <BhxhCheckModal
+        isOpen={showBhxhCheckModal}
+        onClose={() => setShowBhxhCheckModal(false)}
+      />
 
     </div>
   );

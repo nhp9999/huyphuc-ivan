@@ -1886,6 +1886,91 @@ class KeKhaiService {
     }
   }
 
+  // Kiểm tra mã BHXH đã tồn tại trong hệ thống
+  async checkBhxhCodeExists(maSoBhxh: string, userId?: string): Promise<{
+    exists: boolean;
+    participant?: DanhSachNguoiThamGia;
+    keKhai?: DanhSachKeKhai;
+  }> {
+    try {
+      let query = supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select(`
+          *,
+          ke_khai:danh_sach_ke_khai(*)
+        `)
+        .eq('ma_so_bhxh', maSoBhxh);
+
+      // Nếu có userId, chỉ kiểm tra trong các kê khai của user đó
+      if (userId) {
+        query = query.eq('ke_khai.created_by', userId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error checking BHXH code:', error);
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        const participant = data[0];
+        return {
+          exists: true,
+          participant,
+          keKhai: participant.ke_khai
+        };
+      }
+
+      return { exists: false };
+    } catch (error) {
+      console.error('Error in checkBhxhCodeExists:', error);
+      throw error;
+    }
+  }
+
+  // Kiểm tra nhiều mã BHXH cùng lúc
+  async checkMultipleBhxhCodes(maSoBhxhList: string[], userId?: string): Promise<{
+    results: Array<{
+      maSoBhxh: string;
+      exists: boolean;
+      participant?: DanhSachNguoiThamGia;
+      keKhai?: DanhSachKeKhai;
+    }>;
+    existingCount: number;
+    newCount: number;
+  }> {
+    try {
+      const results = [];
+      let existingCount = 0;
+      let newCount = 0;
+
+      for (const maSoBhxh of maSoBhxhList) {
+        const checkResult = await this.checkBhxhCodeExists(maSoBhxh, userId);
+
+        results.push({
+          maSoBhxh,
+          ...checkResult
+        });
+
+        if (checkResult.exists) {
+          existingCount++;
+        } else {
+          newCount++;
+        }
+      }
+
+      return {
+        results,
+        existingCount,
+        newCount
+      };
+    } catch (error) {
+      console.error('Error in checkMultipleBhxhCodes:', error);
+      throw error;
+    }
+  }
+
   // Kiểm tra quyền admin của user
   async isUserAdmin(userId: string): Promise<boolean> {
     try {
