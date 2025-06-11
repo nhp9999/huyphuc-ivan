@@ -122,6 +122,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
   // Get keKhaiInfo first
   const {
     keKhaiInfo,
+    setKeKhaiInfo,
     saving,
     submitting,
     initializeKeKhai,
@@ -1111,89 +1112,52 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
   const executeSubmitWithPayment = async () => {
     if (!keKhaiInfo || !user?.id) return;
 
-    // Calculate total amount
-    const totalAmount = participants.reduce((sum, participant) => {
-      return sum + (participant.tienDong || participant.tienDongThucTe || 0);
-    }, 0);
-
     setSubmittingWithPayment(true);
     try {
-      // Step 1: Create payment first (without submitting declaration)
-      console.log('🚀 Step 1: Creating payment...', {
-        keKhaiId: keKhaiInfo.id,
-        totalAmount,
-        participantsCount: participants.length,
-        userId: user?.id
-      });
+      console.log('🚀 Starting unified submit with payment process...');
 
-      const paymentData = {
-        ke_khai_id: keKhaiInfo.id,
-        so_tien: totalAmount,
-        phuong_thuc_thanh_toan: 'bank_transfer',
-        payment_description: `Thanh toán kê khai ${keKhaiInfo.ma_ke_khai} - ${participants.length} người tham gia`,
-        created_by: user?.id
-      };
+      // Use the new unified service method
+      const result = await keKhaiService.submitKeKhaiWithPayment(
+        keKhaiInfo.id,
+        user.id
+      );
 
-      console.log('📝 Payment data to be sent:', paymentData);
-
-      const payment = await paymentService.createPayment(paymentData);
-
-      if (!payment) {
-        throw new Error('Payment creation returned null/undefined');
+      if (!result.success) {
+        throw new Error(result.message);
       }
 
-      if (!payment.id) {
-        throw new Error('Payment created but missing ID');
+      if (!result.payment) {
+        throw new Error('Payment creation failed');
       }
 
-      console.log('✅ Payment created successfully:', payment);
-      console.log('💳 Payment details:', {
-        id: payment.id,
-        ma_thanh_toan: payment.ma_thanh_toan,
-        so_tien: payment.so_tien,
-        qr_code_url: payment.qr_code_url
-      });
+      console.log('✅ Unified submit with payment completed:', result);
 
-      // Store payment info for later submission after payment confirmation
-      setSelectedPayment(payment);
+      // Store payment info for QR modal
+      setSelectedPayment(result.payment);
 
-      // Step 2: Show payment QR modal immediately (submission will happen after payment confirmation)
-      console.log('🔄 Setting payment modal state...');
+      // Update local keKhai info if updated
+      if (result.keKhai) {
+        setKeKhaiInfo(result.keKhai);
+      }
+
+      // Show payment QR modal
       setShowPaymentModal(true);
 
-      // Debug modal state and add fallback
-      setTimeout(() => {
-        console.log('🔍 Modal state check:', {
-          showPaymentModal: true, // Should be true
-          selectedPayment: !!payment,
-          paymentId: payment?.id
-        });
+      // Show success message
+      showToast(result.message, 'success');
 
-        // Fallback: If modal still not showing after 1 second, force show it
-        if (!document.querySelector('[data-payment-modal]')) {
-          console.log('⚠️ Modal not found in DOM, forcing re-render...');
-          setShowPaymentModal(false);
-          setTimeout(() => {
-            setSelectedPayment(payment);
-            setShowPaymentModal(true);
-          }, 50);
-        }
-      }, 1000);
-
-      showToast(`Đã tạo thanh toán thành công! Tổng tiền: ${totalAmount.toLocaleString('vi-VN')} ₫. Vui lòng xác nhận thanh toán để hoàn tất nộp kê khai.`, 'success');
-
-      // Also show alert with payment info for debugging
-      setTimeout(() => {
-        if (payment.qr_code_url) {
-          console.log('✅ Payment QR URL available:', payment.qr_code_url);
-        } else {
-          console.log('⚠️ Payment QR URL missing!');
-        }
-      }, 500);
+      // Log completion
+      console.log('💰 Payment creation process completed successfully');
+      console.log('📊 Summary:', {
+        keKhaiId: keKhaiInfo.id,
+        paymentId: result.payment.id,
+        participantsCount: participants.length
+      });
 
     } catch (error) {
-      console.error('Submit with payment error:', error);
-      showToast('Có lỗi xảy ra khi nộp kê khai và tạo thanh toán. Vui lòng thử lại.', 'error');
+      console.error('❌ Submit with payment error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi nộp kê khai và tạo thanh toán. Vui lòng thử lại.';
+      showToast(errorMessage, 'error');
     } finally {
       setSubmittingWithPayment(false);
     }
@@ -1742,13 +1706,11 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
           showToast(`Có ${errorCount} người tham gia không thể nộp. Vui lòng kiểm tra lại.`, 'warning');
         }
       } else {
-        // Single submit - submit entire declaration
-        const submitResult = await submitDeclaration();
-        if (!submitResult.success) {
-          showToast(`Thanh toán thành công nhưng có lỗi khi nộp kê khai: ${submitResult.message}`, 'warning');
-        } else {
-          showToast('Thanh toán và nộp kê khai thành công!', 'success');
-        }
+        // Regular submit with payment - the keKhaiService.confirmPayment()
+        // already handled updating participant status to 'submitted' and
+        // ke khai status to 'processing'. No additional action needed.
+        console.log('✅ Regular submit completed - status updates handled by confirmPayment service');
+        showToast('Thanh toán và nộp kê khai thành công! Trạng thái đã được cập nhật.', 'success');
       }
     } catch (error) {
       console.error('Error submitting after payment:', error);

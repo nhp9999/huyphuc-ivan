@@ -5,23 +5,36 @@ import {
   Eye,
   CheckCircle,
   XCircle,
+  Clock,
+  AlertCircle,
   Calendar,
   CreditCard,
   RefreshCw,
   Filter,
-  FileCheck,
-  DollarSign,
-  Image,
+  FileX,
   User,
   Users,
-  ChevronDown,
-  ChevronRight,
-  Building
+  Building,
+  MapPin,
+  Hash,
+  FileCheck,
+  Briefcase,
+  DollarSign,
+  Image
 } from 'lucide-react';
-import { DanhSachKeKhai, DanhSachNguoiThamGia, ThanhToan } from '../../../shared/services/api/supabaseClient';
+import {
+  DanhSachKeKhai,
+  DanhSachNguoiThamGia,
+  ThanhToan,
+  supabase,
+  VDonViChiTiet,
+  VDaiLyChiTiet,
+  VCoQuanBhxhChiTiet
+} from '../../../shared/services/api/supabaseClient';
 import keKhaiService, { KeKhaiSearchParams } from '../services/keKhaiService';
 
 import { useToast } from '../../../shared/hooks/useToast';
+import { useNavigation } from '../../../core/contexts/NavigationContext';
 import KeKhaiDetailModal from '../components/KeKhaiDetailModal';
 import PaymentQRModal from '../components/PaymentQRModal';
 import PaymentProofModal from '../components/PaymentProofModal';
@@ -37,6 +50,7 @@ interface ProcessedParticipant extends DanhSachNguoiThamGia {
 const HoSoDaXuLy: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { setCurrentPage: navigateToPage } = useNavigation();
 
   // State
   const [loading, setLoading] = useState(false);
@@ -47,14 +61,49 @@ const HoSoDaXuLy: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [itemsPerPage] = useState(20);
-  const [expandedDeclarations, setExpandedDeclarations] = useState<Set<number>>(new Set());
-  
+
+  // Advanced filter states
+  const [maDonVi, setMaDonVi] = useState('');
+  const [maTinh, setMaTinh] = useState('');
+  const [maHuyen, setMaHuyen] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [maBhxh, setMaBhxh] = useState('');
+  const [ketQua, setKetQua] = useState('all');
+  const [daiLyId, setDaiLyId] = useState('');
+  const [coQuanBhxhId, setCoQuanBhxhId] = useState('');
+  const [hinhThuc, setHinhThuc] = useState('all');
+  const [soHoSo, setSoHoSo] = useState('');
+
+  // Filter options data
+  const [donViList, setDonViList] = useState<VDonViChiTiet[]>([]);
+  const [tinhList, setTinhList] = useState<any[]>([]);
+  const [huyenList, setHuyenList] = useState<any[]>([]);
+  const [daiLyList, setDaiLyList] = useState<VDaiLyChiTiet[]>([]);
+  const [coQuanBhxhList, setCoQuanBhxhList] = useState<VCoQuanBhxhChiTiet[]>([]);
+
+  // Selection states
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
+
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showProofModal, setShowProofModal] = useState(false);
   const [selectedKeKhai, setSelectedKeKhai] = useState<DanhSachKeKhai | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
+
+  // Context menu states
+  const [contextMenu, setContextMenu] = useState<{
+    show: boolean;
+    x: number;
+    y: number;
+    participant: ProcessedParticipant | null;
+  }>({
+    show: false,
+    x: 0,
+    y: 0,
+    participant: null
+  });
 
   // Load processed participants data
   const loadProcessedParticipantsData = async () => {
@@ -68,10 +117,21 @@ const HoSoDaXuLy: React.FC = () => {
         pageSize: itemsPerPage,
         searchTerm,
         filterStatus,
-        filterPaymentStatus
+        filterPaymentStatus,
+        maDonVi,
+        maTinh,
+        maHuyen,
+        fromDate,
+        toDate,
+        maBhxh,
+        ketQua,
+        daiLyId,
+        coQuanBhxhId,
+        hinhThuc,
+        soHoSo
       });
 
-      // Load processed participants using the new service method
+      // Load processed participants using the new service method with advanced filters
       const result = await keKhaiService.getProcessedNguoiThamGiaWithPagination({
         userId: user.id,
         page: currentPage,
@@ -79,13 +139,30 @@ const HoSoDaXuLy: React.FC = () => {
         loaiKeKhai: '603', // Focus on KeKhai603
         searchTerm: searchTerm || undefined,
         participantStatus: filterStatus !== 'all' ? filterStatus : undefined,
-        paymentStatus: filterPaymentStatus !== 'all' ? filterPaymentStatus : undefined
+        paymentStatus: filterPaymentStatus !== 'all' ? filterPaymentStatus : undefined,
+        // Advanced filters
+        maDonVi: maDonVi || undefined,
+        maTinh: maTinh || undefined,
+        maHuyen: maHuyen || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+        maBhxh: maBhxh || undefined,
+        ketQua: ketQua !== 'all' ? ketQua : undefined,
+        daiLyId: daiLyId || undefined,
+        coQuanBhxhId: coQuanBhxhId || undefined,
+        hinhThuc: hinhThuc !== 'all' ? hinhThuc : undefined,
+        soHoSo: soHoSo || undefined
       });
 
       console.log('HoSoDaXuLy: Loaded processed participants:', result.data.length, 'of', result.total);
 
       setParticipantsList(result.data);
       setTotalParticipants(result.total);
+
+      // Log unique filter options for debugging
+      if (result.data.length > 0) {
+        getUniqueFilterOptions();
+      }
     } catch (error) {
       console.error('Error loading processed participants data:', error);
       showToast('Không thể tải danh sách người tham gia đã xử lý', 'error');
@@ -99,12 +176,89 @@ const HoSoDaXuLy: React.FC = () => {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus, filterPaymentStatus]);
+  }, [searchTerm, filterStatus, filterPaymentStatus, maDonVi, maTinh, maHuyen, fromDate, toDate, maBhxh, ketQua, daiLyId, coQuanBhxhId, hinhThuc, soHoSo]);
 
   // Load data on component mount and when filters change
   useEffect(() => {
     loadProcessedParticipantsData();
-  }, [user?.id, searchTerm, filterStatus, filterPaymentStatus, currentPage]);
+  }, [user?.id, searchTerm, filterStatus, filterPaymentStatus, currentPage, maDonVi, maTinh, maHuyen, fromDate, toDate, maBhxh, ketQua, daiLyId, coQuanBhxhId, hinhThuc, soHoSo]);
+
+  // Load filter options on component mount
+  useEffect(() => {
+    loadFilterOptions();
+  }, [user?.id]);
+
+  // Load filter options
+  const loadFilterOptions = async () => {
+    try {
+      // Load don vi list
+      const { data: donViData } = await supabase
+        .from('v_don_vi_chi_tiet')
+        .select('*')
+        .order('ma_don_vi');
+      if (donViData) setDonViList(donViData);
+
+      // Load tinh list
+      const { data: tinhData } = await supabase
+        .from('dm_tinh_thanh_pho')
+        .select('*')
+        .order('ma');
+      if (tinhData) setTinhList(tinhData);
+
+      // Load dai ly list
+      const { data: daiLyData } = await supabase
+        .from('v_dai_ly_chi_tiet')
+        .select('*')
+        .order('ma');
+      if (daiLyData) setDaiLyList(daiLyData);
+
+      // Load co quan BHXH list
+      const { data: coQuanData } = await supabase
+        .from('v_co_quan_bhxh_chi_tiet')
+        .select('*')
+        .order('ma_co_quan');
+      if (coQuanData) setCoQuanBhxhList(coQuanData);
+    } catch (error) {
+      console.error('Error loading filter options:', error);
+    }
+  };
+
+  // Load huyen list when tinh changes
+  useEffect(() => {
+    const loadHuyenList = async () => {
+      if (!maTinh) {
+        setHuyenList([]);
+        setMaHuyen('');
+        return;
+      }
+
+      try {
+        const { data: huyenData } = await supabase
+          .from('dm_quan_huyen')
+          .select('*')
+          .eq('ma_tinh', maTinh)
+          .order('ma');
+        if (huyenData) setHuyenList(huyenData);
+      } catch (error) {
+        console.error('Error loading huyen list:', error);
+      }
+    };
+
+    loadHuyenList();
+  }, [maTinh]);
+
+  // Get unique filter options for debugging
+  const getUniqueFilterOptions = () => {
+    const uniqueDonVi = [...new Set(participantsList.map(p => p.ke_khai.ma_don_vi).filter(Boolean))];
+    const uniqueTinh = [...new Set(participantsList.map(p => p.ke_khai.ma_tinh).filter(Boolean))];
+    const uniqueStatus = [...new Set(participantsList.map(p => p.participant_status).filter(Boolean))];
+
+    console.log('HoSoDaXuLy: Unique filter options:', {
+      donVi: uniqueDonVi,
+      tinh: uniqueTinh,
+      status: uniqueStatus
+    });
+  };
 
   // Listen for payment confirmation events to auto-reload data
   useEffect(() => {
@@ -193,13 +347,13 @@ const HoSoDaXuLy: React.FC = () => {
       case 'submitted':
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-            ✓ Đã nộp
+            ✓ Đã nộp lên công ty
           </span>
         );
       case 'processing':
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-            Đang xử lý
+            🔄 Đang xử lý
           </span>
         );
       case 'approved':
@@ -260,23 +414,128 @@ const HoSoDaXuLy: React.FC = () => {
     }
   };
 
-  // Toggle declaration expansion
-  const toggleDeclarationExpansion = (declarationId: number) => {
-    setExpandedDeclarations(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(declarationId)) {
-        newSet.delete(declarationId);
-      } else {
-        newSet.add(declarationId);
-      }
-      return newSet;
+  // Get processing unit based on participant data
+  const getProcessingUnit = (participant: ProcessedParticipant) => {
+    // Return processing unit based on ke khai or participant data
+    return participant.ke_khai.loai_ke_khai || '603';
+  };
+
+  // Get form type (online/offline)
+  const getFormType = (participant: ProcessedParticipant) => {
+    // All submissions through this system are online
+    return 'Qua web';
+  };
+
+  // Get BHXH submission date
+  const getBhxhSubmissionDate = (participant: ProcessedParticipant) => {
+    // Return BHXH submission date if available
+    return participant.ke_khai.approved_at ? formatDate(participant.ke_khai.approved_at) : '—';
+  };
+
+  // Get BHXH receipt date
+  const getBhxhReceiptDate = (participant: ProcessedParticipant) => {
+    // Return BHXH receipt date if available
+    return '—'; // Placeholder for now
+  };
+
+  // Get notification/result message
+  const getNotificationMessage = (participant: ProcessedParticipant) => {
+    // Return notification message based on status
+    if (participant.ke_khai.trang_thai === 'processing') {
+      return 'Đang xử lý';
+    }
+    if (participant.participant_status === 'approved') {
+      return 'Đã duyệt';
+    }
+    if (participant.participant_status === 'rejected') {
+      return 'Từ chối';
+    }
+    return '—';
+  };
+
+  // Handle context menu
+  const handleContextMenu = (e: React.MouseEvent, participant: ProcessedParticipant) => {
+    e.preventDefault();
+    setContextMenu({
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      participant
     });
   };
 
+  // Close context menu
+  const closeContextMenu = () => {
+    setContextMenu({
+      show: false,
+      x: 0,
+      y: 0,
+      participant: null
+    });
+  };
+
+  // Handle context menu actions
+  const handleContextMenuAction = (action: string, participant: ProcessedParticipant) => {
+    closeContextMenu();
+
+    switch (action) {
+      case 'view-participant':
+        handleViewParticipantDetails(participant);
+        break;
+      case 'view-kekhai':
+        // Navigate to the form page with the keKhaiId to view/edit
+        navigateToPage('ke-khai-603-form', {
+          declarationCode: '603',
+          declarationName: 'Đăng ký đóng BHYT đối với người chỉ tham gia BHYT',
+          keKhaiId: participant.ke_khai.id
+        });
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Handle participant selection
+  const handleParticipantSelect = (participantId: number, checked: boolean) => {
+    const newSelected = new Set(selectedParticipants);
+    if (checked) {
+      newSelected.add(participantId);
+    } else {
+      newSelected.delete(participantId);
+    }
+    setSelectedParticipants(newSelected);
+  };
+
+  // Handle select all
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = participantsList.map(p => p.id);
+      setSelectedParticipants(new Set(allIds));
+    } else {
+      setSelectedParticipants(new Set());
+    }
+  };
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.show) {
+        closeContextMenu();
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [contextMenu.show]);
+
   // Handle view details
   const handleViewDetails = (keKhai: DanhSachKeKhai) => {
-    setSelectedKeKhai(keKhai);
-    setShowDetailModal(true);
+    // Navigate to the form page with the keKhaiId to view/edit
+    navigateToPage('ke-khai-603-form', {
+      declarationCode: '603',
+      declarationName: 'Đăng ký đóng BHYT đối với người chỉ tham gia BHYT',
+      keKhaiId: keKhai.id
+    });
   };
 
   // Handle view participant details
@@ -381,58 +640,191 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Advanced Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên hoặc mã BHXH..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
+        <div className="space-y-4">
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Mã đơn vị */}
+            <div className="relative">
+              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={maDonVi}
+                onChange={(e) => setMaDonVi(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="">Mã đơn vị</option>
+                {donViList.map((donVi) => (
+                  <option key={donVi.id} value={donVi.ma_don_vi}>
+                    {donVi.ma_don_vi} - {donVi.ten_don_vi}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tỉnh/TP */}
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={maTinh}
+                onChange={(e) => setMaTinh(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="">Tỉnh/TP</option>
+                {tinhList.map((tinh) => (
+                  <option key={tinh.ma} value={tinh.ma}>
+                    {tinh.ma} - {tinh.ten}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Từ ngày */}
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="date"
+                placeholder="Từ ngày"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* Đến ngày */}
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="date"
+                placeholder="Đến ngày"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
           </div>
 
-          {/* Participant Status Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
-            >
-              <option value="all">Tất cả trạng thái cá nhân</option>
-              <option value="submitted">Đã nộp</option>
-              <option value="processing">Đang xử lý</option>
-              <option value="approved">Đã duyệt</option>
-              <option value="rejected">Từ chối</option>
-            </select>
+          {/* Row 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Mã BHXH */}
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Mã BHXH"
+                value={maBhxh}
+                onChange={(e) => setMaBhxh(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* Trạng thái cá nhân */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="all">Tất cả trạng thái cá nhân</option>
+                <option value="submitted">Đã nộp lên công ty</option>
+                <option value="processing">Đang xử lý</option>
+                <option value="approved">Đã duyệt</option>
+                <option value="rejected">Từ chối</option>
+              </select>
+            </div>
+
+            {/* Trạng thái thanh toán */}
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={filterPaymentStatus}
+                onChange={(e) => setFilterPaymentStatus(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+              >
+                <option value="all">Tất cả trạng thái thanh toán</option>
+                <option value="unpaid">Chưa thanh toán</option>
+                <option value="pending">Chờ thanh toán</option>
+                <option value="completed">Đã thanh toán</option>
+                <option value="failed">Thất bại</option>
+                <option value="cancelled">Đã hủy</option>
+              </select>
+            </div>
+
+            {/* Quận/Huyện */}
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <select
+                value={maHuyen}
+                onChange={(e) => setMaHuyen(e.target.value)}
+                disabled={!maTinh}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none disabled:opacity-50"
+              >
+                <option value="">Quận/Huyện</option>
+                {huyenList.map((huyen) => (
+                  <option key={huyen.ma} value={huyen.ma}>
+                    {huyen.ma} - {huyen.ten}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Payment Status Filter */}
-          <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <select
-              value={filterPaymentStatus}
-              onChange={(e) => setFilterPaymentStatus(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
-            >
-              <option value="all">Tất cả trạng thái thanh toán</option>
-              <option value="unpaid">Chưa thanh toán</option>
-              <option value="pending">Chờ thanh toán</option>
-              <option value="completed">Đã thanh toán</option>
-              <option value="failed">Thất bại</option>
-              <option value="cancelled">Đã hủy</option>
-            </select>
-          </div>
+          {/* Row 3 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên hoặc mã BHXH..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
 
-          {/* Results count */}
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-            <Users className="w-4 h-4 mr-2" />
-            Tìm thấy {totalParticipants} người tham gia
+            {/* Action buttons */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  // Reset all filters
+                  setMaDonVi('');
+                  setMaTinh('');
+                  setMaHuyen('');
+                  setFromDate('');
+                  setToDate('');
+                  setMaBhxh('');
+                  setFilterStatus('all');
+                  setFilterPaymentStatus('all');
+                  setKetQua('all');
+                  setDaiLyId('');
+                  setCoQuanBhxhId('');
+                  setHinhThuc('all');
+                  setSoHoSo('');
+                  setSearchTerm('');
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Xóa bộ lọc
+              </button>
+              <button
+                onClick={loadProcessedParticipantsData}
+                disabled={loading}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Tìm kiếm
+              </button>
+            </div>
+
+            {/* Empty space */}
+            <div></div>
+
+            {/* Results count */}
+            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <Users className="w-4 h-4 mr-2" />
+              Tìm thấy {totalParticipants} người tham gia
+            </div>
           </div>
         </div>
       </div>
@@ -456,134 +848,156 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700">
+            <table className="w-full min-w-[1600px] border border-gray-300 dark:border-gray-600">
+              <thead className="bg-blue-100 dark:bg-blue-900/30">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={participantsList.length > 0 && selectedParticipants.size === participantsList.length}
+                        ref={(input) => {
+                          if (input) {
+                            input.indeterminate = selectedParticipants.size > 0 && selectedParticipants.size < participantsList.length;
+                          }
+                        }}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        title="Chọn tất cả người tham gia"
+                      />
+                    </div>
+                  </th>
+                  <th className="px-2 py-4 text-center text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    STT
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
                     Họ tên
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
                     Mã BHXH
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Trạng thái cá nhân
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Số CMND
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Trạng thái thanh toán
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Kê khai
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Trạng thái kê khai
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Ngày xử lý
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
                     Số tiền
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Thao tác
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Ngày lập
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Ngày nộp
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    TT hồ sơ
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Kết quả
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Đơn vị
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Hình thức
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Nộp BHXH
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Nhận BHXH
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                    Thông báo
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {participantsList.map((participant) => (
-                  <tr key={participant.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <User className="w-4 h-4 text-gray-400 mr-2" />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {participant.ho_ten}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {participant.so_cccd}
-                          </div>
-                        </div>
+                {participantsList.map((participant, index) => (
+                  <tr
+                    key={participant.id}
+                    className={`hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer ${
+                      selectedParticipants.has(participant.id)
+                        ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-blue-500'
+                        : index % 2 === 0
+                          ? 'bg-white dark:bg-gray-800'
+                          : 'bg-gray-50 dark:bg-gray-700'
+                    }`}
+                    onContextMenu={(e) => handleContextMenu(e, participant)}
+                    title="Bấm chuột phải để xem menu tùy chọn"
+                  >
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedParticipants.has(participant.id)}
+                        onChange={(e) => handleParticipantSelect(participant.id, e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        title="Chọn người tham gia"
+                      />
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap text-center">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {((currentPage - 1) * itemsPerPage) + index + 1}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {participant.ho_ten}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {participant.ma_so_bhxh}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {participant.so_cccd}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {formatCurrency(participant.tien_dong_thuc_te || participant.tien_dong || 0)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {formatDate(participant.ke_khai.created_at)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {participant.submitted_at ? formatDate(participant.submitted_at) : '—'}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
                       {getParticipantStatusBadge(participant.participant_status)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getPaymentStatusBadge(participant.payment_status)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <Building className="w-4 h-4 text-gray-400 mr-2" />
-                        <div>
-                          <div className="text-sm text-gray-900 dark:text-white">
-                            {participant.ke_khai.ma_ke_khai}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {participant.ke_khai.ten_ke_khai}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-3 whitespace-nowrap">
                       {getDeclarationStatusBadge(participant.ke_khai.trang_thai)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white flex items-center">
-                        <Calendar className="w-4 h-4 mr-1 text-gray-400" />
-                        {formatDate(
-                          participant.submitted_at ||
-                          participant.ke_khai.approved_at ||
-                          participant.ke_khai.payment_completed_at ||
-                          participant.ke_khai.updated_at
-                        )}
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getProcessingUnit(participant)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {formatCurrency(participant.tien_dong || participant.tien_dong_thuc_te)}
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getFormType(participant)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => handleViewParticipantDetails(participant)}
-                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                          title="Xem chi tiết người tham gia"
-                        >
-                          <User className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          onClick={() => handleViewDetails(participant.ke_khai)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="Xem chi tiết kê khai"
-                        >
-                          <Building className="w-4 h-4" />
-                        </button>
-
-                        {(participant.ke_khai.trang_thai === 'paid' || participant.ke_khai.trang_thai === 'completed') && (
-                          <>
-                            <button
-                              onClick={() => handleViewPayment(participant.ke_khai)}
-                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                              title="Xem thanh toán"
-                            >
-                              <CreditCard className="w-4 h-4" />
-                            </button>
-
-                            <button
-                              onClick={() => handleViewProof(participant.ke_khai)}
-                              className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
-                              title="Xem ảnh chứng từ"
-                            >
-                              <Image className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getBhxhSubmissionDate(participant)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getBhxhReceiptDate(participant)}
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {getNotificationMessage(participant)}
                       </div>
                     </td>
                   </tr>
@@ -651,6 +1065,34 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu.show && contextMenu.participant && (
+        <div
+          className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50 min-w-[200px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+            transform: 'translate(-50%, 0)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => handleContextMenuAction('view-participant', contextMenu.participant!)}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 transition-colors"
+          >
+            <User className="w-4 h-4" />
+            <span>Xem chi tiết người tham gia</span>
+          </button>
+          <button
+            onClick={() => handleContextMenuAction('view-kekhai', contextMenu.participant!)}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 transition-colors"
+          >
+            <Building className="w-4 h-4" />
+            <span>Xem chi tiết hồ sơ</span>
+          </button>
         </div>
       )}
 

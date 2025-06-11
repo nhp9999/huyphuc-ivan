@@ -552,6 +552,68 @@ class KeKhaiService {
     }
   }
 
+  // Cập nhật participant_status cho tất cả participants có payment_id cụ thể
+  async updateParticipantStatusByPaymentId(
+    paymentId: number,
+    participantStatus: string,
+    userId: string,
+    notes?: string
+  ): Promise<{ success: boolean; message: string; count: number }> {
+    try {
+      console.log('updateParticipantStatusByPaymentId called with:', {
+        paymentId,
+        participantStatus,
+        userId,
+        notes
+      });
+
+      const updateData: any = {
+        participant_status: participantStatus,
+        updated_at: new Date().toISOString(),
+        updated_by: userId
+      };
+
+      // Add timestamp for specific statuses
+      if (participantStatus === 'submitted') {
+        updateData.submitted_at = new Date().toISOString();
+        updateData.submitted_by = userId;
+      }
+
+      if (notes) {
+        updateData.individual_submission_notes = notes;
+      }
+
+      console.log('Update data being sent:', updateData);
+
+      const { data: result, error } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .update(updateData)
+        .eq('payment_id', paymentId)
+        .select();
+
+      if (error) {
+        console.error('Error updating participant status by payment ID:', error);
+        throw new Error(`Không thể cập nhật trạng thái người tham gia: ${error.message}`);
+      }
+
+      const count = result?.length || 0;
+      console.log(`✅ Successfully updated participant status for ${count} participants to ${participantStatus}`);
+
+      return {
+        success: true,
+        message: `Đã cập nhật trạng thái cho ${count} người tham gia`,
+        count
+      };
+    } catch (error) {
+      console.error('Error in updateParticipantStatusByPaymentId:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Có lỗi xảy ra khi cập nhật trạng thái người tham gia',
+        count: 0
+      };
+    }
+  }
+
   // Xác nhận thanh toán và chuyển kê khai sang trạng thái đang xử lý
   async confirmPayment(
     keKhaiId: number,
@@ -562,7 +624,14 @@ class KeKhaiService {
     confirmationNote?: string
   ): Promise<DanhSachKeKhai> {
     try {
-      // Cập nhật trạng thái thanh toán
+      console.log('🚀 Starting confirmPayment process...', {
+        keKhaiId,
+        paymentId,
+        transactionId,
+        confirmedBy
+      });
+
+      // Step 1: Cập nhật trạng thái thanh toán
       await paymentService.updatePaymentStatus(
         paymentId,
         'completed',
@@ -571,12 +640,22 @@ class KeKhaiService {
         proofImageUrl,
         confirmationNote
       );
+      console.log('✅ Payment status updated to completed');
 
-      // Cập nhật trạng thái thanh toán cho participants
+      // Step 2: Cập nhật trạng thái thanh toán cho participants
       const participantUpdateResult = await this.updateParticipantPaymentStatus(paymentId, 'completed');
       console.log('💳 Participant payment status update result:', participantUpdateResult);
 
-      // Cập nhật trạng thái kê khai thành processing (đang xử lý) sau khi thanh toán
+      // Step 3: Cập nhật participant_status từ draft sang submitted cho tất cả participants có payment_id này
+      const participantStatusUpdateResult = await this.updateParticipantStatusByPaymentId(
+        paymentId,
+        'submitted',
+        confirmedBy || 'system',
+        'Đã nộp lên công ty sau thanh toán thành công'
+      );
+      console.log('👥 Participant status update result:', participantStatusUpdateResult);
+
+      // Step 4: Cập nhật trạng thái kê khai thành processing (đang xử lý) sau khi thanh toán
       const { data: result, error } = await supabase
         .from('danh_sach_ke_khai')
         .update({
@@ -592,17 +671,20 @@ class KeKhaiService {
         .single();
 
       if (error) {
-        console.error('Error confirming payment:', error);
-        throw new Error('Không thể xác nhận thanh toán');
+        console.error('Error updating ke khai status:', error);
+        throw new Error('Không thể cập nhật trạng thái kê khai sau thanh toán');
       }
 
-      // Emit events để thông báo cho các component khác
+      console.log('✅ Ke khai status updated to processing');
+
+      // Step 5: Emit events để thông báo cho các component khác
       emitKeKhaiStatusChanged(keKhaiId, 'pending_payment', 'processing', result);
       emitPaymentConfirmed(keKhaiId, paymentId, result);
 
+      console.log('🎉 confirmPayment process completed successfully');
       return result;
     } catch (error) {
-      console.error('Error in confirmPayment:', error);
+      console.error('❌ Error in confirmPayment:', error);
       throw error;
     }
   }
@@ -614,6 +696,133 @@ class KeKhaiService {
     } catch (error) {
       console.error('Error in getPaymentInfo:', error);
       throw error;
+    }
+  }
+
+  // Quy trình tổng hợp: Submit kê khai và tạo thanh toán
+  async submitKeKhaiWithPayment(
+    keKhaiId: number,
+    userId: string,
+    participantIds?: number[]
+  ): Promise<{
+    success: boolean;
+    message: string;
+    payment?: ThanhToan;
+    keKhai?: DanhSachKeKhai;
+  }> {
+    try {
+      console.log('🚀 Starting submitKeKhaiWithPayment process...', {
+        keKhaiId,
+        userId,
+        participantIds
+      });
+
+      // Step 1: Validate kê khai exists and get info
+      const { data: keKhaiInfo, error: keKhaiError } = await supabase
+        .from('danh_sach_ke_khai')
+        .select('*')
+        .eq('id', keKhaiId)
+        .single();
+
+      if (keKhaiError || !keKhaiInfo) {
+        throw new Error('Không tìm thấy thông tin kê khai');
+      }
+
+      // Step 2: Get participants to submit
+      let participantsQuery = supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .select('*')
+        .eq('ke_khai_id', keKhaiId);
+
+      if (participantIds && participantIds.length > 0) {
+        participantsQuery = participantsQuery.in('id', participantIds);
+      }
+
+      const { data: participants, error: participantsError } = await participantsQuery;
+
+      if (participantsError || !participants || participants.length === 0) {
+        throw new Error('Không có người tham gia nào để nộp');
+      }
+
+      // Step 3: Calculate total amount
+      const totalAmount = participants.reduce((sum, participant) => {
+        return sum + (participant.tien_dong_thuc_te || participant.tien_dong || 0);
+      }, 0);
+
+      if (totalAmount <= 0) {
+        throw new Error('Tổng số tiền thanh toán phải lớn hơn 0');
+      }
+
+      // Step 4: Create payment
+      const payment = await paymentService.createPayment({
+        ke_khai_id: keKhaiId,
+        so_tien: totalAmount,
+        phuong_thuc_thanh_toan: 'bank_transfer',
+        payment_description: `Thanh toán kê khai ${keKhaiInfo.ma_ke_khai} - ${participants.length} người tham gia`,
+        created_by: userId
+      });
+
+      console.log('✅ Payment created successfully:', payment.id);
+
+      // Step 5: Update payment_id for participants
+      const participantIdsToUpdate = participants.map(p => p.id);
+      const { error: updateError } = await supabase
+        .from('danh_sach_nguoi_tham_gia')
+        .update({
+          payment_id: payment.id,
+          payment_status: 'pending',
+          updated_at: new Date().toISOString(),
+          updated_by: userId
+        })
+        .in('id', participantIdsToUpdate);
+
+      if (updateError) {
+        console.error('Error updating participant payment_id:', updateError);
+        throw new Error('Không thể cập nhật thông tin thanh toán cho người tham gia');
+      }
+
+      console.log(`✅ Updated payment_id for ${participantIdsToUpdate.length} participants`);
+
+      // Step 6: Update kê khai status if submitting all participants
+      let updatedKeKhai = keKhaiInfo;
+      if (!participantIds || participantIds.length === participants.length) {
+        const { data: keKhaiResult, error: keKhaiUpdateError } = await supabase
+          .from('danh_sach_ke_khai')
+          .update({
+            trang_thai: 'pending_payment',
+            payment_status: 'pending',
+            payment_id: payment.id,
+            updated_at: new Date().toISOString(),
+            updated_by: userId
+          })
+          .eq('id', keKhaiId)
+          .select()
+          .single();
+
+        if (keKhaiUpdateError) {
+          console.error('Error updating ke khai status:', keKhaiUpdateError);
+          throw new Error('Không thể cập nhật trạng thái kê khai');
+        }
+
+        updatedKeKhai = keKhaiResult;
+        console.log('✅ Ke khai status updated to pending_payment');
+      }
+
+      console.log('🎉 submitKeKhaiWithPayment process completed successfully');
+
+      return {
+        success: true,
+        message: `Đã tạo thanh toán thành công cho ${participants.length} người tham gia. Tổng tiền: ${totalAmount.toLocaleString('vi-VN')} ₫`,
+        payment,
+        keKhai: updatedKeKhai
+      };
+
+    } catch (error) {
+      console.error('❌ Error in submitKeKhaiWithPayment:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Có lỗi xảy ra khi nộp kê khai và tạo thanh toán'
+      };
     }
   }
 

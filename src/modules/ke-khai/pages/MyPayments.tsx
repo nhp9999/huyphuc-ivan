@@ -10,12 +10,14 @@ import {
   DollarSign,
   QrCode,
   RefreshCw,
-  Image
+  Image,
+  FileText
 } from 'lucide-react';
 import { DanhSachKeKhai, ThanhToan, supabase } from '../../../shared/services/api/supabaseClient';
 import paymentService from '../services/paymentService';
 import { useAuth } from '../../auth';
 import { useToast } from '../../../shared/hooks/useToast';
+import { useNavigation } from '../../../core/contexts/NavigationContext';
 import PaymentQRModal from '../components/PaymentQRModal';
 import PaymentProofModal from '../components/PaymentProofModal';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
@@ -24,6 +26,7 @@ import { usePaymentNotificationControl } from '../hooks/usePaymentNotificationCo
 const MyPayments: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { setCurrentPage: navigateToPage } = useNavigation();
 
   // Control payment notifications on this page (don't hide, but refresh on mount)
   const { pendingPaymentsCount, refreshNotifications } = usePaymentNotificationControl({
@@ -375,6 +378,16 @@ const MyPayments: React.FC = () => {
     showToast('Thanh toán đã được xác nhận', 'success');
   };
 
+  // Handle view ke khai details
+  const handleViewKeKhai = (keKhai: DanhSachKeKhai) => {
+    // Navigate to the form page with the keKhaiId to view/edit
+    navigateToPage('ke-khai-603-form', {
+      declarationCode: '603',
+      declarationName: 'Đăng ký đóng BHYT đối với người chỉ tham gia BHYT',
+      keKhaiId: keKhai.id
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -543,6 +556,15 @@ const MyPayments: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
+                          {/* Always show view ke khai button */}
+                          <button
+                            onClick={() => handleViewKeKhai(keKhai)}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            title="Xem chi tiết kê khai"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+
                           {(() => {
                             const latestPayment = getLatestPayment(keKhai);
                             if (!latestPayment) return null;

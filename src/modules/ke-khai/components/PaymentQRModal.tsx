@@ -66,7 +66,13 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
   const handlePaymentConfirm = async (proofImageUrl?: string) => {
     setIsConfirming(true);
     try {
-      // Sử dụng keKhaiService.confirmPayment để cập nhật cả payment và kê khai
+      console.log('🚀 Starting payment confirmation process...', {
+        paymentId: currentPayment.id,
+        keKhaiId: currentPayment.ke_khai_id,
+        userId: user?.id
+      });
+
+      // Sử dụng keKhaiService.confirmPayment để cập nhật cả payment, kê khai và participants
       await keKhaiService.confirmPayment(
         currentPayment.ke_khai_id, // keKhaiId
         currentPayment.id, // paymentId
@@ -75,6 +81,8 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
         proofImageUrl, // proofImageUrl
         'Xác nhận thủ công bởi người dùng' // confirmationNote
       );
+
+      console.log('✅ Payment confirmation completed successfully');
 
       // Cập nhật trạng thái payment local
       const updatedPayment = {
@@ -87,11 +95,14 @@ const PaymentQRModal: React.FC<PaymentQRModalProps> = ({
 
       setCurrentPayment(updatedPayment);
       setShowConfirmModal(false);
-      showToast('Đã xác nhận thanh toán thành công!', 'success');
+      showToast('Đã xác nhận thanh toán thành công! Trạng thái kê khai và người tham gia đã được cập nhật.', 'success');
+
+      // Notify parent component
       onPaymentConfirmed();
     } catch (error) {
-      console.error('Error confirming payment:', error);
-      showToast('Không thể xác nhận thanh toán', 'error');
+      console.error('❌ Error confirming payment:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Không thể xác nhận thanh toán';
+      showToast(errorMessage, 'error');
     } finally {
       setIsConfirming(false);
     }

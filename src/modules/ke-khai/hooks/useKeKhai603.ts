@@ -435,6 +435,7 @@ export const useKeKhai603 = (pageParams?: PageParams) => {
 
   return {
     keKhaiInfo,
+    setKeKhaiInfo,
     saving,
     submitting,
     initializeKeKhai,
