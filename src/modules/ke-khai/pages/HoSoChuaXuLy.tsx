@@ -1668,92 +1668,94 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1600px] border border-gray-300 dark:border-gray-600">
-              <thead className="bg-blue-100 dark:bg-blue-900/30">
+          <div className="overflow-x-auto shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" style={{minWidth: '2000px'}}>
+              <thead className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800">
                 <tr>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={getTotalSelectableCount() > 0 && getSelectedSelectableCount() === getTotalSelectableCount()}
-                        ref={(input) => {
-                          if (input) {
-                            input.indeterminate = getSelectedSelectableCount() > 0 && getSelectedSelectableCount() < getTotalSelectableCount();
-                          }
-                        }}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                        title="Chọn tất cả người tham gia có thể chọn"
-                      />
-                    </div>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '50px', minWidth: '50px'}}>
+                    <input
+                      type="checkbox"
+                      checked={getTotalSelectableCount() > 0 && getSelectedSelectableCount() === getTotalSelectableCount()}
+                      ref={(input) => {
+                        if (input) {
+                          input.indeterminate = getSelectedSelectableCount() > 0 && getSelectedSelectableCount() < getTotalSelectableCount();
+                        }
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                      title="Chọn tất cả người tham gia có thể chọn"
+                    />
                   </th>
-                  <th className="px-2 py-4 text-center text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '60px', minWidth: '60px'}}>
                     STT
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '160px', minWidth: '160px'}}>
                     Họ tên
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '140px', minWidth: '140px'}}>
                     Mã BHXH
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
-                    Số CMND
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '130px', minWidth: '130px'}}>
+                    Số CCCD
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '120px', minWidth: '120px'}}>
                     Số tiền
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '110px', minWidth: '110px'}}>
                     Ngày lập
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '110px', minWidth: '110px'}}>
                     Ngày nộp
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '120px', minWidth: '120px'}}>
                     TT hồ sơ
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '120px', minWidth: '120px'}}>
                     Kết quả
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '100px', minWidth: '100px'}}>
                     Đơn vị
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '100px', minWidth: '100px'}}>
                     Hình thức
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '110px', minWidth: '110px'}}>
                     Nộp BHXH
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-blue-500 dark:border-blue-600" style={{width: '110px', minWidth: '110px'}}>
                     Nhận BHXH
                   </th>
-                  <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider" style={{width: '120px', minWidth: '120px'}}>
                     Thông báo
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {participantsList.map((participant, index) => (
+                {participantsList.map((participant, index) => {
+                  const participantKey = `${participant.ke_khai.id}-${participant.id}`;
+                  const isSelected = selectedParticipants.has(participant.id);
+                  return (
                   <tr
-                    key={participant.id}
-                    className={`hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer ${
-                      selectedParticipants.has(participant.id)
-                        ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-blue-500'
-                        : index % 2 === 0
-                          ? 'bg-white dark:bg-gray-800'
-                          : 'bg-gray-50 dark:bg-gray-700'
-                    }`}
+                    key={participantKey}
+                    className={`
+                      transition-all duration-200 cursor-pointer
+                      ${isSelected
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }
+                      border-b border-gray-200 dark:border-gray-700
+                    `}
                     onContextMenu={(e) => handleContextMenu(e, participant)}
-                    title="Bấm chuột phải để xem menu tùy chọn"
+                    title="Chuột phải để xem menu"
                   >
-                    <td className="px-2 py-3 whitespace-nowrap">
+                    <td className="px-3 py-4 text-center whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '50px', minWidth: '50px'}}>
                       {(participant.participant_status === 'draft' ||
                         participant.ke_khai.trang_thai === 'pending_payment') ? (
                         <input
                           type="checkbox"
                           checked={selectedParticipants.has(participant.id)}
                           onChange={(e) => handleParticipantSelect(participant.id, e.target.checked)}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                          className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                           title={
                             participant.participant_status === 'submitted' ? 'Chọn để tạo thanh toán' :
                             participant.ke_khai.trang_thai === 'pending_payment' ? 'Chọn để xem thanh toán' :
@@ -1766,74 +1768,53 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                         <span className="text-gray-400 text-sm">—</span>
                       )}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {((currentPage - 1) * itemsPerPage) + index + 1}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '60px', minWidth: '60px'}}>
+                      {((currentPage - 1) * itemsPerPage) + index + 1}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="px-3 py-4 text-left border-r border-gray-200 dark:border-gray-700" style={{width: '160px', minWidth: '160px'}}>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={participant.ho_ten}>
                         {participant.ho_ten}
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {participant.ma_so_bhxh}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '140px', minWidth: '140px'}}>
+                      {participant.ma_so_bhxh || <span className="text-gray-400 dark:text-gray-500">-</span>}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {participant.so_cccd}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 font-mono whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '130px', minWidth: '130px'}}>
+                      {participant.so_cccd || <span className="text-gray-400 dark:text-gray-500">-</span>}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {formatCurrency(participant.tien_dong_thuc_te || participant.tien_dong || 0)}
-                      </div>
+                    <td className="px-3 py-4 text-right text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
+                      {formatCurrency(participant.tien_dong_thuc_te || participant.tien_dong || 0)}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {formatDate(participant.ke_khai.created_at)}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                      {formatDate(participant.ke_khai.created_at)}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {participant.submitted_at ? formatDate(participant.submitted_at) : '—'}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                      {participant.submitted_at ? formatDate(participant.submitted_at) : <span className="text-gray-400 dark:text-gray-500">—</span>}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
+                    <td className="px-3 py-4 text-center whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
                       {getParticipantStatusBadge(participant.participant_status)}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
+                    <td className="px-3 py-4 text-center whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '120px', minWidth: '120px'}}>
                       {getDeclarationStatusBadge(participant.ke_khai.trang_thai)}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {getProcessingUnit(participant)}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '100px', minWidth: '100px'}}>
+                      {getProcessingUnit(participant)}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {getFormType(participant)}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '100px', minWidth: '100px'}}>
+                      {getFormType(participant)}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {getBhxhSubmissionDate(participant)}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                      {getBhxhSubmissionDate(participant)}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {getBhxhReceiptDate(participant)}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700" style={{width: '110px', minWidth: '110px'}}>
+                      {getBhxhReceiptDate(participant)}
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {getNotificationMessage(participant)}
-                      </div>
+                    <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap" style={{width: '120px', minWidth: '120px'}}>
+                      {getNotificationMessage(participant)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
