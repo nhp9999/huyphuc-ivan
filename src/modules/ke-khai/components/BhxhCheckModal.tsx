@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, CheckCircle, XCircle, User, FileText, Calendar, AlertTriangle, Copy, Download } from 'lucide-react';
+import { X, Search, CheckCircle, XCircle, Copy } from 'lucide-react';
 import { keKhaiService } from '../services/keKhaiService';
 import { useAuth } from '../../auth';
 import { useToast } from '../../../shared/hooks/useToast';
@@ -16,10 +16,41 @@ interface BhxhCheckModalProps {
   onClose: () => void;
 }
 
+// Constants for reusable CSS classes
+const BUTTON_BASE_CLASSES = "inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors";
+const PLACEHOLDER_CLASSES = "text-gray-400 dark:text-gray-500";
+
+// Reusable components
+const PlaceholderSpan: React.FC = () => (
+  <span className={PLACEHOLDER_CLASSES}>—</span>
+);
+
+interface CopyButtonProps {
+  onClick: () => void;
+  variant: 'gray' | 'green';
+  children: React.ReactNode;
+}
+
+const CopyButton: React.FC<CopyButtonProps> = ({ onClick, variant, children }) => {
+  const variantClasses = variant === 'gray'
+    ? "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+    : "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50";
+
+  return (
+    <button
+      onClick={onClick}
+      className={`${BUTTON_BASE_CLASSES} ${variantClasses}`}
+    >
+      <Copy className="w-4 h-4 mr-2" />
+      {children}
+    </button>
+  );
+};
+
 const BhxhCheckModal: React.FC<BhxhCheckModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
-  
+
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<BhxhCheckResult[]>([]);
@@ -28,6 +59,10 @@ const BhxhCheckModal: React.FC<BhxhCheckModalProps> = ({ isOpen, onClose }) => {
     existing: number;
     new: number;
   } | null>(null);
+
+  // Helper functions to avoid duplication
+  const getExistingCodes = () => results.filter(r => r.exists).map(r => r.maSoBhxh);
+  const getNewCodes = () => results.filter(r => !r.exists).map(r => r.maSoBhxh);
 
   // Parse input text to extract BHXH codes
   const parseBhxhCodes = (text: string): string[] => {
@@ -92,9 +127,9 @@ const BhxhCheckModal: React.FC<BhxhCheckModalProps> = ({ isOpen, onClose }) => {
 
   // Handle copy results
   const handleCopyResults = () => {
-    const existingCodes = results.filter(r => r.exists).map(r => r.maSoBhxh);
-    const newCodes = results.filter(r => !r.exists).map(r => r.maSoBhxh);
-    
+    const existingCodes = getExistingCodes();
+    const newCodes = getNewCodes();
+
     const text = `Kết quả kiểm tra mã BHXH:
 
 Đã tồn tại (${existingCodes.length}):
@@ -109,7 +144,7 @@ ${newCodes.join('\n')}`;
 
   // Handle copy new codes only
   const handleCopyNewCodes = () => {
-    const newCodes = results.filter(r => !r.exists).map(r => r.maSoBhxh);
+    const newCodes = getNewCodes();
     navigator.clipboard.writeText(newCodes.join('\n'));
     showToast(`Đã sao chép ${newCodes.length} mã BHXH mới`, 'success');
   };
@@ -246,22 +281,14 @@ hoặc: 0123456789, 0123456788, 0123456787`}
           {/* Action Buttons */}
           {results.length > 0 && (
             <div className="mb-6 flex items-center space-x-3">
-              <button
-                onClick={handleCopyResults}
-                className="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                <Copy className="w-4 h-4 mr-2" />
+              <CopyButton onClick={handleCopyResults} variant="gray">
                 Sao chép tất cả
-              </button>
+              </CopyButton>
 
               {summary && summary.new > 0 && (
-                <button
-                  onClick={handleCopyNewCodes}
-                  className="inline-flex items-center px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
-                >
-                  <Copy className="w-4 h-4 mr-2" />
+                <CopyButton onClick={handleCopyNewCodes} variant="green">
                   Sao chép mã mới ({summary.new})
-                </button>
+                </CopyButton>
               )}
             </div>
           )}
@@ -313,23 +340,17 @@ hoặc: 0123456789, 0123456788, 0123456787`}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm text-gray-900 dark:text-gray-100">
-                            {result.participant?.ho_ten || (
-                              <span className="text-gray-400 dark:text-gray-500">—</span>
-                            )}
+                            {result.participant?.ho_ten || <PlaceholderSpan />}
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="text-sm font-mono text-gray-900 dark:text-gray-100">
-                            {result.keKhai?.ma_ke_khai || (
-                              <span className="text-gray-400 dark:text-gray-500">—</span>
-                            )}
+                            {result.keKhai?.ma_ke_khai || <PlaceholderSpan />}
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
                           <div className="text-sm text-gray-900 dark:text-gray-100">
-                            {result.keKhai?.created_at ? formatDate(result.keKhai.created_at) : (
-                              <span className="text-gray-400 dark:text-gray-500">—</span>
-                            )}
+                            {result.keKhai?.created_at ? formatDate(result.keKhai.created_at) : <PlaceholderSpan />}
                           </div>
                         </td>
                       </tr>

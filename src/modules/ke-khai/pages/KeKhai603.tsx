@@ -5,6 +5,7 @@ import { daiLyService } from '../../quan-ly/services/daiLyService';
 import { luongCoSoService } from '../../../shared/services/luongCoSoService';
 import { keKhaiService } from '../services/keKhaiService';
 import paymentService from '../services/paymentService';
+import nguoiDungService from '../../quan-ly/services/nguoiDungService';
 import { VDonViChiTiet, VDaiLyChiTiet, DmLuongCoSo, DanhSachKeKhai, ThanhToan } from '../../../shared/services/api/supabaseClient';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import {
@@ -1227,8 +1228,7 @@ const KeKhai603: React.FC = () => {
       let maNhanVienThu = '';
       if (user?.id) {
         try {
-          // Import nguoiDungService để lấy thông tin user đầy đủ
-          const { default: nguoiDungService } = await import('../../quan-ly/services/nguoiDungService');
+          // Sử dụng nguoiDungService đã import để lấy thông tin user đầy đủ
           const userInfo = await nguoiDungService.getNguoiDungById(parseInt(user.id));
           maNhanVienThu = userInfo?.ma_nhan_vien || '';
         } catch (error) {
@@ -1291,8 +1291,7 @@ const KeKhai603: React.FC = () => {
       let maNhanVienThu = '';
       if (user?.id) {
         try {
-          // Import nguoiDungService để lấy thông tin user đầy đủ
-          const { default: nguoiDungService } = await import('../../quan-ly/services/nguoiDungService');
+          // Sử dụng nguoiDungService đã import để lấy thông tin user đầy đủ
           const userInfo = await nguoiDungService.getNguoiDungById(parseInt(user.id));
           maNhanVienThu = userInfo?.ma_nhan_vien || '';
         } catch (error) {
