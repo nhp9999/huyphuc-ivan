@@ -162,15 +162,15 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
               <div className="relative">
                 <button
                   onClick={onSaveAll}
-                  disabled={validationState.isProcessing || !validationState.hasParticipants}
+                  disabled={validationState.isProcessing}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     !validationState.hasParticipants
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      ? 'bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
                   }`}
                   title={
                     !validationState.hasParticipants
-                      ? 'Cần có ít nhất một người tham gia để lưu dữ liệu'
+                      ? 'Lưu thông tin kê khai (chưa có người tham gia)'
                       : 'Lưu tất cả dữ liệu người tham gia'
                   }
                   aria-label="Lưu tất cả dữ liệu"
@@ -244,7 +244,7 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div className="text-sm">
-                  <span className="font-medium">Lưu ý:</span> Kê khai này chưa có người tham gia nào. Bạn cần thêm ít nhất một người tham gia trước khi có thể nộp kê khai.
+                  <span className="font-medium">Lưu ý:</span> Kê khai này chưa có người tham gia nào. Bạn có thể lưu thông tin kê khai, nhưng cần thêm ít nhất một người tham gia trước khi có thể nộp kê khai.
                 </div>
               </div>
             </div>
