@@ -2163,12 +2163,6 @@ const KeKhai603: React.FC = () => {
         </div>
       )}
 
-      {/* BHXH Check Modal */}
-      <BhxhCheckModal
-        isOpen={showBhxhCheckModal}
-        onClose={() => setShowBhxhCheckModal(false)}
-      />
-
     </div>
   );
 };
