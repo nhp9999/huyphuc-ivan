@@ -919,6 +919,221 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     }
   };
 
+  // Bulk update participants
+  const bulkUpdateParticipants = async (
+    selectedIndices: number[],
+    updateData: {
+      updateFields: {
+        maBenhVien?: boolean;
+        soThangDong?: boolean;
+        maTinhNkq?: boolean;
+        maHuyenNkq?: boolean;
+        maXaNkq?: boolean;
+        gioiTinh?: boolean;
+        quocTich?: boolean;
+      };
+      values: {
+        maBenhVien?: string;
+        tenBenhVien?: string;
+        maTinh?: string;
+        soThangDong?: string;
+        maTinhNkq?: string;
+        maHuyenNkq?: string;
+        maXaNkq?: string;
+        gioiTinh?: string;
+        quocTich?: string;
+      };
+    }
+  ) => {
+    console.log('🚀 bulkUpdateParticipants called with:', {
+      selectedIndices,
+      updateData
+    });
+
+    if (!keKhaiId) {
+      throw new Error('Chưa có thông tin kê khai. Vui lòng thử lại.');
+    }
+
+    if (selectedIndices.length === 0) {
+      throw new Error('Vui lòng chọn ít nhất một người tham gia để cập nhật.');
+    }
+
+    // Validate selected indices
+    const invalidIndices = selectedIndices.filter(index =>
+      index < 0 || index >= participants.length || !participants[index]?.id
+    );
+
+    if (invalidIndices.length > 0) {
+      throw new Error(`Có ${invalidIndices.length} người tham gia không hợp lệ hoặc chưa được lưu.`);
+    }
+
+    try {
+      setSavingData(true);
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      // Process each selected participant
+      for (const index of selectedIndices) {
+        const participant = participants[index];
+
+        try {
+          // Build update data based on selected fields
+          const participantUpdateData: any = {};
+
+          if (updateData.updateFields.maBenhVien && updateData.values.maBenhVien) {
+            participantUpdateData.ma_benh_vien = updateData.values.maBenhVien;
+            participantUpdateData.noi_dang_ky_kcb = updateData.values.tenBenhVien;
+            // Note: ten_benh_vien field doesn't exist in database, only store in noi_dang_ky_kcb
+            if (updateData.values.maTinh) {
+              participantUpdateData.tinh_kcb = updateData.values.maTinh;
+            }
+          }
+
+          if (updateData.updateFields.soThangDong && updateData.values.soThangDong) {
+            const soThangDong = parseInt(updateData.values.soThangDong);
+            participantUpdateData.so_thang_dong = soThangDong;
+
+            // Recalculate amounts when months change
+            if (participant.sttHo) {
+              const mucLuongNumber = 2340000; // Default salary
+              const tienDong = calculateKeKhai603Amount(participant.sttHo, updateData.values.soThangDong, mucLuongNumber);
+              const tienDongThucTe = calculateKeKhai603AmountThucTe(participant.sttHo, updateData.values.soThangDong, mucLuongNumber, doiTuongThamGia);
+
+              participantUpdateData.tien_dong = tienDong;
+              participantUpdateData.tien_dong_thuc_te = tienDongThucTe;
+
+              // Recalculate card validity dates
+              if (participant.ngayBienLai) {
+                const cardValidity = calculateKeKhai603CardValidity(updateData.values.soThangDong, participant.denNgayTheCu, participant.ngayBienLai);
+                participantUpdateData.tu_ngay_the_moi = cardValidity.tuNgay;
+                participantUpdateData.den_ngay_the_moi = cardValidity.denNgay;
+              }
+            }
+          }
+
+          if (updateData.updateFields.maTinhNkq && updateData.values.maTinhNkq) {
+            participantUpdateData.ma_tinh_nkq = updateData.values.maTinhNkq;
+          }
+
+          if (updateData.updateFields.maHuyenNkq && updateData.values.maHuyenNkq) {
+            participantUpdateData.ma_huyen_nkq = updateData.values.maHuyenNkq;
+          }
+
+          if (updateData.updateFields.maXaNkq && updateData.values.maXaNkq) {
+            participantUpdateData.ma_xa_nkq = updateData.values.maXaNkq;
+          }
+
+          if (updateData.updateFields.gioiTinh && updateData.values.gioiTinh) {
+            participantUpdateData.gioi_tinh = updateData.values.gioiTinh;
+          }
+
+          if (updateData.updateFields.quocTich && updateData.values.quocTich) {
+            participantUpdateData.quoc_tich = updateData.values.quocTich;
+          }
+
+          // Update participant in database
+          await keKhaiService.updateNguoiThamGia(participant.id, participantUpdateData);
+
+          // Update local state
+          setParticipants(prev => prev.map((p, i) => {
+            if (i === index) {
+              const updatedParticipant = { ...p };
+
+              // Apply updates to local state
+              if (updateData.updateFields.maBenhVien && updateData.values.maBenhVien) {
+                updatedParticipant.maBenhVien = updateData.values.maBenhVien;
+                updatedParticipant.noiDangKyKCB = updateData.values.tenBenhVien || '';
+                updatedParticipant.tenBenhVien = updateData.values.tenBenhVien || '';
+                if (updateData.values.maTinh) {
+                  updatedParticipant.tinhKCB = updateData.values.maTinh;
+                }
+              }
+
+              if (updateData.updateFields.soThangDong && updateData.values.soThangDong) {
+                updatedParticipant.soThangDong = updateData.values.soThangDong;
+                if (participantUpdateData.tien_dong !== undefined) {
+                  updatedParticipant.tienDong = participantUpdateData.tien_dong;
+                  updatedParticipant.soTienDong = participantUpdateData.tien_dong.toLocaleString('vi-VN');
+                }
+                if (participantUpdateData.tien_dong_thuc_te !== undefined) {
+                  updatedParticipant.tienDongThucTe = participantUpdateData.tien_dong_thuc_te;
+                }
+                if (participantUpdateData.tu_ngay_the_moi) {
+                  updatedParticipant.tuNgayTheMoi = participantUpdateData.tu_ngay_the_moi;
+                }
+                if (participantUpdateData.den_ngay_the_moi) {
+                  updatedParticipant.denNgayTheMoi = participantUpdateData.den_ngay_the_moi;
+                }
+              }
+
+              if (updateData.updateFields.maTinhNkq && updateData.values.maTinhNkq) {
+                updatedParticipant.maTinhNkq = updateData.values.maTinhNkq;
+              }
+
+              if (updateData.updateFields.maHuyenNkq && updateData.values.maHuyenNkq) {
+                updatedParticipant.maHuyenNkq = updateData.values.maHuyenNkq;
+              }
+
+              if (updateData.updateFields.maXaNkq && updateData.values.maXaNkq) {
+                updatedParticipant.maXaNkq = updateData.values.maXaNkq;
+              }
+
+              if (updateData.updateFields.gioiTinh && updateData.values.gioiTinh) {
+                updatedParticipant.gioiTinh = updateData.values.gioiTinh;
+              }
+
+              if (updateData.updateFields.quocTich && updateData.values.quocTich) {
+                updatedParticipant.quocTich = updateData.values.quocTich;
+              }
+
+              return updatedParticipant;
+            }
+            return p;
+          }));
+
+          successCount++;
+          console.log(`✅ Updated participant ${participant.hoTen} (${participant.maSoBHXH})`);
+
+        } catch (error) {
+          errorCount++;
+          const errorMsg = error instanceof Error ? error.message : 'Lỗi không xác định';
+          errors.push(`${participant.hoTen || participant.maSoBHXH}: ${errorMsg}`);
+          console.error(`❌ Failed to update participant ${participant.hoTen}:`, error);
+        }
+      }
+
+      console.log(`📊 Bulk update completed: ${successCount} success, ${errorCount} errors`);
+
+      if (errorCount === 0) {
+        return {
+          success: true,
+          message: `Đã cập nhật thành công ${successCount} người tham gia!`
+        };
+      } else if (successCount > 0) {
+        return {
+          success: true,
+          message: `Đã cập nhật ${successCount} người thành công, ${errorCount} người lỗi. Chi tiết: ${errors.join('; ')}`
+        };
+      } else {
+        return {
+          success: false,
+          message: `Cập nhật thất bại cho tất cả ${errorCount} người. Chi tiết: ${errors.join('; ')}`
+        };
+      }
+
+    } catch (error) {
+      console.error('❌ Error in bulk update participants:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Có lỗi xảy ra khi cập nhật hàng loạt. Vui lòng thử lại.'
+      };
+    } finally {
+      setSavingData(false);
+    }
+  };
+
   return {
     participants,
     savingData,
@@ -932,6 +1147,7 @@ export const useKeKhai603Participants = (keKhaiId?: number, doiTuongThamGia?: st
     saveSingleParticipant,
     saveParticipantFromForm,
     submitIndividualParticipant,
+    bulkUpdateParticipants,
     setParticipants
   };
 };

@@ -69,6 +69,7 @@ export const KeKhai603Header: React.FC<KeKhai603HeaderProps> = ({
       'submitted': { color: 'bg-blue-500', text: 'Chờ duyệt' },
       'pending_payment': { color: 'bg-orange-500', text: 'Chờ thanh toán' },
       'processing': { color: 'bg-purple-500', text: 'Đang xử lý' },
+      'request_sent': { color: 'bg-indigo-500', text: 'Đã gửi yêu cầu phát sinh' },
       'completed': { color: 'bg-green-500', text: 'Hoàn thành' },
       'draft': { color: 'bg-yellow-500', text: 'Bản nháp' }
     };

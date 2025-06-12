@@ -288,7 +288,7 @@ export interface DanhSachKeKhai {
   ngay_tao?: string;
   ty_le_nsnn_ho_tro?: number;
   ghi_chu?: string;
-  trang_thai: string; // 'draft', 'submitted', 'processing', 'approved', 'rejected', 'pending_payment', 'paid'
+  trang_thai: string; // 'draft', 'submitted', 'processing', 'request_sent', 'request_confirmed', 'approved', 'rejected', 'pending_payment', 'paid', 'completed'
   cong_ty_id?: number;
   co_quan_bhxh_id?: number;
   loai_to_chuc?: string;
@@ -341,6 +341,7 @@ export interface ThanhToan {
 export interface DanhSachNguoiThamGia {
   id: number;
   ke_khai_id: number;
+  ma_ho_so?: string; // Mã hồ sơ đồng bộ với kê khai
   stt: number;
   ho_ten: string;
   ma_so_bhxh?: string;

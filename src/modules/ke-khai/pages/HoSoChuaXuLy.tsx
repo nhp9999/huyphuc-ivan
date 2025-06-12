@@ -1349,6 +1349,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 <option value="submitted">Đã nộp lên công ty</option>
                 <option value="pending_payment">Chờ thanh toán</option>
                 <option value="processing">Đang xử lý</option>
+                <option value="request_sent">Đã gửi yêu cầu phát sinh</option>
                 <option value="approved">Đã duyệt</option>
                 <option value="rejected">Từ chối</option>
               </select>

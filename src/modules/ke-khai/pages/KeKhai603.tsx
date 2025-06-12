@@ -1165,6 +1165,8 @@ const KeKhai603: React.FC = () => {
         return 'Đã nộp';
       case 'processing':
         return 'Đang xử lý';
+      case 'request_sent':
+        return 'Đã gửi yêu cầu phát sinh';
       case 'approved':
         return 'Đã duyệt';
       case 'rejected':
@@ -1505,6 +1507,21 @@ const KeKhai603: React.FC = () => {
         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Nghiệp vụ</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Mã hồ sơ
+              </label>
+              <input
+                type="text"
+                value={formData.maHoSo || ''}
+                onChange={(e) => handleInputChange('maHoSo', e.target.value)}
+                className="w-full px-3 py-3 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm sm:text-base"
+                placeholder="Nhập mã hồ sơ"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Nhập mã hồ sơ thủ công (không bắt buộc)
+              </p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Đối tượng tham gia

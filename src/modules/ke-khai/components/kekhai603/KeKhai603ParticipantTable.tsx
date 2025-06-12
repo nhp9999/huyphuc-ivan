@@ -16,6 +16,7 @@ interface KeKhai603ParticipantTableProps {
   onAddParticipant: () => void;
   onBulkRemoveParticipants?: (indices: number[]) => void;
   onBulkSubmitParticipantsWithPayment?: (indices: number[]) => void; // Create new declaration and submit with payment
+  onBulkUpdateParticipants?: (indices: number[]) => void; // New prop for bulk update
   onEditParticipant?: (index: number) => void; // New prop for editing
   participantSearchLoading: { [key: number]: boolean };
   savingData: boolean;
@@ -34,6 +35,7 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
   onAddParticipant,
   onBulkRemoveParticipants,
   onBulkSubmitParticipantsWithPayment,
+  onBulkUpdateParticipants,
   onEditParticipant,
   participantSearchLoading,
   savingData,
@@ -377,6 +379,23 @@ export const KeKhai603ParticipantTable: React.FC<KeKhai603ParticipantTableProps>
                     Đã chọn {selectedParticipants.size} người
                   </span>
 
+
+                  {/* Bulk Update Button */}
+                  {onBulkUpdateParticipants && (
+                    <button
+                      onClick={() => {
+                        const indices = Array.from(selectedParticipants);
+                        onBulkUpdateParticipants(indices);
+                      }}
+                      disabled={savingData}
+                      className="flex items-center justify-center space-x-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Cập nhật hàng loạt</span>
+                    </button>
+                  )}
 
                   {/* Submit Selected Participants (Create New Declaration) Button */}
                   {onBulkSubmitParticipantsWithPayment && (

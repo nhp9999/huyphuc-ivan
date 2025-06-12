@@ -489,6 +489,119 @@ class PaymentService {
     }
   }
 
+  // Lấy tất cả thanh toán của một kê khai
+  async getAllPaymentsByKeKhaiId(keKhaiId: number): Promise<ThanhToan[]> {
+    try {
+      const { data, error } = await supabase
+        .from('thanh_toan')
+        .select('*')
+        .eq('ke_khai_id', keKhaiId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching all payments:', error);
+        throw new Error('Không thể lấy danh sách thanh toán');
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getAllPaymentsByKeKhaiId:', error);
+      throw error;
+    }
+  }
+
+  // Tạo thanh toán bổ sung cho kê khai đã tồn tại
+  async createAdditionalPayment(data: CreatePaymentRequest & { additional_note?: string }): Promise<ThanhToan> {
+    try {
+      // Kiểm tra số tiền phải lớn hơn 0
+      if (data.so_tien <= 0) {
+        throw new Error('Số tiền thanh toán bổ sung phải lớn hơn 0');
+      }
+
+      const ma_thanh_toan = await this.generateMaThanhToan();
+
+      // Lấy thông tin kê khai trước
+      const { data: keKhaiData, error: keKhaiError } = await supabase
+        .from('danh_sach_ke_khai')
+        .select('*')
+        .eq('id', data.ke_khai_id)
+        .single();
+
+      if (keKhaiError) {
+        console.error('Error fetching ke khai data:', keKhaiError);
+        throw new Error('Không thể lấy thông tin kê khai');
+      }
+
+      // Tạo QR code cho thanh toán bổ sung
+      const qrMethod = 'vietqr';
+      const paymentDescription = data.payment_description ||
+        `Thanh toán bổ sung kê khai ${keKhaiData.ma_ke_khai} - ${this.formatCurrency(data.so_tien)}`;
+
+      const qrData: QRCodeData = {
+        bankCode: '970415',
+        accountNumber: '19036767456017',
+        accountName: 'CONG TY TNHH DICH VU BAO HIEM VIET',
+        amount: data.so_tien,
+        description: `${ma_thanh_toan} ${paymentDescription}`,
+        template: 'compact'
+      };
+
+      const qrCodeUrl = await this.generateQRCode(qrData, qrMethod);
+
+      // Thời gian hết hạn (30 phút)
+      const expiredAt = new Date();
+      expiredAt.setMinutes(expiredAt.getMinutes() + 30);
+
+      const { data: result, error } = await supabase
+        .from('thanh_toan')
+        .insert({
+          ...data,
+          ma_thanh_toan,
+          trang_thai: 'pending',
+          qr_code_data: JSON.stringify({...qrData, qr_method: qrMethod}),
+          qr_code_url: qrCodeUrl,
+          payment_gateway: qrMethod,
+          payment_description: paymentDescription,
+          ghi_chu: data.additional_note || 'Thanh toán bổ sung',
+          expired_at: expiredAt.toISOString(),
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating additional payment:', error);
+        throw new Error('Không thể tạo yêu cầu thanh toán bổ sung');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in createAdditionalPayment:', error);
+      throw error;
+    }
+  }
+
+  // Tính tổng số tiền đã thanh toán của một kê khai
+  async getTotalPaidAmount(keKhaiId: number): Promise<number> {
+    try {
+      const { data, error } = await supabase
+        .from('thanh_toan')
+        .select('so_tien, trang_thai')
+        .eq('ke_khai_id', keKhaiId)
+        .eq('trang_thai', 'completed');
+
+      if (error) {
+        console.error('Error fetching paid amounts:', error);
+        throw new Error('Không thể tính tổng số tiền đã thanh toán');
+      }
+
+      return data?.reduce((total, payment) => total + (payment.so_tien || 0), 0) || 0;
+    } catch (error) {
+      console.error('Error in getTotalPaidAmount:', error);
+      throw error;
+    }
+  }
+
   // Format số tiền
   formatCurrency(amount: number): string {
     return new Intl.NumberFormat('vi-VN', {

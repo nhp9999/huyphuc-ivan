@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, User, Calendar, Building, MapPin, DollarSign, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { X, FileText, User, Calendar, Building, MapPin, DollarSign, Clock, CheckCircle, XCircle, AlertCircle, Play } from 'lucide-react';
 import { DanhSachKeKhai, DanhSachNguoiThamGia } from '../../../shared/services/api/supabaseClient';
 import keKhaiService from '../services/keKhaiService';
 
@@ -51,6 +51,20 @@ const KeKhaiDetailModal: React.FC<KeKhaiDetailModalProps> = ({ keKhai, onClose }
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
             <AlertCircle className="w-3 h-3 mr-1" />
             Đang xử lý
+          </span>
+        );
+      case 'request_sent':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">
+            <Play className="w-3 h-3 mr-1" />
+            Đã gửi yêu cầu phát sinh
+          </span>
+        );
+      case 'request_confirmed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Đã xác nhận yêu cầu phát sinh
           </span>
         );
       case 'approved':

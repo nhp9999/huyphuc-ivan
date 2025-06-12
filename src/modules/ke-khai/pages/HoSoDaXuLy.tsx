@@ -20,7 +20,10 @@ import {
   FileCheck,
   Briefcase,
   DollarSign,
-  Image
+  Image,
+  Bell,
+  Play,
+  UserCheck
 } from 'lucide-react';
 import {
   DanhSachKeKhai,
@@ -41,6 +44,8 @@ import PaymentProofModal from '../components/PaymentProofModal';
 import paymentService from '../services/paymentService';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 import { useAuth } from '../../auth';
+import bhxhNotificationService from '../services/bhxhNotificationService';
+import DuplicateCheckModal from '../components/DuplicateCheckModal';
 
 // Interface for processed participant with declaration info
 interface ProcessedParticipant extends DanhSachNguoiThamGia {
@@ -85,6 +90,10 @@ const HoSoDaXuLy: React.FC = () => {
   // Selection states
   const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
 
+  // State cho thông báo BHXH
+  const [bhxhNotifications, setBhxhNotifications] = useState<Record<string, any>>({});
+  const [loadingBhxhNotifications, setLoadingBhxhNotifications] = useState(false);
+
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -104,6 +113,59 @@ const HoSoDaXuLy: React.FC = () => {
     y: 0,
     participant: null
   });
+
+  // Duplicate check modal state
+  const [showDuplicateCheckModal, setShowDuplicateCheckModal] = useState(false);
+  const [quickScanLoading, setQuickScanLoading] = useState(false);
+
+  // Function to fetch BHXH notifications
+  const fetchBhxhNotifications = async (participantsList: ProcessedParticipant[]) => {
+    if (participantsList.length === 0) return;
+
+    setLoadingBhxhNotifications(true);
+    try {
+      // Lấy danh sách số hồ sơ từ cả participant và kê khai
+      const soHoSoSet = new Set<string>();
+
+      participantsList.forEach(participant => {
+        // Ưu tiên mã hồ sơ của participant trước, sau đó mới đến kê khai
+        const maHoSo = participant.ma_ho_so || participant.ke_khai.ma_ho_so;
+        console.log('🔍 Debug participant ma_ho_so:', {
+          participantId: participant.id,
+          participantMaHoSo: participant.ma_ho_so,
+          keKhaiMaHoSo: participant.ke_khai.ma_ho_so,
+          finalMaHoSo: maHoSo,
+          alreadyHasNotification: maHoSo ? !!bhxhNotifications[maHoSo] : false
+        });
+
+        if (maHoSo && maHoSo.trim() !== '' && !bhxhNotifications[maHoSo]) {
+          soHoSoSet.add(maHoSo);
+        }
+      });
+
+      const soHoSoList = Array.from(soHoSoSet);
+
+      if (soHoSoList.length === 0) {
+        setLoadingBhxhNotifications(false);
+        return;
+      }
+
+      console.log('🔔 HoSoDaXuLy: Fetching BHXH notifications for ho so list:', soHoSoList);
+
+      const notifications = await bhxhNotificationService.getNotificationsForMultipleHoSo(soHoSoList);
+
+      setBhxhNotifications(prev => ({
+        ...prev,
+        ...notifications
+      }));
+
+      console.log('🔔 HoSoDaXuLy: Updated BHXH notifications:', notifications);
+    } catch (error) {
+      console.error('Error fetching BHXH notifications:', error);
+    } finally {
+      setLoadingBhxhNotifications(false);
+    }
+  };
 
   // Load processed participants data
   const loadProcessedParticipantsData = async () => {
@@ -156,11 +218,14 @@ const HoSoDaXuLy: React.FC = () => {
 
       console.log('HoSoDaXuLy: Loaded processed participants:', result.data.length, 'of', result.total);
 
+
+
       setParticipantsList(result.data);
       setTotalParticipants(result.total);
 
-      // Log unique filter options for debugging
+      // Fetch BHXH notifications for participants with ma_ho_so
       if (result.data.length > 0) {
+        await fetchBhxhNotifications(result.data);
         getUniqueFilterOptions();
       }
     } catch (error) {
@@ -193,21 +258,21 @@ const HoSoDaXuLy: React.FC = () => {
     try {
       // Load don vi list
       const { data: donViData } = await supabase
-        .from('v_don_vi_chi_tiet')
+        .from('v_don_vi_chitiet')
         .select('*')
         .order('ma_don_vi');
       if (donViData) setDonViList(donViData);
 
       // Load tinh list
       const { data: tinhData } = await supabase
-        .from('dm_tinh_thanh_pho')
+        .from('dm_tinh')
         .select('*')
-        .order('ma');
+        .order('value');
       if (tinhData) setTinhList(tinhData);
 
       // Load dai ly list
       const { data: daiLyData } = await supabase
-        .from('v_dai_ly_chi_tiet')
+        .from('v_dai_ly_chitiet')
         .select('*')
         .order('ma');
       if (daiLyData) setDaiLyList(daiLyData);
@@ -234,10 +299,10 @@ const HoSoDaXuLy: React.FC = () => {
 
       try {
         const { data: huyenData } = await supabase
-          .from('dm_quan_huyen')
+          .from('dm_huyen')
           .select('*')
           .eq('ma_tinh', maTinh)
-          .order('ma');
+          .order('value');
         if (huyenData) setHuyenList(huyenData);
       } catch (error) {
         console.error('Error loading huyen list:', error);
@@ -249,15 +314,44 @@ const HoSoDaXuLy: React.FC = () => {
 
   // Get unique filter options for debugging
   const getUniqueFilterOptions = () => {
-    const uniqueDonVi = [...new Set(participantsList.map(p => p.ke_khai.ma_don_vi).filter(Boolean))];
-    const uniqueTinh = [...new Set(participantsList.map(p => p.ke_khai.ma_tinh).filter(Boolean))];
+    const uniqueDonVi = [...new Set(participantsList.map(p => p.ke_khai?.don_vi_id).filter(Boolean))];
     const uniqueStatus = [...new Set(participantsList.map(p => p.participant_status).filter(Boolean))];
 
     console.log('HoSoDaXuLy: Unique filter options:', {
       donVi: uniqueDonVi,
-      tinh: uniqueTinh,
       status: uniqueStatus
     });
+  };
+
+  // Quick scan for duplicates
+  const handleQuickScan = async () => {
+    if (!user?.id) return;
+
+    setQuickScanLoading(true);
+    try {
+      const result = await keKhaiService.findAllDuplicates(user.id);
+
+      const totalBhxhDuplicates = result.bhxhDuplicates.length;
+      const totalNameDuplicates = result.nameDuplicates.length;
+      const totalAffectedRecords =
+        result.bhxhDuplicates.reduce((sum, group) => sum + group.participants.length, 0) +
+        result.nameDuplicates.reduce((sum, group) => sum + group.participants.length, 0);
+
+      if (totalBhxhDuplicates === 0 && totalNameDuplicates === 0) {
+        showToast('🎉 Không tìm thấy dữ liệu trùng lặp trong hệ thống!', 'success');
+      } else {
+        const message = `⚠️ Tìm thấy ${totalBhxhDuplicates} nhóm trùng mã BHXH và ${totalNameDuplicates} nhóm trùng họ tên (${totalAffectedRecords} bản ghi bị ảnh hưởng)`;
+        showToast(message, 'error');
+
+        // Tự động mở modal để xem chi tiết
+        setShowDuplicateCheckModal(true);
+      }
+    } catch (error) {
+      console.error('Error in quick scan:', error);
+      showToast('Có lỗi xảy ra khi quét dữ liệu trùng lặp', 'error');
+    } finally {
+      setQuickScanLoading(false);
+    }
   };
 
   // Listen for payment confirmation events to auto-reload data
@@ -301,6 +395,20 @@ const HoSoDaXuLy: React.FC = () => {
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
             <RefreshCw className="w-3 h-3 mr-1" />
             Đang xử lý
+          </span>
+        );
+      case 'request_sent':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">
+            <Play className="w-3 h-3 mr-1" />
+            Đã gửi yêu cầu phát sinh
+          </span>
+        );
+      case 'request_confirmed':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Đã xác nhận yêu cầu phát sinh
           </span>
         );
       case 'approved':
@@ -354,6 +462,24 @@ const HoSoDaXuLy: React.FC = () => {
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
             🔄 Đang xử lý
+          </span>
+        );
+      case 'request_sent':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">
+            📤 Đã gửi yêu cầu phát sinh
+          </span>
+        );
+      case 'request_confirmed':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+            ✅ Đã xác nhận yêu cầu phát sinh
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+            ✅ Hoàn thành
           </span>
         );
       case 'approved':
@@ -438,11 +564,58 @@ const HoSoDaXuLy: React.FC = () => {
     return '—'; // Placeholder for now
   };
 
+  // Get mã hồ sơ từ participant hoặc kê khai
+  const getMaHoSo = (participant: ProcessedParticipant): string | null => {
+    return participant.ma_ho_so || participant.ke_khai.ma_ho_so || null;
+  };
+
+  // Refresh thông báo BHXH cho một participant cụ thể
+  const handleRefreshBhxhNotification = async (participant: ProcessedParticipant) => {
+    const maHoSo = getMaHoSo(participant);
+    if (!maHoSo) {
+      showToast('Người tham gia chưa có mã hồ sơ', 'warning');
+      return;
+    }
+
+    try {
+      setLoadingBhxhNotifications(true);
+      const notification = await bhxhNotificationService.getNotificationByHoSo(maHoSo);
+
+      setBhxhNotifications(prev => ({
+        ...prev,
+        [maHoSo]: notification
+      }));
+
+      showToast('Đã cập nhật thông báo BHXH', 'success');
+    } catch (error) {
+      console.error('Error refreshing BHXH notification:', error);
+      showToast('Không thể cập nhật thông báo BHXH', 'error');
+    } finally {
+      setLoadingBhxhNotifications(false);
+    }
+  };
+
   // Get notification/result message
   const getNotificationMessage = (participant: ProcessedParticipant) => {
-    // Return notification message based on status
+    // Kiểm tra thông báo BHXH trước
+    const maHoSo = getMaHoSo(participant);
+    if (maHoSo && bhxhNotifications[maHoSo]) {
+      const notification = bhxhNotifications[maHoSo];
+      return bhxhNotificationService.formatNotificationMessage(notification);
+    }
+
+    // Fallback về logic cũ
     if (participant.ke_khai.trang_thai === 'processing') {
       return 'Đang xử lý';
+    }
+    if (participant.ke_khai.trang_thai === 'request_sent') {
+      return 'Đã gửi yêu cầu phát sinh';
+    }
+    if (participant.ke_khai.trang_thai === 'request_confirmed') {
+      return 'Đã xác nhận yêu cầu phát sinh';
+    }
+    if (participant.ke_khai.trang_thai === 'completed') {
+      return 'Hoàn thành';
     }
     if (participant.participant_status === 'approved') {
       return 'Đã duyệt';
@@ -451,6 +624,23 @@ const HoSoDaXuLy: React.FC = () => {
       return 'Từ chối';
     }
     return '—';
+  };
+
+  // Get notification status for styling
+  const getNotificationStatus = (participant: ProcessedParticipant): 'success' | 'warning' | 'error' | 'info' => {
+    const maHoSo = getMaHoSo(participant);
+    if (maHoSo && bhxhNotifications[maHoSo]) {
+      return bhxhNotificationService.getNotificationStatus(bhxhNotifications[maHoSo]);
+    }
+
+    // Fallback status
+    if (participant.participant_status === 'approved') return 'success';
+    if (participant.participant_status === 'rejected') return 'error';
+    if (participant.ke_khai.trang_thai === 'processing') return 'warning';
+    if (participant.ke_khai.trang_thai === 'request_sent') return 'info';
+    if (participant.ke_khai.trang_thai === 'request_confirmed') return 'success';
+    if (participant.ke_khai.trang_thai === 'completed') return 'success';
+    return 'info';
   };
 
   // Handle context menu
@@ -654,8 +844,8 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
               >
                 <option value="">Mã đơn vị</option>
-                {donViList.map((donVi) => (
-                  <option key={donVi.id} value={donVi.ma_don_vi}>
+                {donViList.map((donVi, index) => (
+                  <option key={donVi.id || `donvi-${index}`} value={donVi.ma_don_vi}>
                     {donVi.ma_don_vi} - {donVi.ten_don_vi}
                   </option>
                 ))}
@@ -671,8 +861,8 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
               >
                 <option value="">Tỉnh/TP</option>
-                {tinhList.map((tinh) => (
-                  <option key={tinh.ma} value={tinh.ma}>
+                {tinhList.map((tinh, index) => (
+                  <option key={tinh.ma || `tinh-${index}`} value={tinh.ma}>
                     {tinh.ma} - {tinh.ten}
                   </option>
                 ))}
@@ -729,6 +919,9 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 <option value="all">Tất cả trạng thái cá nhân</option>
                 <option value="submitted">Đã nộp lên công ty</option>
                 <option value="processing">Đang xử lý</option>
+                <option value="request_sent">Đã gửi yêu cầu phát sinh</option>
+                <option value="request_confirmed">Đã xác nhận yêu cầu phát sinh</option>
+                <option value="completed">Hoàn thành</option>
                 <option value="approved">Đã duyệt</option>
                 <option value="rejected">Từ chối</option>
               </select>
@@ -761,8 +954,8 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none disabled:opacity-50"
               >
                 <option value="">Quận/Huyện</option>
-                {huyenList.map((huyen) => (
-                  <option key={huyen.ma} value={huyen.ma}>
+                {huyenList.map((huyen, index) => (
+                  <option key={huyen.ma || `huyen-${index}`} value={huyen.ma}>
                     {huyen.ma} - {huyen.ten}
                   </option>
                 ))}
@@ -814,6 +1007,23 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Tìm kiếm
+              </button>
+              <button
+                onClick={() => setShowDuplicateCheckModal(true)}
+                className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
+                title="Kiểm tra trùng lặp mã BHXH và họ tên"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Kiểm tra trùng lặp</span>
+              </button>
+              <button
+                onClick={handleQuickScan}
+                disabled={quickScanLoading}
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                title="Quét nhanh toàn bộ hệ thống để tìm trùng lặp"
+              >
+                <Search className={`w-4 h-4 ${quickScanLoading ? 'animate-spin' : ''}`} />
+                <span>{quickScanLoading ? 'Đang quét...' : 'Quét nhanh'}</span>
               </button>
             </div>
 
@@ -907,7 +1117,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                     Nhận BHXH
                   </th>
                   <th className="px-2 py-4 text-left text-xs font-medium text-blue-800 dark:text-blue-200 uppercase tracking-wider whitespace-nowrap">
-                    Thông báo
+                    Thông báo BHXH
                   </th>
                 </tr>
               </thead>
@@ -946,7 +1156,13 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {participant.ma_so_bhxh}
+                        {participant.ma_so_bhxh && participant.ma_so_bhxh.trim() ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            {participant.ma_so_bhxh.trim()}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">Chưa có mã BHXH</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap">
@@ -995,9 +1211,64 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
                         {getBhxhReceiptDate(participant)}
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {getNotificationMessage(participant)}
+                    <td className="px-2 py-3 text-left text-sm">
+                      <div className="flex items-center space-x-2 group">
+                        <div className="flex-1">
+                          {(() => {
+                            const maHoSo = getMaHoSo(participant);
+                            if (maHoSo) {
+                              if (loadingBhxhNotifications) {
+                                return (
+                                  <div className="flex items-center">
+                                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
+                                    <span className="text-gray-400">Đang tải...</span>
+                                  </div>
+                                );
+                              } else if (bhxhNotifications[maHoSo]) {
+                                return (
+                                  <div className="max-w-xs">
+                                    <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                      getNotificationStatus(participant) === 'success'
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                        : getNotificationStatus(participant) === 'warning'
+                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                        : getNotificationStatus(participant) === 'error'
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                                    }`}>
+                                      <Bell className="w-3 h-3 mr-1" />
+                                      <div className="truncate max-w-44" title={getNotificationMessage(participant)}>
+                                        {getNotificationMessage(participant)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <span className="text-gray-400 dark:text-gray-500 italic text-xs">
+                                    Chưa có thông báo
+                                  </span>
+                                );
+                              }
+                            } else {
+                              return (
+                                <span className="text-gray-400 dark:text-gray-500 italic text-xs">
+                                  Chưa có mã hồ sơ
+                                </span>
+                              );
+                            }
+                          })()}
+                        </div>
+                        {getMaHoSo(participant) && (
+                          <button
+                            onClick={() => handleRefreshBhxhNotification(participant)}
+                            disabled={loadingBhxhNotifications}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-opacity disabled:opacity-50"
+                            title="Cập nhật thông báo BHXH"
+                          >
+                            <Bell className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1134,6 +1405,13 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
           }}
         />
       )}
+
+      {/* Duplicate Check Modal */}
+      <DuplicateCheckModal
+        isOpen={showDuplicateCheckModal}
+        onClose={() => setShowDuplicateCheckModal(false)}
+        userId={user?.id}
+      />
     </div>
   );
 };

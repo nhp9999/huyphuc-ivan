@@ -18,7 +18,7 @@ const DeclarationHistory: React.FC = () => {
   const [participants, setParticipants] = useState<ParticipantWithKeKhai[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'BHYT' | 'BHXH'>('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'submitted' | 'approved' | 'rejected' | 'processing' | 'paid'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'submitted' | 'approved' | 'rejected' | 'processing' | 'request_sent' | 'paid'>('all');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -129,6 +129,8 @@ const DeclarationHistory: React.FC = () => {
         return 'Đã nộp';
       case 'processing':
         return 'Đang xử lý';
+      case 'request_sent':
+        return 'Đã gửi yêu cầu phát sinh';
       case 'approved':
         return 'Đã duyệt';
       case 'rejected':

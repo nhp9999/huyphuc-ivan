@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   CreditCard,
   Search,
-  Eye,
   Clock,
   CheckCircle,
   AlertCircle,
@@ -11,7 +10,10 @@ import {
   QrCode,
   RefreshCw,
   Image,
-  FileText
+  FileText,
+  Plus,
+  History,
+  Images
 } from 'lucide-react';
 import { DanhSachKeKhai, ThanhToan, supabase } from '../../../shared/services/api/supabaseClient';
 import paymentService from '../services/paymentService';
@@ -20,6 +22,9 @@ import { useToast } from '../../../shared/hooks/useToast';
 import { useNavigation } from '../../../core/contexts/NavigationContext';
 import PaymentQRModal from '../components/PaymentQRModal';
 import PaymentProofModal from '../components/PaymentProofModal';
+import AdditionalPaymentModal from '../components/AdditionalPaymentModal';
+import PaymentHistoryModal from '../components/PaymentHistoryModal';
+import AllPaymentProofsModal from '../components/AllPaymentProofsModal';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 import { usePaymentNotificationControl } from '../hooks/usePaymentNotificationControl';
 
@@ -39,11 +44,16 @@ const MyPayments: React.FC = () => {
   const [keKhaiList, setKeKhaiList] = useState<DanhSachKeKhai[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  
+  const [paymentSummary, setPaymentSummary] = useState<{[key: number]: {total: number, paid: number}}>({});
+
   // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showProofModal, setShowProofModal] = useState(false);
+  const [showAdditionalPaymentModal, setShowAdditionalPaymentModal] = useState(false);
+  const [showPaymentHistoryModal, setShowPaymentHistoryModal] = useState(false);
+  const [showAllProofsModal, setShowAllProofsModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<ThanhToan | null>(null);
+  const [selectedKeKhai, setSelectedKeKhai] = useState<DanhSachKeKhai | null>(null);
 
   // Get latest payment from a ke khai (sorted by created_at)
   const getLatestPayment = (keKhai: any) => {
@@ -70,6 +80,28 @@ const MyPayments: React.FC = () => {
     return latestPayment?.trang_thai === 'pending' ||
            keKhai.payment_status === 'pending' ||
            keKhai.trang_thai === 'pending_payment';
+  };
+
+  // Load payment summary for each ke khai
+  const loadPaymentSummary = async (keKhaiIds: number[]) => {
+    try {
+      const summaryPromises = keKhaiIds.map(async (keKhaiId) => {
+        const [totalRequired, totalPaid] = await Promise.all([
+          paymentService.calculateTotalAmount(keKhaiId),
+          paymentService.getTotalPaidAmount(keKhaiId)
+        ]);
+        return { keKhaiId, total: totalRequired, paid: totalPaid };
+      });
+
+      const summaries = await Promise.all(summaryPromises);
+      const summaryMap: {[key: number]: {total: number, paid: number}} = {};
+      summaries.forEach(({ keKhaiId, total, paid }) => {
+        summaryMap[keKhaiId] = { total, paid };
+      });
+      setPaymentSummary(summaryMap);
+    } catch (error) {
+      console.error('Error loading payment summary:', error);
+    }
   };
 
   // Load data
@@ -132,6 +164,12 @@ const MyPayments: React.FC = () => {
           });
 
       setKeKhaiList(filteredData);
+
+      // Load payment summary for all ke khai
+      const keKhaiIds = filteredData.map((kk: any) => kk.id);
+      if (keKhaiIds.length > 0) {
+        await loadPaymentSummary(keKhaiIds);
+      }
     } catch (error) {
       console.error('Error loading my payments:', error);
       showToast('Không thể tải danh sách thanh toán', 'error');
@@ -388,6 +426,54 @@ const MyPayments: React.FC = () => {
     });
   };
 
+  // Handle additional payment
+  const handleAdditionalPayment = (keKhai: DanhSachKeKhai) => {
+    setSelectedKeKhai(keKhai);
+    setShowAdditionalPaymentModal(true);
+  };
+
+  // Handle additional payment created
+  const handleAdditionalPaymentCreated = () => {
+    loadMyPayments(); // Reload data
+    setShowAdditionalPaymentModal(false);
+    setSelectedKeKhai(null);
+  };
+
+  // Handle view payment history
+  const handleViewPaymentHistory = (keKhai: DanhSachKeKhai) => {
+    setSelectedKeKhai(keKhai);
+    setShowPaymentHistoryModal(true);
+  };
+
+  // Handle view all proofs
+  const handleViewAllProofs = (keKhai: DanhSachKeKhai) => {
+    setSelectedKeKhai(keKhai);
+    setShowAllProofsModal(true);
+  };
+
+  // Get payment summary for a ke khai
+  const getPaymentSummary = (keKhaiId: number) => {
+    return paymentSummary[keKhaiId] || { total: 0, paid: 0 };
+  };
+
+  // Check if ke khai needs additional payment
+  const needsAdditionalPayment = (keKhaiId: number) => {
+    const summary = getPaymentSummary(keKhaiId);
+    return summary.total > summary.paid && summary.paid > 0;
+  };
+
+  // Check if ke khai has multiple payments
+  const hasMultiplePayments = (keKhai: any) => {
+    return keKhai.thanh_toan && keKhai.thanh_toan.length > 1;
+  };
+
+  // Check if ke khai has multiple proof images
+  const hasMultipleProofs = (keKhai: any) => {
+    if (!keKhai.thanh_toan) return false;
+    const proofsCount = keKhai.thanh_toan.filter((payment: any) => payment.proof_image_url).length;
+    return proofsCount > 1;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -511,16 +597,49 @@ const MyPayments: React.FC = () => {
                         {getObjectTypeBadge(keKhai.loai_ke_khai)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <DollarSign className="w-4 h-4 text-green-500 mr-1" />
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {(() => {
-                              const latestPayment = getLatestPayment(keKhai);
-                              return latestPayment?.so_tien
-                                ? paymentService.formatCurrency(latestPayment.so_tien)
-                                : 'Chưa tính';
-                            })()}
-                          </span>
+                        <div className="space-y-1">
+                          {(() => {
+                            const summary = getPaymentSummary(keKhai.id);
+                            const latestPayment = getLatestPayment(keKhai);
+
+                            if (summary.total > 0) {
+                              return (
+                                <>
+                                  <div className="flex items-center">
+                                    <DollarSign className="w-4 h-4 text-blue-500 mr-1" />
+                                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                      Tổng: {paymentService.formatCurrency(summary.total)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <DollarSign className="w-4 h-4 text-green-500 mr-1" />
+                                    <span className="text-sm text-green-600">
+                                      Đã trả: {paymentService.formatCurrency(summary.paid)}
+                                    </span>
+                                  </div>
+                                  {summary.total > summary.paid && (
+                                    <div className="flex items-center">
+                                      <DollarSign className="w-4 h-4 text-red-500 mr-1" />
+                                      <span className="text-sm text-red-600">
+                                        Còn thiếu: {paymentService.formatCurrency(summary.total - summary.paid)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            } else {
+                              return (
+                                <div className="flex items-center">
+                                  <DollarSign className="w-4 h-4 text-gray-400 mr-1" />
+                                  <span className="text-sm text-gray-500">
+                                    {latestPayment?.so_tien
+                                      ? paymentService.formatCurrency(latestPayment.so_tien)
+                                      : 'Chưa tính'}
+                                  </span>
+                                </div>
+                              );
+                            }
+                          })()}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -565,6 +684,39 @@ const MyPayments: React.FC = () => {
                             <FileText className="w-4 h-4" />
                           </button>
 
+                          {/* All proofs button */}
+                          {hasMultipleProofs(keKhai) && (
+                            <button
+                              onClick={() => handleViewAllProofs(keKhai)}
+                              className="text-emerald-600 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-emerald-300"
+                              title="Xem tất cả ảnh chứng minh"
+                            >
+                              <Images className="w-4 h-4" />
+                            </button>
+                          )}
+
+                          {/* Payment history button */}
+                          {hasMultiplePayments(keKhai) && (
+                            <button
+                              onClick={() => handleViewPaymentHistory(keKhai)}
+                              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                              title="Xem lịch sử thanh toán"
+                            >
+                              <History className="w-4 h-4" />
+                            </button>
+                          )}
+
+                          {/* Additional payment button */}
+                          {needsAdditionalPayment(keKhai.id) && (
+                            <button
+                              onClick={() => handleAdditionalPayment(keKhai)}
+                              className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
+                              title="Thanh toán bổ sung"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          )}
+
                           {(() => {
                             const latestPayment = getLatestPayment(keKhai);
                             if (!latestPayment) return null;
@@ -582,13 +734,6 @@ const MyPayments: React.FC = () => {
                             } else if (isPaymentCompleted(keKhai)) {
                               return (
                                 <>
-                                  <button
-                                    onClick={() => handleViewPayment(keKhai)}
-                                    className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                                    title="Xem thông tin thanh toán"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
                                   {latestPayment.proof_image_url && (
                                     <button
                                       onClick={() => handleViewProof(keKhai)}
@@ -633,6 +778,42 @@ const MyPayments: React.FC = () => {
           onClose={() => {
             setShowProofModal(false);
             setSelectedPayment(null);
+          }}
+        />
+      )}
+
+      {/* Additional Payment Modal */}
+      {showAdditionalPaymentModal && selectedKeKhai && (
+        <AdditionalPaymentModal
+          keKhai={selectedKeKhai}
+          totalRequiredAmount={getPaymentSummary(selectedKeKhai.id).total}
+          totalPaidAmount={getPaymentSummary(selectedKeKhai.id).paid}
+          onClose={() => {
+            setShowAdditionalPaymentModal(false);
+            setSelectedKeKhai(null);
+          }}
+          onPaymentCreated={handleAdditionalPaymentCreated}
+        />
+      )}
+
+      {/* Payment History Modal */}
+      {showPaymentHistoryModal && selectedKeKhai && (
+        <PaymentHistoryModal
+          keKhai={selectedKeKhai}
+          onClose={() => {
+            setShowPaymentHistoryModal(false);
+            setSelectedKeKhai(null);
+          }}
+        />
+      )}
+
+      {/* All Payment Proofs Modal */}
+      {showAllProofsModal && selectedKeKhai && (
+        <AllPaymentProofsModal
+          keKhai={selectedKeKhai}
+          onClose={() => {
+            setShowAllProofsModal(false);
+            setSelectedKeKhai(null);
           }}
         />
       )}

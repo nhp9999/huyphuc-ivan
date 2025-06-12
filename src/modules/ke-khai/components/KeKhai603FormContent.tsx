@@ -11,6 +11,7 @@ import PaymentQRModal from './PaymentQRModal';
 import { KeKhai603Header } from './kekhai603/KeKhai603Header';
 import { HouseholdBulkInputModal } from './kekhai603/HouseholdBulkInputModal';
 import { KeKhai603ParticipantTable } from './kekhai603/KeKhai603ParticipantTable';
+import BulkUpdateModal, { BulkUpdateData } from './kekhai603/BulkUpdateModal';
 
 import { useCSKCBPreloader } from '../hooks/useCSKCBPreloader';
 import { useCSKCBContext } from '../contexts/CSKCBContext';
@@ -67,6 +68,11 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
   // State for bulk submit notes
   const [pendingBulkSubmitNotes, setPendingBulkSubmitNotes] = React.useState<string>('');
+
+  // State for bulk update functionality
+  const [showBulkUpdateModal, setShowBulkUpdateModal] = React.useState(false);
+  const [bulkUpdateSelectedIndices, setBulkUpdateSelectedIndices] = React.useState<number[]>([]);
+  const [bulkUpdating, setBulkUpdating] = React.useState(false);
 
 
 
@@ -147,7 +153,8 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
     updateParticipantWithApiData,
     saveSingleParticipant,
     saveParticipantFromForm,
-    submitIndividualParticipant
+    submitIndividualParticipant,
+    bulkUpdateParticipants
   } = useKeKhai603Participants(keKhaiInfo?.id, keKhaiInfo?.doi_tuong_tham_gia);
 
 
@@ -1231,7 +1238,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
 
     // Calculate total amount
     const totalAmount = participants.reduce((sum, participant) => {
-      return sum + (participant.tienDong || participant.tienDongThucTe || 0);
+      return sum + (participant.tienDongThucTe || participant.tienDong || 0);
     }, 0);
 
     if (totalAmount <= 0) {
@@ -1824,6 +1831,43 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
     }
   };
 
+  // Handle bulk update participants
+  const handleBulkUpdateParticipants = (indices: number[]) => {
+    setBulkUpdateSelectedIndices(indices);
+    setShowBulkUpdateModal(true);
+  };
+
+  // Handle bulk update submit
+  const handleBulkUpdateSubmit = async (data: BulkUpdateData, selectedIndices: number[]) => {
+    try {
+      setBulkUpdating(true);
+
+      const result = await bulkUpdateParticipants(selectedIndices, data);
+
+      if (result.success) {
+        showToast(result.message, 'success');
+        setShowBulkUpdateModal(false);
+        setBulkUpdateSelectedIndices([]);
+        // Refresh participants to show updated data
+        await loadParticipants();
+      } else {
+        showToast(result.message, 'error');
+      }
+    } catch (error) {
+      console.error('Bulk update error:', error);
+      showToast('Có lỗi xảy ra khi cập nhật hàng loạt. Vui lòng thử lại.', 'error');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  // Handle bulk update modal close
+  const handleBulkUpdateModalClose = () => {
+    if (bulkUpdating) return; // Prevent closing during update
+    setShowBulkUpdateModal(false);
+    setBulkUpdateSelectedIndices([]);
+  };
+
   return (
     <div className="space-y-6">
         {/* Header */}
@@ -2360,6 +2404,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
               onAddParticipant={handleAddParticipant}
               onBulkRemoveParticipants={handleBulkRemoveParticipants}
               onBulkSubmitParticipantsWithPayment={handleBulkSubmitParticipantsWithPayment}
+              onBulkUpdateParticipants={handleBulkUpdateParticipants}
               onEditParticipant={handleEditParticipant}
               participantSearchLoading={participantSearchLoading}
               savingData={savingData || creatingNewDeclaration}
@@ -2422,7 +2467,7 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
                       <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
                         <p>• Số người tham gia: <span className="font-semibold">{participants.length}</span></p>
                         <p>• Tổng số tiền: <span className="font-semibold text-green-600">
-                          {participants.reduce((sum, p) => sum + (p.tienDong || p.tienDongThucTe || 0), 0).toLocaleString('vi-VN')} ₫
+                          {participants.reduce((sum, p) => sum + (p.tienDongThucTe || p.tienDong || 0), 0).toLocaleString('vi-VN')} ₫
                         </span></p>
                       </div>
                     </div>
@@ -2466,6 +2511,21 @@ export const KeKhai603FormContent: React.FC<KeKhai603FormContentProps> = ({
         loading={bulkSubmittingWithPayment}
       />
 
+      {/* Bulk Update Modal */}
+      <BulkUpdateModal
+        isOpen={showBulkUpdateModal}
+        onClose={handleBulkUpdateModalClose}
+        onSubmit={handleBulkUpdateSubmit}
+        selectedParticipants={bulkUpdateSelectedIndices}
+        participantCount={participants.length}
+        cskcbOptions={getCSKCBDropdownOptions}
+        tinhOptions={getTinhDropdownOptions}
+        huyenOptions={getHuyenNkqDropdownOptions}
+        xaOptions={getXaNkqDropdownOptions}
+        onTinhChange={handleTinhNkqChange}
+        onHuyenChange={handleHuyenNkqChange}
+        processing={bulkUpdating}
+      />
 
     </div>
   );
