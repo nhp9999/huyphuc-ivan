@@ -381,10 +381,13 @@ const HoSoDaXuLy: React.FC = () => {
         so_the_bhyt: participant.so_the_bhyt,
         noi_dang_ky_kcb: participant.noi_dang_ky_kcb,
         noi_nhan_ho_so: participant.noi_nhan_ho_so || '',
-        xa_nkq: '', // Will need to resolve from ma_xa_nkq
-        huyen_nkq: '', // Will need to resolve from ma_huyen_nkq
-        tinh_nkq: '', // Will need to resolve from ma_tinh_nkq
-        dia_chi: participant.noi_nhan_ho_so || '', // Use noi_nhan_ho_so as address for now
+        ma_tinh_nkq: participant.ma_tinh_nkq || '',
+        ma_huyen_nkq: participant.ma_huyen_nkq || '',
+        ma_xa_nkq: participant.ma_xa_nkq || '',
+        xa_nkq: '', // Will be resolved from ma_xa_nkq
+        huyen_nkq: '', // Will be resolved from ma_huyen_nkq
+        tinh_nkq: '', // Will be resolved from ma_tinh_nkq
+        dia_chi: participant.noi_nhan_ho_so || '', // Will be built from all address components
         tien_dong_thuc_te: participant.tien_dong_thuc_te || 0,
         tien_dong: participant.tien_dong || 0,
         participant_status: participant.participant_status || '',
@@ -445,10 +448,13 @@ const HoSoDaXuLy: React.FC = () => {
         so_the_bhyt: participant.so_the_bhyt,
         noi_dang_ky_kcb: participant.noi_dang_ky_kcb,
         noi_nhan_ho_so: participant.noi_nhan_ho_so || '',
-        xa_nkq: '', // Will need to resolve from ma_xa_nkq
-        huyen_nkq: '', // Will need to resolve from ma_huyen_nkq
-        tinh_nkq: '', // Will need to resolve from ma_tinh_nkq
-        dia_chi: participant.noi_nhan_ho_so || '', // Use noi_nhan_ho_so as address for now
+        ma_tinh_nkq: participant.ma_tinh_nkq || '',
+        ma_huyen_nkq: participant.ma_huyen_nkq || '',
+        ma_xa_nkq: participant.ma_xa_nkq || '',
+        xa_nkq: '', // Will be resolved from ma_xa_nkq
+        huyen_nkq: '', // Will be resolved from ma_huyen_nkq
+        tinh_nkq: '', // Will be resolved from ma_tinh_nkq
+        dia_chi: participant.noi_nhan_ho_so || '', // Will be built from all address components
         tien_dong_thuc_te: participant.tien_dong_thuc_te || 0,
         tien_dong: participant.tien_dong || 0,
         participant_status: participant.participant_status || '',

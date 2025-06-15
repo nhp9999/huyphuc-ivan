@@ -275,6 +275,9 @@ export interface ProcessedParticipantExport {
   so_the_bhyt: string;
   noi_dang_ky_kcb: string;
   noi_nhan_ho_so: string;
+  ma_tinh_nkq: string;
+  ma_huyen_nkq: string;
+  ma_xa_nkq: string;
   xa_nkq: string;
   huyen_nkq: string;
   tinh_nkq: string;
@@ -296,12 +299,42 @@ export interface ProcessedParticipantExport {
   };
 }
 
+// Helper function to resolve location names from codes
+const resolveLocationNames = async (
+  maTinh?: string,
+  maHuyen?: string,
+  maXa?: string
+): Promise<{ tinhName: string; huyenName: string; xaName: string }> => {
+  try {
+    const [tinhName, huyenName, xaName] = await Promise.all([
+      maTinh ? tinhService.getTinhTextByValue(maTinh) : '',
+      maHuyen && maTinh ? huyenService.getHuyenTextByValue(maHuyen, maTinh) : '',
+      maXa && maHuyen && maTinh ? xaService.getXaTextByValue(maXa, maHuyen, maTinh) : ''
+    ]);
+
+    return {
+      tinhName: tinhName || '',
+      huyenName: huyenName || '',
+      xaName: xaName || ''
+    };
+  } catch (error) {
+    console.error('Error resolving location names:', error);
+    return {
+      tinhName: maTinh || '',
+      huyenName: maHuyen || '',
+      xaName: maXa || ''
+    };
+  }
+};
+
 // Function to convert processed participant data to D03-TK1 format
-export const convertProcessedParticipantToD03TK1Format = (
+export const convertProcessedParticipantToD03TK1Format = async (
   participants: ProcessedParticipantExport[],
   maNhanVienThu?: string
-): D03TK1VNPTExportData[] => {
-  return participants.map((participant, index) => {
+): Promise<D03TK1VNPTExportData[]> => {
+  // Process participants with location resolution
+  const processedParticipants = await Promise.all(
+    participants.map(async (participant, index) => {
     // Helper function to format date
     const formatDate = (dateString: string | null | undefined): string => {
       if (!dateString) return '';
@@ -333,28 +366,35 @@ export const convertProcessedParticipantToD03TK1Format = (
       return 0;
     };
 
-    // Helper function to build full address
-    const buildFullAddress = (participant: ProcessedParticipantExport): string => {
-      const addressParts = [];
+      // Resolve location names from codes
+      const locationNames = await resolveLocationNames(
+        participant.ma_tinh_nkq,
+        participant.ma_huyen_nkq,
+        participant.ma_xa_nkq
+      );
 
-      // Add detailed address if available
-      if (participant.noi_nhan_ho_so) {
-        addressParts.push(participant.noi_nhan_ho_so);
-      }
+      // Helper function to build full address
+      const buildFullAddress = (): string => {
+        const addressParts = [];
 
-      // Add xa, huyen, tinh from nkq fields if available
-      if (participant.xa_nkq) {
-        addressParts.push(participant.xa_nkq);
-      }
-      if (participant.huyen_nkq) {
-        addressParts.push(participant.huyen_nkq);
-      }
-      if (participant.tinh_nkq) {
-        addressParts.push(participant.tinh_nkq);
-      }
+        // Add detailed address if available
+        if (participant.noi_nhan_ho_so) {
+          addressParts.push(participant.noi_nhan_ho_so);
+        }
 
-      return addressParts.join(', ');
-    };
+        // Add resolved location names
+        if (locationNames.xaName) {
+          addressParts.push(locationNames.xaName);
+        }
+        if (locationNames.huyenName) {
+          addressParts.push(locationNames.huyenName);
+        }
+        if (locationNames.tinhName) {
+          addressParts.push(locationNames.tinhName);
+        }
+
+        return addressParts.join(', ');
+      };
 
     return {
       STT: index + 1,
@@ -410,9 +450,16 @@ export const convertProcessedParticipantToD03TK1Format = (
       SoBienLai2: (index + 1).toString(),
       NgayBienLai2: formatDate(participant.submitted_at),
       MaNhanvienThu: maNhanVienThu || '',
-      DiaChi: buildFullAddress(participant) // Build full address from multiple fields
+      DiaChi: buildFullAddress(), // Build full address from multiple fields
+      // Store resolved location names for reference
+      xa_nkq: locationNames.xaName,
+      huyen_nkq: locationNames.huyenName,
+      tinh_nkq: locationNames.tinhName
     };
-  });
+    })
+  );
+
+  return processedParticipants;
 };
 
 // Function to export D03-TK1 using existing template file
@@ -423,7 +470,7 @@ export const exportD03TK1WithTemplate = async (
 ): Promise<void> => {
   try {
     // Convert data to D03-TK1 format
-    const exportData = convertProcessedParticipantToD03TK1Format(participants, maNhanVienThu);
+    const exportData = await convertProcessedParticipantToD03TK1Format(participants, maNhanVienThu);
 
     // Load the template file
     const templatePath = '/templates/FileMau_D03_TS.xlsx';
