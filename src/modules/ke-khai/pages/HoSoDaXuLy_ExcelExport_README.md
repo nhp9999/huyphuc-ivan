@@ -38,15 +38,16 @@ Tính năng xuất Excel D03-TK1 đã được tích hợp vào trang "Hồ sơ 
 - **Cột D**: Số CCCD/CNTND/ĐDCN/hộ chiếu
 - **Cột E**: Ngày sinh
 - **Cột F**: Giới tính (Nam/Nữ)
-- **Cột G**: Địa chỉ (dia_chi)
+- **Cột G**: Địa chỉ (địa chỉ đầy đủ từ noi_nhan_ho_so + xa + huyen + tinh)
 - **Cột H**: Nơi đăng ký KCB (Bệnh viện)
 - **Cột I**: Số tháng (mặc định: 12)
 - **Cột J**: Từ ngày (ngày nộp)
 - **Cột K**: Đến ngày
 - **Cột L**: Số tiền (tien_dong_thuc_te hoặc tien_dong)
 - **Cột M**: Ghi chú
-- **Cột N**: Mã nhân viên thu (email người dùng)
-- **Cột O**: Ngày lập (ngày nộp)
+- **Cột N**: Ngày lập (ngày nộp)
+- **Cột O**: Trống
+- **Cột P**: Mã nhân viên thu (email người dùng)
 
 ## Xử lý lỗi
 

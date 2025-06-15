@@ -503,7 +503,7 @@ export const exportD03TK1WithTemplate = async (
       console.log(`Inserting new row at position ${insertPosition}: ${rowData.HoTen}`);
       console.log(`Debug - Sothang: ${rowData.Sothang}, TuNgay: ${rowData.TuNgay}`);
 
-      // Create data array for the new row
+      // Create data array for the new row (including column Q)
       const rowValues = [
         rowData.STT, // A: STT
         rowData.HoTen, // B: Họ tên
@@ -513,46 +513,140 @@ export const exportD03TK1WithTemplate = async (
         rowData.GioiTinh === 1 ? 'Nam' : 'Nữ', // F: Giới tính
         rowData.DiaChi || '', // G: Địa chỉ
         rowData.TenBenhVien || '', // H: Nơi đăng ký KCB (Bệnh viện)
-        rowData.Sothang, // I: Số tháng
+        rowData.NgayBienLai, // I: Ngày biên lai (moved from N to I)
         rowData.TuNgay, // J: Từ ngày
-        rowData.NgayChet || '', // K: Đến ngày
-        rowData.Tiendong, // L: Số tiền
+        rowData.Tiendong, // K: Số tiền
+        rowData.NgayChet || '', // L: Đến ngày
         rowData.Ghichu || '', // M: Ghi chú
-        rowData.MaNhanvienThu || '', // N: Mã nhân viên thu
-        rowData.NgayBienLai // O: Ngày lập
+        '', // N: Cột trống
+        rowData.Sothang, // O: Số tháng
+        rowData.MaNhanvienThu || '', // P: Mã nhân viên thu
+        '' // Q: Cột trống (cột 17)
       ];
 
       // Insert a completely new row at the specified position
       const newRow = worksheet.insertRow(insertPosition, rowValues);
 
+      // Force create all cells up to column Q (17) to ensure proper grid
+      for (let colIndex = 1; colIndex <= 17; colIndex++) {
+        const cell = newRow.getCell(colIndex);
+        // Ensure cell exists by accessing it
+        if (cell.value === undefined && colIndex > rowValues.length) {
+          cell.value = '';
+        }
+      }
+
       // Apply formatting to the new row
       newRow.eachCell((cell, colNumber) => {
-        if (colNumber <= 15) {
+        if (colNumber <= 17) { // Include column Q (17)
+          // Base style for all cells
           cell.style = {
-            font: { name: 'Times New Roman', size: 11 },
+            font: {
+              name: 'Times New Roman',
+              size: 11,
+              color: { argb: '000000' }
+            },
             alignment: {
               vertical: 'middle',
-              horizontal: colNumber === 1 ? 'center' : 'left' // Center STT, left align others
+              horizontal: 'left',
+              wrapText: true
             },
             border: {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' }
+              top: { style: 'thin', color: { argb: '000000' } },
+              left: { style: 'thin', color: { argb: '000000' } },
+              bottom: { style: 'thin', color: { argb: '000000' } },
+              right: { style: 'thin', color: { argb: '000000' } }
             }
           };
 
-          // Special formatting for number columns
-          if (colNumber === 12) { // Số tiền column (now column L)
-            cell.style.numFmt = '#,##0';
+          // Special alignment for specific columns
+          if (colNumber === 1) { // STT - center align
+            cell.style.alignment.horizontal = 'center';
+          } else if (colNumber === 11) { // Số tiền column (K) - right align with number format
             cell.style.alignment.horizontal = 'right';
+            cell.style.numFmt = '#,##0';
+          } else if (colNumber === 15) { // Số tháng column (O) - center align
+            cell.style.alignment.horizontal = 'center';
+          } else if (colNumber === 5 || colNumber === 9 || colNumber === 10) { // Date columns (E, I, J) - center align
+            cell.style.alignment.horizontal = 'center';
           }
+
+          // Set row height for better readability (increased for better visibility)
+          newRow.height = 75;
         }
       });
+
+      // Ensure all columns up to Q (17) have proper borders, even if empty
+      for (let colIndex = 1; colIndex <= 17; colIndex++) {
+        const cell = newRow.getCell(colIndex);
+        if (!cell.style || !cell.style.border) {
+          cell.style = {
+            ...cell.style,
+            border: {
+              top: { style: 'thin', color: { argb: '000000' } },
+              left: { style: 'thin', color: { argb: '000000' } },
+              bottom: { style: 'thin', color: { argb: '000000' } },
+              right: { style: 'thin', color: { argb: '000000' } }
+            }
+          };
+        }
+      }
 
       // Commit the row to ensure it's properly written
       newRow.commit();
     });
+
+    // Calculate total amount from column K
+    const totalAmount = exportData.reduce((sum, rowData) => {
+      const amount = parseFloat(rowData.Tiendong) || 0;
+      return sum + amount;
+    }, 0);
+
+    // Find the row with "cộng tăng" text and update the total
+    worksheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell, colNumber) => {
+        if (cell.value && typeof cell.value === 'string' &&
+            cell.value.toLowerCase().includes('cộng tăng')) {
+          console.log(`Found "cộng tăng" at row ${rowNumber}, updating total: ${totalAmount}`);
+
+          // Write total amount to column K of this row
+          const totalCell = row.getCell(11); // Column K
+          totalCell.value = totalAmount;
+          totalCell.style = {
+            font: { name: 'Times New Roman', size: 11, bold: true },
+            alignment: { horizontal: 'right', vertical: 'middle' },
+            numFmt: '#,##0',
+            border: {
+              top: { style: 'thin', color: { argb: '000000' } },
+              left: { style: 'thin', color: { argb: '000000' } },
+              bottom: { style: 'thin', color: { argb: '000000' } },
+              right: { style: 'thin', color: { argb: '000000' } }
+            }
+          };
+        }
+      });
+    });
+
+    // Final pass: Ensure all data rows have consistent formatting across all columns
+    const totalDataRows = exportData.length;
+    for (let rowIndex = dataStartRow; rowIndex < dataStartRow + totalDataRows; rowIndex++) {
+      const row = worksheet.getRow(rowIndex);
+      for (let colIndex = 1; colIndex <= 17; colIndex++) {
+        const cell = row.getCell(colIndex);
+        // Ensure every cell has proper border
+        if (!cell.style?.border) {
+          cell.style = {
+            ...cell.style,
+            border: {
+              top: { style: 'thin', color: { argb: '000000' } },
+              left: { style: 'thin', color: { argb: '000000' } },
+              bottom: { style: 'thin', color: { argb: '000000' } },
+              right: { style: 'thin', color: { argb: '000000' } }
+            }
+          };
+        }
+      }
+    }
 
     // Generate filename
     const currentDate = new Date().toISOString().split('T')[0];
