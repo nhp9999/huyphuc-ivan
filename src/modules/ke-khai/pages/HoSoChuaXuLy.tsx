@@ -18,7 +18,8 @@ import {
   MapPin,
   Hash,
   FileCheck,
-  Briefcase
+  Briefcase,
+  Download
 } from 'lucide-react';
 import {
   DanhSachKeKhai,
@@ -47,6 +48,7 @@ import PaymentQRModal from '../components/PaymentQRModal';
 import BhxhCheckButton from '../components/BhxhCheckButton';
 import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 import paymentService from '../services/paymentService';
+import { exportD03TK1WithTemplate } from '../../../shared/utils/excelExport';
 
 const HoSoChuaXuLy: React.FC = () => {
   const { user } = useAuth();
@@ -85,6 +87,7 @@ const HoSoChuaXuLy: React.FC = () => {
   // Selection state
   const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -504,6 +507,9 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
         break;
       case 'select':
         handleParticipantSelect(participant.id, !selectedParticipants.has(participant.id));
+        break;
+      case 'export-kekhai':
+        handleExportD03TK1ByKeKhai(participant.ke_khai);
         break;
       default:
         break;
@@ -1147,6 +1153,158 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
       .reduce((sum, p) => sum + (p.tien_dong_thuc_te || p.tien_dong || 0), 0);
   };
 
+  // Handle export D03-TK1 Excel for selected participants
+  const handleExportD03TK1 = async () => {
+    const selectedList = participantsList.filter(p => selectedParticipants.has(p.id));
+
+    if (selectedList.length === 0) {
+      showToast('Vui lòng chọn ít nhất một người tham gia để xuất Excel', 'warning');
+      return;
+    }
+
+    setIsExportingExcel(true);
+    try {
+      // Convert UnprocessedParticipant to ProcessedParticipantExport format
+      const exportData = selectedList.map(participant => ({
+        id: participant.id,
+        ho_ten: participant.ho_ten,
+        ma_so_bhxh: participant.ma_so_bhxh,
+        so_cccd: participant.so_cccd,
+        ngay_sinh: participant.ngay_sinh,
+        gioi_tinh: participant.gioi_tinh,
+        so_dien_thoai: participant.so_dien_thoai,
+        so_the_bhyt: participant.so_the_bhyt,
+        noi_dang_ky_kcb: participant.noi_dang_ky_kcb,
+        participant_status: participant.participant_status,
+        submitted_at: participant.submitted_at,
+        tien_dong_thuc_te: participant.tien_dong_thuc_te,
+        tien_dong: participant.tien_dong,
+        ma_tinh_nkq: participant.ma_tinh_nkq,
+        ma_huyen_nkq: participant.ma_huyen_nkq,
+        ma_xa_nkq: participant.ma_xa_nkq,
+        noi_nhan_ho_so: participant.noi_nhan_ho_so,
+        ke_khai: {
+          luong_co_so: participant.ke_khai.luong_co_so || 2340000
+        }
+      }));
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `D03_TK1_HoSoChuaXuLy_${currentDate}.xlsx`;
+
+      // Export Excel with fast mode (skip location resolution)
+      await exportD03TK1WithTemplate(exportData, user?.id, fileName, true);
+
+      showToast(`Đã xuất Excel thành công: ${selectedList.length} người tham gia`, 'success');
+    } catch (error) {
+      console.error('Error exporting D03-TK1 Excel:', error);
+      showToast('Có lỗi xảy ra khi xuất Excel. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
+  // Handle export D03-TK1 Excel for entire ke khai
+  const handleExportD03TK1ByKeKhai = async (keKhai: DanhSachKeKhai) => {
+    setIsExportingExcel(true);
+    try {
+      // Get all participants from this ke khai
+      const keKhaiParticipants = participantsList.filter(p => p.ke_khai.id === keKhai.id);
+
+      if (keKhaiParticipants.length === 0) {
+        showToast('Không có người tham gia nào trong kê khai này', 'warning');
+        return;
+      }
+
+      // Convert UnprocessedParticipant to ProcessedParticipantExport format
+      const exportData = keKhaiParticipants.map(participant => ({
+        id: participant.id,
+        ho_ten: participant.ho_ten,
+        ma_so_bhxh: participant.ma_so_bhxh,
+        so_cccd: participant.so_cccd,
+        ngay_sinh: participant.ngay_sinh,
+        gioi_tinh: participant.gioi_tinh,
+        so_dien_thoai: participant.so_dien_thoai,
+        so_the_bhyt: participant.so_the_bhyt,
+        noi_dang_ky_kcb: participant.noi_dang_ky_kcb,
+        participant_status: participant.participant_status,
+        submitted_at: participant.submitted_at,
+        tien_dong_thuc_te: participant.tien_dong_thuc_te,
+        tien_dong: participant.tien_dong,
+        ma_tinh_nkq: participant.ma_tinh_nkq,
+        ma_huyen_nkq: participant.ma_huyen_nkq,
+        ma_xa_nkq: participant.ma_xa_nkq,
+        noi_nhan_ho_so: participant.noi_nhan_ho_so,
+        ke_khai: {
+          luong_co_so: participant.ke_khai.luong_co_so || 2340000
+        }
+      }));
+
+      // Generate filename with ke khai code and current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `D03_TK1_${keKhai.ma_ke_khai}_${currentDate}.xlsx`;
+
+      // Export Excel with fast mode (skip location resolution)
+      await exportD03TK1WithTemplate(exportData, user?.id, fileName, true);
+
+      showToast(`Đã xuất Excel thành công cho kê khai ${keKhai.ma_ke_khai}: ${keKhaiParticipants.length} người tham gia`, 'success');
+    } catch (error) {
+      console.error('Error exporting D03-TK1 Excel by ke khai:', error);
+      showToast('Có lỗi xảy ra khi xuất Excel. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
+  // Handle export D03-TK1 Excel for all participants
+  const handleExportAllD03TK1 = async () => {
+    if (participantsList.length === 0) {
+      showToast('Không có người tham gia nào để xuất Excel', 'warning');
+      return;
+    }
+
+    setIsExportingExcel(true);
+    try {
+      // Convert all UnprocessedParticipant to ProcessedParticipantExport format
+      const exportData = participantsList.map(participant => ({
+        id: participant.id,
+        ho_ten: participant.ho_ten,
+        ma_so_bhxh: participant.ma_so_bhxh,
+        so_cccd: participant.so_cccd,
+        ngay_sinh: participant.ngay_sinh,
+        gioi_tinh: participant.gioi_tinh,
+        so_dien_thoai: participant.so_dien_thoai,
+        so_the_bhyt: participant.so_the_bhyt,
+        noi_dang_ky_kcb: participant.noi_dang_ky_kcb,
+        participant_status: participant.participant_status,
+        submitted_at: participant.submitted_at,
+        tien_dong_thuc_te: participant.tien_dong_thuc_te,
+        tien_dong: participant.tien_dong,
+        ma_tinh_nkq: participant.ma_tinh_nkq,
+        ma_huyen_nkq: participant.ma_huyen_nkq,
+        ma_xa_nkq: participant.ma_xa_nkq,
+        noi_nhan_ho_so: participant.noi_nhan_ho_so,
+        ke_khai: {
+          luong_co_so: participant.ke_khai.luong_co_so || 2340000
+        }
+      }));
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `D03_TK1_TatCa_HoSoChuaXuLy_${currentDate}.xlsx`;
+
+      // Export Excel with fast mode (skip location resolution)
+      await exportD03TK1WithTemplate(exportData, user?.id, fileName, true);
+
+      showToast(`Đã xuất Excel thành công: ${participantsList.length} người tham gia từ tất cả kê khai`, 'success');
+    } catch (error) {
+      console.error('Error exporting all D03-TK1 Excel:', error);
+      showToast('Có lỗi xảy ra khi xuất Excel. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   // Context Menu Component
   const ContextMenu: React.FC = () => {
     if (!contextMenu.show || !contextMenu.participant) return null;
@@ -1167,6 +1325,12 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
         label: 'Xem chi tiết hồ sơ',
         icon: <Building className="w-4 h-4" />,
         onClick: () => handleContextMenuAction('view-kekhai', participant)
+      },
+      {
+        id: 'export-kekhai',
+        label: 'Xuất D03-TK1 theo kê khai',
+        icon: <Download className="w-4 h-4" />,
+        onClick: () => handleContextMenuAction('export-kekhai', participant)
       }
     ];
 
@@ -1246,6 +1410,25 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
 
         <div className="flex items-center space-x-3">
           <BhxhCheckButton className="rounded-lg" />
+
+          <button
+            onClick={handleExportAllD03TK1}
+            disabled={isExportingExcel || participantsList.length === 0}
+            title="Xuất Excel D03-TK1 cho tất cả người tham gia"
+            className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isExportingExcel ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Đang xuất...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Xuất tất cả D03-TK1
+              </>
+            )}
+          </button>
 
           <button
             onClick={loadUnprocessedParticipantsData}
@@ -1552,6 +1735,26 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
               </button>
             </div>
             <div className="flex items-center space-x-2">
+              {/* Export D03-TK1 Excel Button */}
+              <button
+                onClick={handleExportD03TK1}
+                disabled={isExportingExcel || selectedParticipants.size === 0}
+                title="Xuất Excel D03-TK1 cho người tham gia đã chọn"
+                className="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isExportingExcel ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Đang xuất...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Xuất D03-TK1
+                  </>
+                )}
+              </button>
+
               <button
                 onClick={handleSubmitSelected}
                 disabled={isSubmitting || getSelectedSelectableCount() === 0}

@@ -330,11 +330,48 @@ const resolveLocationNames = async (
 // Function to convert processed participant data to D03-TK1 format
 export const convertProcessedParticipantToD03TK1Format = async (
   participants: ProcessedParticipantExport[],
-  maNhanVienThu?: string
+  maNhanVienThu?: string,
+  skipLocationResolution: boolean = false
 ): Promise<D03TK1VNPTExportData[]> => {
-  // Process participants with location resolution
-  const processedParticipants = await Promise.all(
-    participants.map(async (participant, index) => {
+  console.log(`🚀 Converting ${participants.length} participants to D03-TK1 format...`);
+
+  // Location resolution cache
+  const locationCache = new Map<string, { xaName: string; huyenName: string; tinhName: string }>();
+
+  if (!skipLocationResolution) {
+    // Collect unique location codes for batch resolution
+    const uniqueLocations = new Set<string>();
+    participants.forEach(participant => {
+      if (participant.ma_tinh_nkq && participant.ma_huyen_nkq && participant.ma_xa_nkq) {
+        uniqueLocations.add(`${participant.ma_tinh_nkq}-${participant.ma_huyen_nkq}-${participant.ma_xa_nkq}`);
+      }
+    });
+
+    console.log(`📍 Found ${uniqueLocations.size} unique locations to resolve...`);
+
+    // Batch resolve all unique locations
+    if (uniqueLocations.size > 0) {
+      await Promise.all(
+        Array.from(uniqueLocations).map(async (locationKey) => {
+          const [maTinh, maHuyen, maXa] = locationKey.split('-');
+          try {
+            const locationNames = await resolveLocationNames(maTinh, maHuyen, maXa);
+            locationCache.set(locationKey, locationNames);
+          } catch (error) {
+            console.warn(`Failed to resolve location ${locationKey}:`, error);
+            locationCache.set(locationKey, { xaName: '', huyenName: '', tinhName: '' });
+          }
+        })
+      );
+    }
+
+    console.log(`✅ Resolved ${locationCache.size} locations. Processing participants...`);
+  } else {
+    console.log(`⚡ Skipping location resolution for faster export...`);
+  }
+
+  // Process participants without async location calls
+  const processedParticipants = participants.map((participant, index) => {
     // Helper function to format date
     const formatDate = (dateString: string | null | undefined): string => {
       if (!dateString) return '';
@@ -366,12 +403,9 @@ export const convertProcessedParticipantToD03TK1Format = async (
       return 0;
     };
 
-      // Resolve location names from codes
-      const locationNames = await resolveLocationNames(
-        participant.ma_tinh_nkq,
-        participant.ma_huyen_nkq,
-        participant.ma_xa_nkq
-      );
+      // Get location names from cache
+      const locationKey = `${participant.ma_tinh_nkq}-${participant.ma_huyen_nkq}-${participant.ma_xa_nkq}`;
+      const locationNames = locationCache.get(locationKey) || { xaName: '', huyenName: '', tinhName: '' };
 
       // Helper function to build full address
       const buildFullAddress = (): string => {
@@ -382,15 +416,28 @@ export const convertProcessedParticipantToD03TK1Format = async (
           addressParts.push(participant.noi_nhan_ho_so);
         }
 
-        // Add resolved location names
-        if (locationNames.xaName) {
-          addressParts.push(locationNames.xaName);
-        }
-        if (locationNames.huyenName) {
-          addressParts.push(locationNames.huyenName);
-        }
-        if (locationNames.tinhName) {
-          addressParts.push(locationNames.tinhName);
+        // Add resolved location names (if available)
+        if (!skipLocationResolution) {
+          if (locationNames.xaName) {
+            addressParts.push(locationNames.xaName);
+          }
+          if (locationNames.huyenName) {
+            addressParts.push(locationNames.huyenName);
+          }
+          if (locationNames.tinhName) {
+            addressParts.push(locationNames.tinhName);
+          }
+        } else {
+          // Use raw codes if skipping resolution
+          if (participant.ma_xa_nkq) {
+            addressParts.push(`Xã ${participant.ma_xa_nkq}`);
+          }
+          if (participant.ma_huyen_nkq) {
+            addressParts.push(`Huyện ${participant.ma_huyen_nkq}`);
+          }
+          if (participant.ma_tinh_nkq) {
+            addressParts.push(`Tỉnh ${participant.ma_tinh_nkq}`);
+          }
         }
 
         return addressParts.join(', ');
@@ -456,9 +503,9 @@ export const convertProcessedParticipantToD03TK1Format = async (
       huyen_nkq: locationNames.huyenName,
       tinh_nkq: locationNames.tinhName
     };
-    })
-  );
+    });
 
+  console.log(`✅ Converted ${processedParticipants.length} participants successfully.`);
   return processedParticipants;
 };
 
@@ -466,11 +513,12 @@ export const convertProcessedParticipantToD03TK1Format = async (
 export const exportD03TK1WithTemplate = async (
   participants: ProcessedParticipantExport[],
   maNhanVienThu?: string,
-  fileName?: string
+  fileName?: string,
+  skipLocationResolution: boolean = false
 ): Promise<void> => {
   try {
     // Convert data to D03-TK1 format
-    const exportData = await convertProcessedParticipantToD03TK1Format(participants, maNhanVienThu);
+    const exportData = await convertProcessedParticipantToD03TK1Format(participants, maNhanVienThu, skipLocationResolution);
 
     // Load the template file
     const templatePath = '/templates/FileMau_D03_TS.xlsx';
