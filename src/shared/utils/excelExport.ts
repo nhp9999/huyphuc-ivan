@@ -405,7 +405,7 @@ export const convertProcessedParticipantToD03TK1Format = async (
       PA: 'ON', // Default to 'ON' as per sample
       TyleNSDP: '', // Empty as requested
       NgayBienLai: formatDate(participant.submitted_at),
-      SoBienLai: (index + 1).toString(),
+      SoBienLai: '', // Leave empty as requested - no automatic numbering
       NguoiThamGiaThu: 1, // Default to 1
       Tiendong: participant.tien_dong_thuc_te || participant.tien_dong || participant.ke_khai.luong_co_so || 2340000,
       TienDongThucTe: participant.tien_dong_thuc_te || participant.tien_dong || participant.ke_khai.luong_co_so || 2340000,
@@ -447,7 +447,7 @@ export const convertProcessedParticipantToD03TK1Format = async (
       Maxa_NN: '',
       Diachi_NN: '',
       SoCCCD: participant.so_cccd || '',
-      SoBienLai2: (index + 1).toString(),
+      SoBienLai2: '', // Leave empty as requested - no automatic numbering
       NgayBienLai2: formatDate(participant.submitted_at),
       MaNhanvienThu: maNhanVienThu || '',
       DiaChi: buildFullAddress(), // Build full address from multiple fields
@@ -496,12 +496,31 @@ export const exportD03TK1WithTemplate = async (
     // Based on the image, data should start from row 15 (after the sample data)
     const dataStartRow = 15;
 
+    // Create base style template for performance
+    const baseStyle = {
+      font: {
+        name: 'Times New Roman',
+        size: 11,
+        color: { argb: '000000' }
+      },
+      alignment: {
+        vertical: 'middle',
+        horizontal: 'left',
+        wrapText: true
+      },
+      border: {
+        top: { style: 'thin', color: { argb: '000000' } },
+        left: { style: 'thin', color: { argb: '000000' } },
+        bottom: { style: 'thin', color: { argb: '000000' } },
+        right: { style: 'thin', color: { argb: '000000' } }
+      }
+    };
+
     // Insert new rows starting from row 15 to avoid overwriting sample data
+    console.log(`Starting Excel export for ${exportData.length} participants...`);
+
     exportData.forEach((rowData, index) => {
       const insertPosition = dataStartRow + index; // Position 15, 16, 17, ...
-
-      console.log(`Inserting new row at position ${insertPosition}: ${rowData.HoTen}`);
-      console.log(`Debug - Sothang: ${rowData.Sothang}, TuNgay: ${rowData.TuNgay}`);
 
       // Create data array for the new row (including column Q)
       const rowValues = [
@@ -513,12 +532,12 @@ export const exportD03TK1WithTemplate = async (
         rowData.GioiTinh === 1 ? 'Nam' : 'Nữ', // F: Giới tính
         rowData.DiaChi || '', // G: Địa chỉ
         rowData.TenBenhVien || '', // H: Nơi đăng ký KCB (Bệnh viện)
-        rowData.NgayBienLai, // I: Ngày biên lai (moved from N to I)
-        rowData.TuNgay, // J: Từ ngày
+        rowData.NgayBienLai, // I: Ngày biên lai
+        rowData.SoBienLai || '', // J: Số biên lai (leave empty if no data)
         rowData.Tiendong, // K: Số tiền
-        rowData.NgayChet || '', // L: Đến ngày
+        rowData.TuNgay, // L: Từ ngày (moved from J to L)
         rowData.Ghichu || '', // M: Ghi chú
-        '', // N: Cột trống
+        rowData.NgayChet || '', // N: Đến ngày (moved from L to N)
         rowData.Sothang, // O: Số tháng
         rowData.MaNhanvienThu || '', // P: Mã nhân viên thu
         '' // Q: Cột trống (cột 17)
@@ -536,59 +555,26 @@ export const exportD03TK1WithTemplate = async (
         }
       }
 
-      // Apply formatting to the new row
-      newRow.eachCell((cell, colNumber) => {
-        if (colNumber <= 17) { // Include column Q (17)
-          // Base style for all cells
-          cell.style = {
-            font: {
-              name: 'Times New Roman',
-              size: 11,
-              color: { argb: '000000' }
-            },
-            alignment: {
-              vertical: 'middle',
-              horizontal: 'left',
-              wrapText: true
-            },
-            border: {
-              top: { style: 'thin', color: { argb: '000000' } },
-              left: { style: 'thin', color: { argb: '000000' } },
-              bottom: { style: 'thin', color: { argb: '000000' } },
-              right: { style: 'thin', color: { argb: '000000' } }
-            }
-          };
+      // Set row height once
+      newRow.height = 75;
 
-          // Special alignment for specific columns
-          if (colNumber === 1) { // STT - center align
-            cell.style.alignment.horizontal = 'center';
-          } else if (colNumber === 11) { // Số tiền column (K) - right align with number format
-            cell.style.alignment.horizontal = 'right';
-            cell.style.numFmt = '#,##0';
-          } else if (colNumber === 15) { // Số tháng column (O) - center align
-            cell.style.alignment.horizontal = 'center';
-          } else if (colNumber === 5 || colNumber === 9 || colNumber === 10) { // Date columns (E, I, J) - center align
-            cell.style.alignment.horizontal = 'center';
-          }
+      // Apply formatting efficiently using base style
+      for (let colNumber = 1; colNumber <= 17; colNumber++) {
+        const cell = newRow.getCell(colNumber);
 
-          // Set row height for better readability (increased for better visibility)
-          newRow.height = 75;
-        }
-      });
+        // Apply base style
+        cell.style = { ...baseStyle };
 
-      // Ensure all columns up to Q (17) have proper borders, even if empty
-      for (let colIndex = 1; colIndex <= 17; colIndex++) {
-        const cell = newRow.getCell(colIndex);
-        if (!cell.style || !cell.style.border) {
-          cell.style = {
-            ...cell.style,
-            border: {
-              top: { style: 'thin', color: { argb: '000000' } },
-              left: { style: 'thin', color: { argb: '000000' } },
-              bottom: { style: 'thin', color: { argb: '000000' } },
-              right: { style: 'thin', color: { argb: '000000' } }
-            }
-          };
+        // Apply specific alignments
+        if (colNumber === 1) { // STT - center align
+          cell.style.alignment.horizontal = 'center';
+        } else if (colNumber === 11) { // Số tiền column (K) - right align with number format
+          cell.style.alignment.horizontal = 'right';
+          cell.style.numFmt = '#,##0';
+        } else if (colNumber === 15) { // Số tháng column (O) - center align
+          cell.style.alignment.horizontal = 'center';
+        } else if (colNumber === 5 || colNumber === 9 || colNumber === 10 || colNumber === 12) { // Date columns (E, I, J, L) - center align
+          cell.style.alignment.horizontal = 'center';
         }
       }
 
@@ -602,9 +588,12 @@ export const exportD03TK1WithTemplate = async (
       return sum + amount;
     }, 0);
 
-    // Find the row with "cộng tăng" text and update the total
-    worksheet.eachRow((row, rowNumber) => {
-      row.eachCell((cell, colNumber) => {
+    // Find the row with "cộng tăng" text and update the total (optimized search)
+    let foundTotal = false;
+    for (let rowNumber = 1; rowNumber <= worksheet.rowCount && !foundTotal; rowNumber++) {
+      const row = worksheet.getRow(rowNumber);
+      for (let colNumber = 1; colNumber <= 17 && !foundTotal; colNumber++) {
+        const cell = row.getCell(colNumber);
         if (cell.value && typeof cell.value === 'string' &&
             cell.value.toLowerCase().includes('cộng tăng')) {
           console.log(`Found "cộng tăng" at row ${rowNumber}, updating total: ${totalAmount}`);
@@ -623,38 +612,22 @@ export const exportD03TK1WithTemplate = async (
               right: { style: 'thin', color: { argb: '000000' } }
             }
           };
-        }
-      });
-    });
-
-    // Final pass: Ensure all data rows have consistent formatting across all columns
-    const totalDataRows = exportData.length;
-    for (let rowIndex = dataStartRow; rowIndex < dataStartRow + totalDataRows; rowIndex++) {
-      const row = worksheet.getRow(rowIndex);
-      for (let colIndex = 1; colIndex <= 17; colIndex++) {
-        const cell = row.getCell(colIndex);
-        // Ensure every cell has proper border
-        if (!cell.style?.border) {
-          cell.style = {
-            ...cell.style,
-            border: {
-              top: { style: 'thin', color: { argb: '000000' } },
-              left: { style: 'thin', color: { argb: '000000' } },
-              bottom: { style: 'thin', color: { argb: '000000' } },
-              right: { style: 'thin', color: { argb: '000000' } }
-            }
-          };
+          foundTotal = true;
         }
       }
     }
+
+    console.log(`Completed inserting ${exportData.length} rows. Calculating totals...`);
 
     // Generate filename
     const currentDate = new Date().toISOString().split('T')[0];
     const defaultFileName = `D03_TK1_${currentDate}.xlsx`;
     const finalFileName = fileName || defaultFileName;
 
+    console.log('Generating Excel file buffer...');
     // Write file to buffer
     const buffer = await workbook.xlsx.writeBuffer();
+    console.log('Excel file buffer generated successfully.');
 
     // Create blob and download
     const blob = new Blob([buffer], {
