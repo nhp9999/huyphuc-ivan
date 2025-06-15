@@ -23,7 +23,9 @@ import {
   Image,
   Bell,
   Play,
-  UserCheck
+  UserCheck,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 import {
   DanhSachKeKhai,
@@ -46,6 +48,7 @@ import { eventEmitter, EVENTS } from '../../../shared/utils/eventEmitter';
 import { useAuth } from '../../auth';
 import bhxhNotificationService from '../services/bhxhNotificationService';
 import DuplicateCheckModal from '../components/DuplicateCheckModal';
+import { exportD03TK1WithTemplate, ProcessedParticipantExport } from '../../../shared/utils/excelExport';
 
 // Interface for processed participant with declaration info
 interface ProcessedParticipant extends DanhSachNguoiThamGia {
@@ -117,6 +120,9 @@ const HoSoDaXuLy: React.FC = () => {
   // Duplicate check modal state
   const [showDuplicateCheckModal, setShowDuplicateCheckModal] = useState(false);
   const [quickScanLoading, setQuickScanLoading] = useState(false);
+
+  // Excel export state
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Function to fetch BHXH notifications
   const fetchBhxhNotifications = async (participantsList: ProcessedParticipant[]) => {
@@ -351,6 +357,132 @@ const HoSoDaXuLy: React.FC = () => {
       showToast('Có lỗi xảy ra khi quét dữ liệu trùng lặp', 'error');
     } finally {
       setQuickScanLoading(false);
+    }
+  };
+
+  // Handle export D03-TK1 Excel with template
+  const handleExportD03TK1Excel = async () => {
+    if (participantsList.length === 0) {
+      showToast('Không có dữ liệu để xuất Excel', 'warning');
+      return;
+    }
+
+    setExportingExcel(true);
+    try {
+      // Convert ProcessedParticipant to ProcessedParticipantExport format
+      const exportData: ProcessedParticipantExport[] = participantsList.map(participant => ({
+        id: participant.id,
+        ho_ten: participant.ho_ten,
+        ma_so_bhxh: participant.ma_so_bhxh,
+        so_cccd: participant.so_cccd,
+        ngay_sinh: participant.ngay_sinh,
+        gioi_tinh: participant.gioi_tinh,
+        so_dien_thoai: participant.so_dien_thoai,
+        so_the_bhyt: participant.so_the_bhyt,
+        noi_dang_ky_kcb: participant.noi_dang_ky_kcb,
+        noi_nhan_ho_so: participant.noi_nhan_ho_so || '',
+        xa_nkq: '', // Will need to resolve from ma_xa_nkq
+        huyen_nkq: '', // Will need to resolve from ma_huyen_nkq
+        tinh_nkq: '', // Will need to resolve from ma_tinh_nkq
+        dia_chi: participant.noi_nhan_ho_so || '', // Use noi_nhan_ho_so as address for now
+        tien_dong_thuc_te: participant.tien_dong_thuc_te || 0,
+        tien_dong: participant.tien_dong || 0,
+        participant_status: participant.participant_status || '',
+        payment_status: participant.payment_status || '',
+        submitted_at: participant.submitted_at || '',
+        paid_at: participant.paid_at || '',
+        ke_khai: {
+          id: participant.ke_khai.id,
+          ma_ke_khai: participant.ke_khai.ma_ke_khai,
+          ten_ke_khai: participant.ke_khai.ten_ke_khai,
+          trang_thai: participant.ke_khai.trang_thai,
+          created_at: participant.ke_khai.created_at,
+          approved_at: participant.ke_khai.approved_at || '',
+          luong_co_so: participant.ke_khai.luong_co_so || 2340000
+        }
+      }));
+
+      // Get employee code for tracking (optional)
+      const maNhanVienThu = user?.email || '';
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `D03_TK1_HoSoDaXuLy_${currentDate}.xlsx`;
+
+      // Export Excel using template
+      await exportD03TK1WithTemplate(exportData, maNhanVienThu, fileName);
+
+      showToast(`Đã xuất file Excel D03-TK1 thành công! (${exportData.length} bản ghi)`, 'success');
+    } catch (error) {
+      console.error('Error exporting D03-TK1 Excel:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi xuất Excel';
+      showToast(`Lỗi xuất Excel: ${errorMessage}`, 'error');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  // Handle export selected participants
+  const handleExportSelectedParticipants = async () => {
+    if (selectedParticipants.size === 0) {
+      showToast('Vui lòng chọn ít nhất một người tham gia để xuất Excel', 'warning');
+      return;
+    }
+
+    const selectedData = participantsList.filter(p => selectedParticipants.has(p.id));
+
+    setExportingExcel(true);
+    try {
+      // Convert selected participants to export format
+      const exportData: ProcessedParticipantExport[] = selectedData.map(participant => ({
+        id: participant.id,
+        ho_ten: participant.ho_ten,
+        ma_so_bhxh: participant.ma_so_bhxh,
+        so_cccd: participant.so_cccd,
+        ngay_sinh: participant.ngay_sinh,
+        gioi_tinh: participant.gioi_tinh,
+        so_dien_thoai: participant.so_dien_thoai,
+        so_the_bhyt: participant.so_the_bhyt,
+        noi_dang_ky_kcb: participant.noi_dang_ky_kcb,
+        noi_nhan_ho_so: participant.noi_nhan_ho_so || '',
+        xa_nkq: '', // Will need to resolve from ma_xa_nkq
+        huyen_nkq: '', // Will need to resolve from ma_huyen_nkq
+        tinh_nkq: '', // Will need to resolve from ma_tinh_nkq
+        dia_chi: participant.noi_nhan_ho_so || '', // Use noi_nhan_ho_so as address for now
+        tien_dong_thuc_te: participant.tien_dong_thuc_te || 0,
+        tien_dong: participant.tien_dong || 0,
+        participant_status: participant.participant_status || '',
+        payment_status: participant.payment_status || '',
+        submitted_at: participant.submitted_at || '',
+        paid_at: participant.paid_at || '',
+        ke_khai: {
+          id: participant.ke_khai.id,
+          ma_ke_khai: participant.ke_khai.ma_ke_khai,
+          ten_ke_khai: participant.ke_khai.ten_ke_khai,
+          trang_thai: participant.ke_khai.trang_thai,
+          created_at: participant.ke_khai.created_at,
+          approved_at: participant.ke_khai.approved_at || '',
+          luong_co_so: participant.ke_khai.luong_co_so || 2340000
+        }
+      }));
+
+      // Get employee code for tracking (optional)
+      const maNhanVienThu = user?.email || '';
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `D03_TK1_DaChon_${currentDate}.xlsx`;
+
+      // Export Excel using template
+      await exportD03TK1WithTemplate(exportData, maNhanVienThu, fileName);
+
+      showToast(`Đã xuất file Excel D03-TK1 cho ${exportData.length} người tham gia đã chọn!`, 'success');
+    } catch (error) {
+      console.error('Error exporting selected participants Excel:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi xuất Excel';
+      showToast(`Lỗi xuất Excel: ${errorMessage}`, 'error');
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -964,7 +1096,7 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
           </div>
 
           {/* Row 3 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -977,64 +1109,96 @@ Trạng thái kê khai: ${participant.ke_khai.trang_thai}
               />
             </div>
 
-            {/* Action buttons */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => {
-                  // Reset all filters
-                  setMaDonVi('');
-                  setMaTinh('');
-                  setMaHuyen('');
-                  setFromDate('');
-                  setToDate('');
-                  setMaBhxh('');
-                  setFilterStatus('all');
-                  setFilterPaymentStatus('all');
-                  setKetQua('all');
-                  setDaiLyId('');
-                  setCoQuanBhxhId('');
-                  setHinhThuc('all');
-                  setSoHoSo('');
-                  setSearchTerm('');
-                }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Xóa bộ lọc
-              </button>
-              <button
-                onClick={loadProcessedParticipantsData}
-                disabled={loading}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Tìm kiếm
-              </button>
-              <button
-                onClick={() => setShowDuplicateCheckModal(true)}
-                className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
-                title="Kiểm tra trùng lặp mã BHXH và họ tên"
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>Kiểm tra trùng lặp</span>
-              </button>
-              <button
-                onClick={handleQuickScan}
-                disabled={quickScanLoading}
-                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                title="Quét nhanh toàn bộ hệ thống để tìm trùng lặp"
-              >
-                <Search className={`w-4 h-4 ${quickScanLoading ? 'animate-spin' : ''}`} />
-                <span>{quickScanLoading ? 'Đang quét...' : 'Quét nhanh'}</span>
-              </button>
-            </div>
-
-            {/* Empty space */}
-            <div></div>
-
             {/* Results count */}
             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
               <Users className="w-4 h-4 mr-2" />
               Tìm thấy {totalParticipants} người tham gia
             </div>
+          </div>
+
+          {/* Row 4 - Action buttons */}
+          <div className="flex flex-wrap gap-2">
+            {/* Basic action buttons */}
+            <button
+              onClick={() => {
+                // Reset all filters
+                setMaDonVi('');
+                setMaTinh('');
+                setMaHuyen('');
+                setFromDate('');
+                setToDate('');
+                setMaBhxh('');
+                setFilterStatus('all');
+                setFilterPaymentStatus('all');
+                setKetQua('all');
+                setDaiLyId('');
+                setCoQuanBhxhId('');
+                setHinhThuc('all');
+                setSoHoSo('');
+                setSearchTerm('');
+              }}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Xóa bộ lọc
+            </button>
+            <button
+              onClick={loadProcessedParticipantsData}
+              disabled={loading}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Tìm kiếm
+            </button>
+            <button
+              onClick={() => setShowDuplicateCheckModal(true)}
+              className="px-4 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
+              title="Kiểm tra trùng lặp mã BHXH và họ tên"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>Kiểm tra trùng lặp</span>
+            </button>
+            <button
+              onClick={handleQuickScan}
+              disabled={quickScanLoading}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+              title="Quét nhanh toàn bộ hệ thống để tìm trùng lặp"
+            >
+              <Search className={`w-4 h-4 ${quickScanLoading ? 'animate-spin' : ''}`} />
+              <span>{quickScanLoading ? 'Đang quét...' : 'Quét nhanh'}</span>
+            </button>
+
+            {/* Divider */}
+            <div className="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+
+            {/* Excel Export buttons */}
+            <button
+              onClick={handleExportD03TK1Excel}
+              disabled={exportingExcel || participantsList.length === 0}
+              className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+              title="Xuất tất cả dữ liệu hiện tại ra file Excel D03-TK1"
+            >
+              {exportingExcel ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-4 h-4" />
+              )}
+              <span>{exportingExcel ? 'Đang xuất...' : 'Xuất D03-TK1'}</span>
+            </button>
+
+            {selectedParticipants.size > 0 && (
+              <button
+                onClick={handleExportSelectedParticipants}
+                disabled={exportingExcel}
+                className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                title={`Xuất ${selectedParticipants.size} người tham gia đã chọn ra file Excel D03-TK1`}
+              >
+                {exportingExcel ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span>{exportingExcel ? 'Đang xuất...' : `Xuất đã chọn (${selectedParticipants.size})`}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

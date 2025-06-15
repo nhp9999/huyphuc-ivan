@@ -1,6 +1,9 @@
 import * as ExcelJS from 'exceljs';
 import { KeKhai603Participant } from '../../modules/ke-khai/hooks/useKeKhai603Participants';
 import { DanhSachKeKhai } from '../services/api/supabaseClient';
+import { tinhService } from '../services/location/tinhService';
+import { huyenService } from '../services/location/huyenService';
+import { xaService } from '../services/location/xaService';
 
 // Interface for D03-TK1-VNPT Excel export data
 export interface D03TK1VNPTExportData {
@@ -57,6 +60,7 @@ export interface D03TK1VNPTExportData {
   SoBienLai2: string;
   NgayBienLai2: string;
   MaNhanvienThu: string;
+  DiaChi: string;
 }
 
 // Function to convert participant data to D03-TK1-VNPT format
@@ -256,5 +260,278 @@ export const exportD03TK1VNPTExcel = async (
   } catch (error) {
     console.error('Error exporting D03-TK1-VNPT Excel:', error);
     throw new Error('Không thể xuất file Excel. Vui lòng thử lại.');
+  }
+};
+
+// Interface for processed participant data from HoSoDaXuLy
+export interface ProcessedParticipantExport {
+  id: number;
+  ho_ten: string;
+  ma_so_bhxh: string;
+  so_cccd: string;
+  ngay_sinh: string;
+  gioi_tinh: string;
+  so_dien_thoai: string;
+  so_the_bhyt: string;
+  noi_dang_ky_kcb: string;
+  noi_nhan_ho_so: string;
+  xa_nkq: string;
+  huyen_nkq: string;
+  tinh_nkq: string;
+  dia_chi: string;
+  tien_dong_thuc_te: number;
+  tien_dong: number;
+  participant_status: string;
+  payment_status: string;
+  submitted_at: string;
+  paid_at: string;
+  ke_khai: {
+    id: number;
+    ma_ke_khai: string;
+    ten_ke_khai: string;
+    trang_thai: string;
+    created_at: string;
+    approved_at: string;
+    luong_co_so: number;
+  };
+}
+
+// Function to convert processed participant data to D03-TK1 format
+export const convertProcessedParticipantToD03TK1Format = (
+  participants: ProcessedParticipantExport[],
+  maNhanVienThu?: string
+): D03TK1VNPTExportData[] => {
+  return participants.map((participant, index) => {
+    // Helper function to format date
+    const formatDate = (dateString: string | null | undefined): string => {
+      if (!dateString) return '';
+      try {
+        const date = new Date(dateString);
+        // Format as dd/mm/yyyy to ensure full date display
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      } catch {
+        return '';
+      }
+    };
+
+    // Helper function to convert gender to number
+    const genderToNumber = (gender: string | undefined): number => {
+      if (!gender) return 0;
+      return gender.toLowerCase() === 'nam' ? 1 : 0;
+    };
+
+    // Helper function to parse amount
+    const parseAmount = (value: string | number | null | undefined): number => {
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const parsed = parseFloat(value.replace(/[^\d.-]/g, ''));
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return 0;
+    };
+
+    // Helper function to build full address
+    const buildFullAddress = (participant: ProcessedParticipantExport): string => {
+      const addressParts = [];
+
+      // Add detailed address if available
+      if (participant.noi_nhan_ho_so) {
+        addressParts.push(participant.noi_nhan_ho_so);
+      }
+
+      // Add xa, huyen, tinh from nkq fields if available
+      if (participant.xa_nkq) {
+        addressParts.push(participant.xa_nkq);
+      }
+      if (participant.huyen_nkq) {
+        addressParts.push(participant.huyen_nkq);
+      }
+      if (participant.tinh_nkq) {
+        addressParts.push(participant.tinh_nkq);
+      }
+
+      return addressParts.join(', ');
+    };
+
+    return {
+      STT: index + 1,
+      HoTen: participant.ho_ten || '',
+      MasoBHXH: participant.ma_so_bhxh || '',
+      MaPhongBan: '', // Empty as per sample
+      Loai: 1, // Default value as per sample
+      PA: 'ON', // Default to 'ON' as per sample
+      TyleNSDP: '', // Empty as requested
+      NgayBienLai: formatDate(participant.submitted_at),
+      SoBienLai: (index + 1).toString(),
+      NguoiThamGiaThu: 1, // Default to 1
+      Tiendong: participant.tien_dong_thuc_te || participant.tien_dong || participant.ke_khai.luong_co_so || 2340000,
+      TienDongThucTe: participant.tien_dong_thuc_te || participant.tien_dong || participant.ke_khai.luong_co_so || 2340000,
+      MucHuong: 0, // Default value
+      TuNgay: formatDate(participant.submitted_at),
+      NgayChet: '', // Empty as per sample
+      HotroKhac: '', // Empty as per sample
+      TenTinhDangSS: '', // Will be populated from location service
+      Matinh_DangSS: '',
+      Tenhuyen_DangSS: '',
+      Mahuyen_DangSS: '',
+      TenxaDangSS: '',
+      Maxa_DangSS: '',
+      Diachi_DangSS: '',
+      Sothang: 12, // Default value
+      Ghichu: '',
+      NgaySinh: formatDate(participant.ngay_sinh),
+      GioiTinh: genderToNumber(participant.gioi_tinh),
+      TenTinhBenhVien: '', // Will be populated from location service
+      MaTinhBenhVien: '',
+      TenBenhVien: participant.noi_dang_ky_kcb || '',
+      MaBenhVien: '',
+      MavungSS: '', // Empty as per sample
+      Tk1_Save: '', // Empty as default
+      CMND: participant.so_cccd || '',
+      Maho_Giadinh: '',
+      QuocTich: 'VN', // Default value as per sample
+      TenTinhKS: '', // Will be populated from location service
+      MaTinh_KS: '',
+      TenHuyenKS: '',
+      MaHuyen_KS: '',
+      TenXaKS: '',
+      MaXa_KS: '',
+      TenTinhNN: '',
+      Matinh_NN: '',
+      TenHuyenNN: '',
+      Mahuyen_NN: '',
+      TenXaNN: '',
+      Maxa_NN: '',
+      Diachi_NN: '',
+      SoCCCD: participant.so_cccd || '',
+      SoBienLai2: (index + 1).toString(),
+      NgayBienLai2: formatDate(participant.submitted_at),
+      MaNhanvienThu: maNhanVienThu || '',
+      DiaChi: buildFullAddress(participant) // Build full address from multiple fields
+    };
+  });
+};
+
+// Function to export D03-TK1 using existing template file
+export const exportD03TK1WithTemplate = async (
+  participants: ProcessedParticipantExport[],
+  maNhanVienThu?: string,
+  fileName?: string
+): Promise<void> => {
+  try {
+    // Convert data to D03-TK1 format
+    const exportData = convertProcessedParticipantToD03TK1Format(participants, maNhanVienThu);
+
+    // Load the template file
+    const templatePath = '/templates/FileMau_D03_TS.xlsx';
+    const response = await fetch(templatePath);
+
+    if (!response.ok) {
+      throw new Error('Không thể tải file mẫu Excel');
+    }
+
+    const templateBuffer = await response.arrayBuffer();
+
+    // Load template workbook
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(templateBuffer);
+
+    // Get the first worksheet (assuming data goes to the first sheet)
+    const worksheet = workbook.worksheets[0];
+
+    if (!worksheet) {
+      throw new Error('Không tìm thấy worksheet trong file mẫu');
+    }
+
+    // Based on the image, data should start from row 15 (after the sample data)
+    const dataStartRow = 15;
+
+    // Insert new rows starting from row 15 to avoid overwriting sample data
+    exportData.forEach((rowData, index) => {
+      const insertPosition = dataStartRow + index; // Position 15, 16, 17, ...
+
+      console.log(`Inserting new row at position ${insertPosition}: ${rowData.HoTen}`);
+      console.log(`Debug - Sothang: ${rowData.Sothang}, TuNgay: ${rowData.TuNgay}`);
+
+      // Create data array for the new row
+      const rowValues = [
+        rowData.STT, // A: STT
+        rowData.HoTen, // B: Họ tên
+        rowData.MasoBHXH, // C: Mã BHXH
+        rowData.CMND || '', // D: Số CCCD/CNTND/ĐDCN/hộ chiếu
+        rowData.NgaySinh, // E: Ngày sinh
+        rowData.GioiTinh === 1 ? 'Nam' : 'Nữ', // F: Giới tính
+        rowData.DiaChi || '', // G: Địa chỉ
+        rowData.TenBenhVien || '', // H: Nơi đăng ký KCB (Bệnh viện)
+        rowData.Sothang, // I: Số tháng
+        rowData.TuNgay, // J: Từ ngày
+        rowData.NgayChet || '', // K: Đến ngày
+        rowData.Tiendong, // L: Số tiền
+        rowData.Ghichu || '', // M: Ghi chú
+        rowData.MaNhanvienThu || '', // N: Mã nhân viên thu
+        rowData.NgayBienLai // O: Ngày lập
+      ];
+
+      // Insert a completely new row at the specified position
+      const newRow = worksheet.insertRow(insertPosition, rowValues);
+
+      // Apply formatting to the new row
+      newRow.eachCell((cell, colNumber) => {
+        if (colNumber <= 15) {
+          cell.style = {
+            font: { name: 'Times New Roman', size: 11 },
+            alignment: {
+              vertical: 'middle',
+              horizontal: colNumber === 1 ? 'center' : 'left' // Center STT, left align others
+            },
+            border: {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            }
+          };
+
+          // Special formatting for number columns
+          if (colNumber === 12) { // Số tiền column (now column L)
+            cell.style.numFmt = '#,##0';
+            cell.style.alignment.horizontal = 'right';
+          }
+        }
+      });
+
+      // Commit the row to ensure it's properly written
+      newRow.commit();
+    });
+
+    // Generate filename
+    const currentDate = new Date().toISOString().split('T')[0];
+    const defaultFileName = `D03_TK1_${currentDate}.xlsx`;
+    const finalFileName = fileName || defaultFileName;
+
+    // Write file to buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    // Create blob and download
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = finalFileName;
+    link.click();
+
+    // Clean up
+    window.URL.revokeObjectURL(url);
+
+    console.log(`Exported D03-TK1 Excel file using template: ${finalFileName}`);
+  } catch (error) {
+    console.error('Error exporting D03-TK1 Excel with template:', error);
+    throw new Error('Không thể xuất file Excel với template. Vui lòng thử lại.');
   }
 };
