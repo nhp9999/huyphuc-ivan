@@ -299,7 +299,7 @@ export interface ProcessedParticipantExport {
   };
 }
 
-// Helper function to resolve location names from codes
+// Helper function to resolve location names from codes (name only, no codes)
 const resolveLocationNames = async (
   maTinh?: string,
   maHuyen?: string,
@@ -307,9 +307,9 @@ const resolveLocationNames = async (
 ): Promise<{ tinhName: string; huyenName: string; xaName: string }> => {
   try {
     const [tinhName, huyenName, xaName] = await Promise.all([
-      maTinh ? tinhService.getTinhTextByValue(maTinh) : '',
-      maHuyen && maTinh ? huyenService.getHuyenTextByValue(maHuyen, maTinh) : '',
-      maXa && maHuyen && maTinh ? xaService.getXaTextByValue(maXa, maHuyen, maTinh) : ''
+      maTinh ? tinhService.getTinhNameByValue(maTinh) : '',
+      maHuyen && maTinh ? huyenService.getHuyenNameByValue(maHuyen, maTinh) : '',
+      maXa && maHuyen && maTinh ? xaService.getXaNameByValue(maXa, maHuyen, maTinh) : ''
     ]);
 
     return {
